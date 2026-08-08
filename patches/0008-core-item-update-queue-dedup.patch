@@ -1,0 +1,35 @@
+diff --git a/src/server/game/Entities/Item/Item.cpp b/src/server/game/Entities/Item/Item.cpp
+index 3e8ac0b3..aa69493a 100644
+--- a/src/server/game/Entities/Item/Item.cpp
++++ b/src/server/game/Entities/Item/Item.cpp
+@@ -757,6 +757,30 @@ void Item::AddToUpdateQueueOf(Player* player)
+     if (player->m_itemUpdateQueueBlocked)
+         return;
+ 
++    // uQueuePos is NOT a reliable "am I queued?" flag, so IsInUpdateQueue() above cannot be
++    // trusted on its own: SetState()'s ITEM_UNCHANGED branch sets uQueuePos = -1 while
++    // deliberately LEAVING this item in the queue ("the item must be removed from the queue
++    // manually"). Any later SetState(ITEM_NEW/ITEM_CHANGED) therefore reached the push_back below
++    // and appended a SECOND reference to an item that was already queued. A heavy re-gearing pass
++    // repeats that many times over: measured on a live bot logout, m_itemUpdateQueue held 108
++    // entries made up of only 27 distinct items, one of them appearing 58 times.
++    //
++    // Player::_SaveInventory() then walks every entry, so the first occurrence of a duplicated
++    // item frees it and each later occurrence touches freed (and by then recycled) memory. That
++    // surfaced as SIGSEGVs scattered across unrelated victims -- Object::GetGuidValue() on a
++    // zeroed field, virtual calls jumping into libstdc++'s vtable data, and stray writes into
++    // neighbouring heap objects.
++    //
++    // Re-adopt an existing slot instead of appending a duplicate, which makes this idempotent.
++    for (std::size_t i = 0; i < player->m_itemUpdateQueue.size(); ++i)
++    {
++        if (player->m_itemUpdateQueue[i] == this)
++        {
++            uQueuePos = int32(i);
++            return;
++        }
++    }
++
+     player->m_itemUpdateQueue.push_back(this);
+     uQueuePos = player->m_itemUpdateQueue.size() - 1;
+ }

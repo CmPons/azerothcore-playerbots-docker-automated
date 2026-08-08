@@ -6,6 +6,7 @@
 #include "PBChatterQueue.h"
 #include "PBChatterLore.h"
 #include "PBChatterAmbient.h"
+#include "PBChatterAmbientPrompt.h"   // StyleExamples() — shared few-shot style block
 #include "Player.h"
 #include "Group.h"
 #include "Guild.h"
@@ -31,6 +32,7 @@ namespace
         p += Acore::StringFormat("\n\n{} just said to you: \"{}\"\nReply briefly, like a normal player chatting back{}.",
                                  sender->GetName(), msg,
                                  recent.empty() ? "" : ", using what you remember above");
+        p += PBChatterAmbientPrompt::StyleExamples(2);
         return p;
     }
 

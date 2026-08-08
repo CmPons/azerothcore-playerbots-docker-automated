@@ -1,0 +1,7 @@
+## Interface: 30300
+## Title: DarkmoonFaire
+## Notes: Minimap tracker for the continuous Darkmoon Faire rotation.
+## Author: thrashernet
+## Version: 1.0
+## SavedVariablesPerCharacter: DarkmoonFaireDB
+DarkmoonFaire.lua

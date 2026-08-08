@@ -52,8 +52,19 @@ std::string PBChatterAreaBackfill::Start()
     if (done)
         do { seen.insert((*done)[0].Get<uint32>()); } while (done->NextRow());
 
-    QueryResult res = WorldDatabase.Query(
-        "SELECT id, map, position_x, position_y, position_z FROM creature ORDER BY id");
+    // The creature-entry column was renamed across AzerothCore versions: older schemas
+    // use `id`, newer (multi-spawn) schemas use `id1`. Detect it at runtime so this query
+    // works on both — a hardcoded name aborts the world thread with [1054] on the other.
+    std::string idCol = "id1";
+    if (QueryResult colq = WorldDatabase.Query(
+            "SELECT COLUMN_NAME FROM information_schema.COLUMNS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'creature' "
+            "AND COLUMN_NAME IN ('id', 'id1') ORDER BY COLUMN_NAME LIMIT 1"))
+        idCol = (*colq)[0].Get<std::string>();
+
+    std::string spawnSql = "SELECT " + idCol + ", map, position_x, position_y, position_z "
+                           "FROM creature ORDER BY " + idCol;
+    QueryResult res = WorldDatabase.Query(spawnSql.c_str());
     if (res)
     {
         do

@@ -1,0 +1,103 @@
+[worldserver]
+###############################################################################
+# mod-wintergrasp-bots: self-sustaining playerbot participation in Wintergrasp
+###############################################################################
+
+# Master switch. 0 = inert (no bots pulled into WG).
+WintergraspBots.Enable = 0
+
+# Target number of bots PER FACTION to keep in the battle.
+WintergraspBots.PerFaction = 15
+
+# Minimum bot level to be eligible (WG core MinLevel is 75).
+WintergraspBots.MinLevel = 75
+
+# Director tick throttle (ms). How often to reconcile population.
+WintergraspBots.TickMs = 5000
+
+# Log each director decision to the worldserver console.
+WintergraspBots.Debug = 0
+
+# ── Phase 2b: objectives ─────────────────────────────────────────────────────
+
+# Master toggle for the objective layer. 1 = bots capture workshops + role-position;
+# 0 = Phase 2a behavior (just hold + brawl at one rally point).
+WintergraspBots.WorkshopCapture = 1
+
+# Yards: once a bot is within this of its assigned objective, it stops and holds.
+WintergraspBots.ArriveRadius = 8.0
+
+# Seconds a bot must be traveling (not in combat) with no forward progress before it
+# is considered stuck and teleported to its objective (the only teleport path).
+WintergraspBots.StuckSeconds = 12
+
+# Yards of 2D movement below which one sample counts as "no progress" (stuck detection).
+WintergraspBots.StuckEpsilon = 3.0
+
+# Re-issue MovePoint every tick for idle bots so playerbots' idle-AI can't clear it.
+# 1 = on (recommended). 0 = issue once (debug only).
+WintergraspBots.ReassertMove = 1
+
+# Yards: an idle (out-of-combat) bot attacks the nearest hostile siege vehicle OR enemy player
+# within this range. Neither generates threat until it hits the bot itself, so without this
+# bots stand and watch them (even while a turret is being killed next to them). 0 = off.
+WintergraspBots.EngageVehicleRadius = 80
+
+# Percent of defenders reserved for the PRIORITY rally squad at the live threat (the enemy
+# vehicle cluster). Field jobs (retakes/pickets/keep watch) fill next; while the keep is
+# threatened, leftovers then ALSO join the rally — so the share is a priority cap, not a
+# hard ceiling on defenders at the fight.
+WintergraspBots.DefenseShare = 60
+
+# Spawn faction guard squads at the 4 workshops and the bridge/road posts during battle (the
+# core's WG script never implemented these field NPCs). They belong to whichever faction holds
+# the associated workshop, respawn on capture, and killing them grants rank like keep guards.
+WintergraspBots.FieldGarrison = 1
+
+# Max defenders manning keep tower cannons at once. Crews only exist while enemy siege
+# vehicles are near the keep (or a wall just took damage); gunners dismount when it clears.
+# The cap splits evenly across the two gatehouse posts (odd values round down per post but
+# each post keeps at least 1, so 1 still crews both; 0 disables crews).
+WintergraspBots.TurretCrewMax = 4
+
+# Defenders sent to the rally point per enemy vehicle in the threat cluster (floored at 4,
+# capped by DefenseShare).
+WintergraspBots.RallyPerVehicle = 3
+
+# Yards from the keep gate within which enemy siege vehicles count as a keep threat.
+WintergraspBots.ThreatRadius = 350
+
+# Yards: bots holding an objective walk a small patrol loop of this radius (0 = stand still).
+WintergraspBots.PatrolRadius = 12
+
+# Defenders that must gather at the interior muster point before the rally wave exits the
+# keep together (defenders otherwise trickle out the single rampart exit one at a time and
+# die solo). Below quorum the force holds inside at the muster. 0 = no mustering (each rally
+# bot travels out independently, the pre-fix behavior).
+WintergraspBots.SortieQuorum = 4
+
+# Attackers assigned per enemy-workshop capture squad once the rank-up phase is over
+# (rank-phase squads stay 4, rankless-first — that path is promotion-driven). While the
+# attacker holds NO workshop ALL capture squads surge +2 (rank-phase squads go 4 -> 6):
+# no workshop means no vehicle production.
+WintergraspBots.CaptureSquad = 5
+
+# ── Phase 3: siege vehicles ──────────────────────────────────────────────────
+
+# Master toggle: attacker bots build + pilot demolishers to break the keep. 0 = ground game only.
+WintergraspBots.SiegeEnable = 1
+
+# Vehicle slots per faction reserved for human players (bots build up to MAX_VEHICLE - reserve).
+WintergraspBots.HumanReserve = 2
+
+# Yards: an attacker foot bot within this of an alive, unmanned, friendly siege vehicle re-crews
+# it (turns an abandoned engine back into active siege at zero vehicle-cap cost). 0 = off.
+WintergraspBots.RecrewRadius = 40
+
+# Seconds an alive but unmanned, unreachable siege vehicle survives before it is killed to free
+# the faction vehicle cap (stuck in terrain/water; the core only frees the cap on death). 0 = off.
+WintergraspBots.VehicleReapSeconds = 30
+
+# Attackers left screening the keep gate when no siege vehicle is in play; the rest push the
+# workshops (which gate vehicle production) instead of massing at an unbreakable wall.
+WintergraspBots.KeepScreen = 4

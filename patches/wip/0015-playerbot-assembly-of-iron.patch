@@ -1,0 +1,699 @@
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Uld/UldActionContext.h b/modules/mod-playerbots/src/Ai/Raid/Uld/UldActionContext.h
+index 2c756e0..f85faa4 100644
+--- a/modules/mod-playerbots/src/Ai/Raid/Uld/UldActionContext.h
++++ b/modules/mod-playerbots/src/Ai/Raid/Uld/UldActionContext.h
+@@ -31,6 +31,11 @@ public:
+         creators["iron assembly lightning tendrils action"] = &RaidUlduarActionContext::iron_assembly_lightning_tendrils_action;
+         creators["iron assembly overload action"] = &RaidUlduarActionContext::iron_assembly_overload_action;
+         creators["iron assembly rune of power action"] = &RaidUlduarActionContext::iron_assembly_rune_of_power_action;
++        creators["iron assembly rune of death action"] = &RaidUlduarActionContext::iron_assembly_rune_of_death_action;
++        creators["iron assembly static disruption action"] = &RaidUlduarActionContext::iron_assembly_static_disruption_action;
++        creators["iron assembly mark kill order action"] = &RaidUlduarActionContext::iron_assembly_mark_kill_order_action;
++        creators["iron assembly off tank taunt action"] = &RaidUlduarActionContext::iron_assembly_off_tank_taunt_action;
++        creators["iron assembly off tank separate action"] = &RaidUlduarActionContext::iron_assembly_off_tank_separate_action;
+         creators["kologarn mark dps target action"] = &RaidUlduarActionContext::kologarn_mark_dps_target_action;
+         creators["kologarn fall from floor action"] = &RaidUlduarActionContext::kologarn_fall_from_floor_action;
+         creators["kologarn nature resistance action"] = &RaidUlduarActionContext::kologarn_nature_resistance_action;
+@@ -101,6 +106,11 @@ private:
+     static Action* iron_assembly_lightning_tendrils_action(PlayerbotAI* ai) { return new IronAssemblyLightningTendrilsAction(ai); }
+     static Action* iron_assembly_overload_action(PlayerbotAI* ai) { return new IronAssemblyOverloadAction(ai); }
+     static Action* iron_assembly_rune_of_power_action(PlayerbotAI* ai) { return new IronAssemblyRuneOfPowerAction(ai); }
++    static Action* iron_assembly_rune_of_death_action(PlayerbotAI* ai) { return new IronAssemblyRuneOfDeathAction(ai); }
++    static Action* iron_assembly_static_disruption_action(PlayerbotAI* ai) { return new IronAssemblyStaticDisruptionAction(ai); }
++    static Action* iron_assembly_mark_kill_order_action(PlayerbotAI* ai) { return new IronAssemblyMarkKillOrderAction(ai); }
++    static Action* iron_assembly_off_tank_taunt_action(PlayerbotAI* ai) { return new IronAssemblyOffTankTauntAction(ai); }
++    static Action* iron_assembly_off_tank_separate_action(PlayerbotAI* ai) { return new IronAssemblyOffTankSeparateAction(ai); }
+     static Action* kologarn_mark_dps_target_action(PlayerbotAI* ai) { return new KologarnMarkDpsTargetAction(ai); }
+     static Action* kologarn_fall_from_floor_action(PlayerbotAI* ai) { return new KologarnFallFromFloorAction(ai); }
+     static Action* kologarn_nature_resistance_action(PlayerbotAI* ai) { return new BossNatureResistanceAction(ai, "kologarn"); }
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Uld/UldActions.cpp b/modules/mod-playerbots/src/Ai/Raid/Uld/UldActions.cpp
+index 29e06b5..f4c1473 100644
+--- a/modules/mod-playerbots/src/Ai/Raid/Uld/UldActions.cpp
++++ b/modules/mod-playerbots/src/Ai/Raid/Uld/UldActions.cpp
+@@ -10,6 +10,7 @@
+ 
+ #include "AiObjectContext.h"
+ #include "DBCEnums.h"
++#include "DynamicObject.h"
+ #include "GameObject.h"
+ #include "Group.h"
+ #include "LastMovementValue.h"
+@@ -1116,7 +1117,7 @@ bool IronAssemblyLightningTendrilsAction::Execute(Event /*event*/)
+ {
+     const float radius = 18.0f + 10.0f;  // 18 yards + 10 yards for safety
+ 
+-    Unit* boss = AI_VALUE2(Unit*, "find target", "stormcaller brundir");
++    Unit* boss = GetAssemblyMember(bot, NPC_BRUNDIR_ENTRY);
+     if (!boss)
+         return false;
+ 
+@@ -1138,7 +1139,7 @@ bool IronAssemblyOverloadAction::Execute(Event /*event*/)
+ {
+     const float radius = 20.0f + 5.0f;  // 20 yards + 5 yards for safety
+ 
+-    Unit* boss = AI_VALUE2(Unit*, "find target", "stormcaller brundir");
++    Unit* boss = GetAssemblyMember(bot, NPC_BRUNDIR_ENTRY);
+     if (!boss)
+         return false;
+ 
+@@ -1165,6 +1166,189 @@ bool IronAssemblyRuneOfPowerAction::Execute(Event /*event*/)
+     return MoveAway(target, 10.0f, true);
+ }
+ 
++bool IronAssemblyRuneOfDeathAction::isUseful()
++{
++    IronAssemblyRuneOfDeathTrigger trigger(botAI);
++    return trigger.IsActive();
++}
++
++bool IronAssemblyRuneOfDeathAction::Execute(Event /*event*/)
++{
++    Aura* areaDebuff = AI_VALUE(Aura*, "area debuff");
++    if (!areaDebuff)
++        return false;
++
++    DynamicObject* dyn = areaDebuff->GetDynobjOwner();
++    if (!dyn || !dyn->IsInWorld())
++        return false;
++
++    float radius = dyn->GetRadius();
++    if (bot->GetDistance(dyn) > radius)
++        return false;
++
++    // Flee the rune center; the tanked boss follows the tank, kiting it off the rune. +3y margin
++    // (like the tendrils/overload vacate) so the tank clears the rune edge rather than clipping it.
++    return FleePosition(dyn->GetPosition(), radius + 3.0f);
++}
++
++bool IronAssemblyStaticDisruptionAction::isUseful()
++{
++    IronAssemblyStaticDisruptionTrigger trigger(botAI);
++    return trigger.IsActive();
++}
++
++bool IronAssemblyStaticDisruptionAction::Execute(Event /*event*/)
++{
++    GuidVector members = AI_VALUE(GuidVector, "group members");
++    Unit* closest = nullptr;
++    float best = 7.0f;
++    for (ObjectGuid const& guid : members)
++    {
++        Unit* member = botAI->GetUnit(guid);
++        if (!member || member == bot || !member->IsAlive())
++            continue;
++        if (!(member->HasAura(SPELL_STATIC_DISRUPTION_10_MAN) || member->HasAura(SPELL_STATIC_DISRUPTION_25_MAN)))
++            continue;
++        float d = bot->GetDistance(member);
++        if (d < best)
++        {
++            best = d;
++            closest = member;
++        }
++    }
++    if (!closest)
++        return false;
++
++    return MoveAway(closest, 7.0f - best);
++}
++
++bool IronAssemblyMarkKillOrderAction::isUseful()
++{
++    IronAssemblyMarkKillOrderTrigger trigger(botAI);
++    return trigger.IsActive();
++}
++
++bool IronAssemblyMarkKillOrderAction::Execute(Event /*event*/)
++{
++    // Only a tank drives the raid mark (DPS + main tank hard-focus the skull).
++    if (!botAI->IsTank(bot))
++        return false;
++
++    Group* group = bot->GetGroup();
++    if (!group)
++        return false;
++
++    Unit* killTarget = GetAssemblyKillTarget(bot);
++    if (!killTarget)
++        return false;
++
++    // Advance the skull to the current kill target (Steelbreaker -> Molgeim -> Brundir).
++    int8 skullIndex = 7;  // Skull
++    group->SetTargetIcon(skullIndex, bot->GetGUID(), killTarget->GetGUID());
++    return true;
++}
++
++bool IronAssemblyOffTankTauntAction::isUseful()
++{
++    IronAssemblyOffTankTauntTrigger trigger(botAI);
++    return trigger.IsActive();
++}
++
++bool IronAssemblyOffTankTauntAction::Execute(Event /*event*/)
++{
++    // Off-tanks only: the main tank holds the kill target.
++    if (!botAI->IsTank(bot) || botAI->IsMainTank(bot))
++        return false;
++
++    Unit* killTarget = GetAssemblyKillTarget(bot);
++
++    // Cross-class taunt (verbatim from ICCActions_Dogs.cpp's CastClassTaunt): reset the class
++    // taunt cooldown then cast it, with a ranged shoot/throw fallback for classes without one.
++    auto CastClassTaunt = [&](Unit* target) -> bool
++    {
++        if (!target || !target->IsAlive())
++            return false;
++
++        switch (bot->getClass())
++        {
++            case CLASS_PALADIN:
++            {
++                bot->RemoveSpellCooldown(ULDUAR_TAUNT_PALADIN, true);
++                if (botAI->CastSpell("hand of reckoning", target))
++                    return true;
++                break;
++            }
++            case CLASS_DEATH_KNIGHT:
++            {
++                bot->RemoveSpellCooldown(ULDUAR_TAUNT_DK, true);
++                if (botAI->CastSpell("dark command", target))
++                    return true;
++                break;
++            }
++            case CLASS_DRUID:
++            {
++                bot->RemoveSpellCooldown(ULDUAR_TAUNT_DRUID, true);
++                if (botAI->CastSpell("growl", target))
++                    return true;
++                break;
++            }
++            case CLASS_WARRIOR:
++            {
++                bot->RemoveSpellCooldown(ULDUAR_TAUNT_WARRIOR, true);
++                if (botAI->CastSpell("taunt", target))
++                    return true;
++                break;
++            }
++            default:
++                break;
++        }
++
++        if (botAI->CastSpell("shoot", target) || botAI->CastSpell("throw", target))
++            return true;
++
++        return false;
++    };
++
++    // Taunt every living non-kill boss this off-tank has not yet peeled. Taunting both each
++    // execution (with the cooldown reset) is how one off-tank holds two — intended.
++    bool taunted = false;
++    uint32 const entries[] = {NPC_STEELBREAKER_ENTRY, NPC_MOLGEIM_ENTRY, NPC_BRUNDIR_ENTRY};
++    for (uint32 entry : entries)
++    {
++        Unit* boss = GetAssemblyMember(bot, entry);
++        if (!boss)
++            continue;
++        if (killTarget && boss == killTarget)
++            continue;
++        if (boss->GetVictim() == bot)
++            continue;
++        if (CastClassTaunt(boss))
++            taunted = true;
++    }
++    return taunted;
++}
++
++bool IronAssemblyOffTankSeparateAction::isUseful()
++{
++    IronAssemblyOffTankSeparateTrigger trigger(botAI);
++    return trigger.IsActive();
++}
++
++bool IronAssemblyOffTankSeparateAction::Execute(Event /*event*/)
++{
++    Unit* mainTank = AI_VALUE(Unit*, "main tank");
++    if (!mainTank || mainTank == bot)
++        return false;
++
++    float dist = bot->GetDistance(mainTank);
++    if (dist >= ULDUAR_ASSEMBLY_OFFTANK_SEPARATION)
++        return false;
++
++    // Move away from the main tank; the held bosses (Molgeim + Brundir) follow via aggro, pulling
++    // Brundir's Overload radius off the main tank and the DPS cluster on the kill target.
++    return MoveAway(mainTank, ULDUAR_ASSEMBLY_OFFTANK_SEPARATION - dist);
++}
++
+ bool KologarnMarkDpsTargetAction::isUseful()
+ {
+     KologarnMarkDpsTargetTrigger kologarnMarkDpsTargetTrigger(botAI);
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Uld/UldActions.h b/modules/mod-playerbots/src/Ai/Raid/Uld/UldActions.h
+index b4b9d3f..3f7aa36 100644
+--- a/modules/mod-playerbots/src/Ai/Raid/Uld/UldActions.h
++++ b/modules/mod-playerbots/src/Ai/Raid/Uld/UldActions.h
+@@ -139,6 +139,46 @@ public:
+     bool isUseful() override;
+ };
+ 
++class IronAssemblyRuneOfDeathAction : public MovementAction
++{
++public:
++    IronAssemblyRuneOfDeathAction(PlayerbotAI* botAI) : MovementAction(botAI, "iron assembly rune of death action") {}
++    bool Execute(Event event) override;
++    bool isUseful() override;
++};
++
++class IronAssemblyStaticDisruptionAction : public MovementAction
++{
++public:
++    IronAssemblyStaticDisruptionAction(PlayerbotAI* botAI) : MovementAction(botAI, "iron assembly static disruption action") {}
++    bool Execute(Event event) override;
++    bool isUseful() override;
++};
++
++class IronAssemblyMarkKillOrderAction : public Action
++{
++public:
++    IronAssemblyMarkKillOrderAction(PlayerbotAI* botAI) : Action(botAI, "iron assembly mark kill order action") {}
++    bool Execute(Event event) override;
++    bool isUseful() override;
++};
++
++class IronAssemblyOffTankTauntAction : public Action
++{
++public:
++    IronAssemblyOffTankTauntAction(PlayerbotAI* botAI) : Action(botAI, "iron assembly off tank taunt action") {}
++    bool Execute(Event event) override;
++    bool isUseful() override;
++};
++
++class IronAssemblyOffTankSeparateAction : public MovementAction
++{
++public:
++    IronAssemblyOffTankSeparateAction(PlayerbotAI* botAI) : MovementAction(botAI, "iron assembly off tank separate action") {}
++    bool Execute(Event event) override;
++    bool isUseful() override;
++};
++
+ class KologarnMarkDpsTargetAction : public Action
+ {
+ public:
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Uld/UldStrategy.cpp b/modules/mod-playerbots/src/Ai/Raid/Uld/UldStrategy.cpp
+index c2fa156..5bb0fe5 100644
+--- a/modules/mod-playerbots/src/Ai/Raid/Uld/UldStrategy.cpp
++++ b/modules/mod-playerbots/src/Ai/Raid/Uld/UldStrategy.cpp
+@@ -70,6 +70,26 @@ void RaidUlduarStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
+         "iron assembly rune of power trigger",
+         { NextAction("iron assembly rune of power action", ACTION_RAID) }));
+ 
++    triggers.push_back(new TriggerNode(
++        "iron assembly rune of death trigger",
++        { NextAction("iron assembly rune of death action", ACTION_RAID + 3) }));
++
++    triggers.push_back(new TriggerNode(
++        "iron assembly static disruption trigger",
++        { NextAction("iron assembly static disruption action", ACTION_RAID) }));
++
++    triggers.push_back(new TriggerNode(
++        "iron assembly mark kill order trigger",
++        { NextAction("iron assembly mark kill order action", ACTION_RAID) }));
++
++    triggers.push_back(new TriggerNode(
++        "iron assembly off tank taunt trigger",
++        { NextAction("iron assembly off tank taunt action", ACTION_RAID + 2) }));
++
++    triggers.push_back(new TriggerNode(
++        "iron assembly off tank separate trigger",
++        { NextAction("iron assembly off tank separate action", ACTION_RAID + 1) }));
++
+     //
+     // Kologarn
+     //
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Uld/UldTriggerContext.h b/modules/mod-playerbots/src/Ai/Raid/Uld/UldTriggerContext.h
+index d2dcd72..9ab9e94 100644
+--- a/modules/mod-playerbots/src/Ai/Raid/Uld/UldTriggerContext.h
++++ b/modules/mod-playerbots/src/Ai/Raid/Uld/UldTriggerContext.h
+@@ -30,6 +30,11 @@ public:
+         creators["iron assembly lightning tendrils trigger"] = &RaidUlduarTriggerContext::iron_assembly_lightning_tendrils_trigger;
+         creators["iron assembly overload trigger"] = &RaidUlduarTriggerContext::iron_assembly_overload_trigger;
+         creators["iron assembly rune of power trigger"] = &RaidUlduarTriggerContext::iron_assembly_rune_of_power_trigger;
++        creators["iron assembly rune of death trigger"] = &RaidUlduarTriggerContext::iron_assembly_rune_of_death_trigger;
++        creators["iron assembly static disruption trigger"] = &RaidUlduarTriggerContext::iron_assembly_static_disruption_trigger;
++        creators["iron assembly mark kill order trigger"] = &RaidUlduarTriggerContext::iron_assembly_mark_kill_order_trigger;
++        creators["iron assembly off tank taunt trigger"] = &RaidUlduarTriggerContext::iron_assembly_off_tank_taunt_trigger;
++        creators["iron assembly off tank separate trigger"] = &RaidUlduarTriggerContext::iron_assembly_off_tank_separate_trigger;
+         creators["kologarn mark dps target trigger"] = &RaidUlduarTriggerContext::kologarn_mark_dps_target_trigger;
+         creators["kologarn fall from floor trigger"] = &RaidUlduarTriggerContext::kologarn_fall_from_floor_trigger;
+         creators["kologarn nature resistance trigger"] = &RaidUlduarTriggerContext::kologarn_nature_resistance_trigger;
+@@ -102,6 +107,11 @@ private:
+     static Trigger* iron_assembly_lightning_tendrils_trigger(PlayerbotAI* ai) { return new IronAssemblyLightningTendrilsTrigger(ai); }
+     static Trigger* iron_assembly_overload_trigger(PlayerbotAI* ai) { return new IronAssemblyOverloadTrigger(ai); }
+     static Trigger* iron_assembly_rune_of_power_trigger(PlayerbotAI* ai) { return new IronAssemblyRuneOfPowerTrigger(ai); }
++    static Trigger* iron_assembly_rune_of_death_trigger(PlayerbotAI* ai) { return new IronAssemblyRuneOfDeathTrigger(ai); }
++    static Trigger* iron_assembly_static_disruption_trigger(PlayerbotAI* ai) { return new IronAssemblyStaticDisruptionTrigger(ai); }
++    static Trigger* iron_assembly_mark_kill_order_trigger(PlayerbotAI* ai) { return new IronAssemblyMarkKillOrderTrigger(ai); }
++    static Trigger* iron_assembly_off_tank_taunt_trigger(PlayerbotAI* ai) { return new IronAssemblyOffTankTauntTrigger(ai); }
++    static Trigger* iron_assembly_off_tank_separate_trigger(PlayerbotAI* ai) { return new IronAssemblyOffTankSeparateTrigger(ai); }
+     static Trigger* kologarn_mark_dps_target_trigger(PlayerbotAI* ai) { return new KologarnMarkDpsTargetTrigger(ai); }
+     static Trigger* kologarn_fall_from_floor_trigger(PlayerbotAI* ai) { return new KologarnFallFromFloorTrigger(ai); }
+     static Trigger* kologarn_nature_resistance_trigger(PlayerbotAI* ai) { return new BossNatureResistanceTrigger(ai, "kologarn"); }
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Uld/UldTriggers.cpp b/modules/mod-playerbots/src/Ai/Raid/Uld/UldTriggers.cpp
+index aea95a5..298a37a 100644
+--- a/modules/mod-playerbots/src/Ai/Raid/Uld/UldTriggers.cpp
++++ b/modules/mod-playerbots/src/Ai/Raid/Uld/UldTriggers.cpp
+@@ -268,7 +268,7 @@ bool RazorscaleFuseArmorTrigger::IsActive()
+ bool IronAssemblyLightningTendrilsTrigger::IsActive()
+ {
+     // Check boss and it is alive
+-    Unit* boss = AI_VALUE2(Unit*, "find target", "stormcaller brundir");
++    Unit* boss = GetAssemblyMember(bot, NPC_BRUNDIR_ENTRY);
+     if (!boss || !boss->IsAlive())
+         return false;
+ 
+@@ -287,7 +287,7 @@ bool IronAssemblyOverloadTrigger::IsActive()
+         return false;
+ 
+     // Check boss and it is alive
+-    Unit* boss = AI_VALUE2(Unit*, "find target", "stormcaller brundir");
++    Unit* boss = GetAssemblyMember(bot, NPC_BRUNDIR_ENTRY);
+     if (!boss || !boss->IsAlive())
+         return false;
+ 
+@@ -315,6 +315,136 @@ bool IronAssemblyRuneOfPowerTrigger::IsActive()
+     return botAI->IsTank(bot);
+ }
+ 
++bool IronAssemblyRuneOfDeathTrigger::IsActive()
++{
++    // Tank-only: non-tanks flee via generic "avoid aoe"; the tank kites the boss off the rune.
++    if (!botAI->IsTank(bot))
++        return false;
++
++    // Cheap gate FIRST: "area debuff" is a cached, negative-dynobj-only value, so Rune of Power
++    // (positive) is excluded and on this encounter the only such rune under the tank is Rune of
++    // Death. Check it before any world search — this trigger runs every react tick per tank bot,
++    // and CLAUDE.md warns against per-tick grid queries on the map-update thread.
++    if (AI_VALUE(Aura*, "area debuff") == nullptr)
++        return false;
++
++    // Only while tanking a living Assembly member. GetAssemblyMember already filters to alive.
++    Unit* boss = GetAssemblyMember(bot, NPC_STEELBREAKER_ENTRY);
++    if (!boss)
++        boss = GetAssemblyMember(bot, NPC_MOLGEIM_ENTRY);
++    if (!boss)
++        boss = GetAssemblyMember(bot, NPC_BRUNDIR_ENTRY);
++
++    return boss != nullptr;
++}
++
++bool IronAssemblyStaticDisruptionTrigger::IsActive()
++{
++    // Tank stays put (moving would drop the boss); only spreaders react.
++    if (botAI->IsTank(bot))
++        return false;
++
++    // Only while Steelbreaker (the caster) is up.
++    Unit* steelbreaker = GetAssemblyMember(bot, NPC_STEELBREAKER_ENTRY);
++    if (!steelbreaker || !steelbreaker->IsAlive())
++        return false;
++
++    GuidVector members = AI_VALUE(GuidVector, "group members");
++    for (ObjectGuid const& guid : members)
++    {
++        Unit* member = botAI->GetUnit(guid);
++        if (!member || member == bot || !member->IsAlive())
++            continue;
++        if ((member->HasAura(SPELL_STATIC_DISRUPTION_10_MAN) || member->HasAura(SPELL_STATIC_DISRUPTION_25_MAN))
++            && bot->GetDistance(member) < 7.0f)
++            return true;
++    }
++    return false;
++}
++
++bool IronAssemblyMarkKillOrderTrigger::IsActive()
++{
++    // Only a tank drives the raid mark — gate BEFORE GetAssemblyKillTarget so non-tank raid bots
++    // don't each run grid searches every react tick (per CLAUDE.md's per-tick-world-query caution).
++    if (!botAI->IsTank(bot))
++        return false;
++
++    // Need the group to read/advance the skull mark.
++    Group* group = bot->GetGroup();
++    if (!group)
++        return false;
++
++    // The living kill target in order Steelbreaker -> Molgeim -> Brundir.
++    Unit* killTarget = GetAssemblyKillTarget(bot);
++    if (!killTarget)
++        return false;
++
++    // Fire only when the skull needs updating — idempotent, no per-tick spam / re-mark loop.
++    int8 skullIndex = 7;  // Skull
++    return group->GetTargetIcon(skullIndex) != killTarget->GetGUID();
++}
++
++bool IronAssemblyOffTankTauntTrigger::IsActive()
++{
++    // Off-tanks only: the main tank holds the kill target; off-tanks peel the other two.
++    // Assumes a 2-tank comp (the Council is normally two-tanked): with only ONE tank alive it is
++    // the main tank, this never engages, and the two non-kill bosses stay on the main tank.
++    if (!botAI->IsTank(bot) || botAI->IsMainTank(bot))
++        return false;
++
++    Unit* killTarget = GetAssemblyKillTarget(bot);
++
++    // True if any living non-kill boss is not already tanked by this off-tank.
++    uint32 const entries[] = {NPC_STEELBREAKER_ENTRY, NPC_MOLGEIM_ENTRY, NPC_BRUNDIR_ENTRY};
++    for (uint32 entry : entries)
++    {
++        Unit* boss = GetAssemblyMember(bot, entry);
++        if (!boss)
++            continue;
++        if (killTarget && boss == killTarget)
++            continue;
++        if (boss->GetVictim() == bot)
++            continue;
++        return true;
++    }
++    return false;
++}
++
++bool IronAssemblyOffTankSeparateTrigger::IsActive()
++{
++    // Off-tanks only: separate the two bosses this tank holds away from the main tank so Brundir's
++    // Overload does not reach the main tank / kill-target cluster.
++    if (!botAI->IsTank(bot) || botAI->IsMainTank(bot))
++        return false;
++
++    Unit* mainTank = AI_VALUE(Unit*, "main tank");
++    if (!mainTank || mainTank == bot)
++        return false;
++
++    // Only once actually holding a non-kill boss (peel first — the taunt action is higher priority).
++    Unit* killTarget = GetAssemblyKillTarget(bot);
++    bool holding = false;
++    uint32 const entries[] = {NPC_STEELBREAKER_ENTRY, NPC_MOLGEIM_ENTRY, NPC_BRUNDIR_ENTRY};
++    for (uint32 entry : entries)
++    {
++        Unit* boss = GetAssemblyMember(bot, entry);
++        if (!boss)
++            continue;
++        if (killTarget && boss == killTarget)
++            continue;
++        if (boss->GetVictim() == bot)
++        {
++            holding = true;
++            break;
++        }
++    }
++    if (!holding)
++        return false;
++
++    // Too close to the main tank -> reposition (the held bosses follow via aggro).
++    return bot->GetDistance(mainTank) < ULDUAR_ASSEMBLY_OFFTANK_SEPARATION;
++}
++
+ bool KologarnMarkDpsTargetTrigger::IsActive()
+ {
+     // Check boss and it is alive
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Uld/UldTriggers.h b/modules/mod-playerbots/src/Ai/Raid/Uld/UldTriggers.h
+index 2596ebb..8b43652 100644
+--- a/modules/mod-playerbots/src/Ai/Raid/Uld/UldTriggers.h
++++ b/modules/mod-playerbots/src/Ai/Raid/Uld/UldTriggers.h
+@@ -99,6 +99,41 @@ public:
+     bool IsActive() override;
+ };
+ 
++class IronAssemblyRuneOfDeathTrigger : public Trigger
++{
++public:
++    IronAssemblyRuneOfDeathTrigger(PlayerbotAI* ai) : Trigger(ai, "iron assembly rune of death trigger") {}
++    bool IsActive() override;
++};
++
++class IronAssemblyStaticDisruptionTrigger : public Trigger
++{
++public:
++    IronAssemblyStaticDisruptionTrigger(PlayerbotAI* ai) : Trigger(ai, "iron assembly static disruption trigger") {}
++    bool IsActive() override;
++};
++
++class IronAssemblyMarkKillOrderTrigger : public Trigger
++{
++public:
++    IronAssemblyMarkKillOrderTrigger(PlayerbotAI* ai) : Trigger(ai, "iron assembly mark kill order trigger") {}
++    bool IsActive() override;
++};
++
++class IronAssemblyOffTankTauntTrigger : public Trigger
++{
++public:
++    IronAssemblyOffTankTauntTrigger(PlayerbotAI* ai) : Trigger(ai, "iron assembly off tank taunt trigger") {}
++    bool IsActive() override;
++};
++
++class IronAssemblyOffTankSeparateTrigger : public Trigger
++{
++public:
++    IronAssemblyOffTankSeparateTrigger(PlayerbotAI* ai) : Trigger(ai, "iron assembly off tank separate trigger") {}
++    bool IsActive() override;
++};
++
+ //
+ // Kologarn
+ //
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Uld/Util/UldBossHelper.h b/modules/mod-playerbots/src/Ai/Raid/Uld/Util/UldBossHelper.h
+index bfabbe3..3247790 100644
+--- a/modules/mod-playerbots/src/Ai/Raid/Uld/Util/UldBossHelper.h
++++ b/modules/mod-playerbots/src/Ai/Raid/Uld/Util/UldBossHelper.h
+@@ -28,6 +28,20 @@ enum UlduarIDs
+     SPELL_OVERLOAD_25_MAN_2 = 61886,
+     SPELL_RUNE_OF_POWER = 64320,
+ 
++    // Iron Assembly — added for the Assembly of Iron fix (patch 0007)
++    NPC_STEELBREAKER_ENTRY = 32867,
++    NPC_MOLGEIM_ENTRY = 32927,
++    NPC_BRUNDIR_ENTRY = 32857,
++    // Rune of Death: detected via the "area debuff" dynobj value, not by id (ids kept for the
++    // optional trigger-narrowing noted in the plan's live-verification step).
++    SPELL_RUNE_OF_DEATH_10_MAN = 62269,
++    SPELL_RUNE_OF_DEATH_25_MAN = 63490,
++    SPELL_STATIC_DISRUPTION_10_MAN = 61911,
++    SPELL_STATIC_DISRUPTION_25_MAN = 63495,
++    // Fusion Punch: reserved for the verify-first dispel (plan Task 5); unused until wired.
++    SPELL_FUSION_PUNCH_10_MAN = 61903,
++    SPELL_FUSION_PUNCH_25_MAN = 63493,
++
+     // Kologarn
+     NPC_RIGHT_ARM = 32934,
+     NPC_LEFT_ARM = 32933,
+@@ -147,6 +161,46 @@ enum UlduarIDs
+     SPELL_FROST_TRAP = 13809
+ };
+ 
++// Cross-class taunt spell ids for the Assembly of Iron off-tank taunt (same values as the ICC dogs
++// idiom). ULDUAR_-prefixed to avoid a same-scope redefinition clash with ICCTriggers.h's
++// SPELL_TAUNT_* enum constants (the module build compiles a TU that sees both headers).
++constexpr uint32 ULDUAR_TAUNT_WARRIOR = 355;
++constexpr uint32 ULDUAR_TAUNT_PALADIN = 62124;  // Hand of Reckoning
++constexpr uint32 ULDUAR_TAUNT_DK = 56222;       // Dark Command
++constexpr uint32 ULDUAR_TAUNT_DRUID = 6795;     // Growl
++
++// The Assembly off-tank holds its two non-kill bosses at least this far from the main tank, so
++// Brundir's Overload (radius ~20-25y per the non-tank dodge) never reaches the main tank / DPS
++// cluster on the kill target. Tunable if live testing shows Overload reaching further.
++constexpr float ULDUAR_ASSEMBLY_OFFTANK_SEPARATION = 30.0f;
++
++// Resolve a living Assembly of Iron council member by creature entry near the bot.
++//
++// Unlike AI_VALUE2(Unit*, "find target", "<name>") — which scans ONLY the bot's threat list
++// (TargetValue.cpp) and returns null the instant Brundir CombatStop()s for Lightning Tendrils —
++// this searches the world, so the tendrils/overload dodges keep firing through the CombatStop.
++// Bots are always within a few dozen yards of the council, so the ~533y grid-search clamp and the
++// 100y range are irrelevant. Returns nullptr if not found or dead.
++inline Unit* GetAssemblyMember(Player* bot, uint32 entry)
++{
++    if (!bot)
++        return nullptr;
++    return bot->FindNearestCreature(entry, 100.0f);  // alive=true by default
++}
++
++// Highest-priority LIVING Assembly boss in kill order: Steelbreaker -> Molgeim -> Brundir.
++// Returns nullptr when none are alive/near. GetAssemblyMember already filters to alive.
++inline Unit* GetAssemblyKillTarget(Player* bot)
++{
++    if (Unit* steelbreaker = GetAssemblyMember(bot, NPC_STEELBREAKER_ENTRY))
++        return steelbreaker;
++    if (Unit* molgeim = GetAssemblyMember(bot, NPC_MOLGEIM_ENTRY))
++        return molgeim;
++    if (Unit* brundir = GetAssemblyMember(bot, NPC_BRUNDIR_ENTRY))
++        return brundir;
++    return nullptr;
++}
++
+ constexpr float ULDUAR_KOLOGARN_AXIS_Z_PATHING_ISSUE_DETECT = 420.0f;
+ 
+ // Focused Eyebeam — geometric beam-line vacate. All distances in yards; tune DANGER_WIDTH at runtime.
+diff --git a/src/server/scripts/Northrend/Ulduar/Ulduar/boss_assembly_of_iron.cpp b/src/server/scripts/Northrend/Ulduar/Ulduar/boss_assembly_of_iron.cpp
+index 7e2eb3f7..5ac90223 100644
+--- a/src/server/scripts/Northrend/Ulduar/Ulduar/boss_assembly_of_iron.cpp
++++ b/src/server/scripts/Northrend/Ulduar/Ulduar/boss_assembly_of_iron.cpp
+@@ -586,6 +586,7 @@ struct boss_stormcaller_brundir : public ScriptedAI
+     uint32 _channelTimer;
+ 
+     bool _stunnedAchievement;
++    bool _lightningTendrilsActive;
+ 
+     void Reset() override
+     {
+@@ -596,6 +597,7 @@ struct boss_stormcaller_brundir : public ScriptedAI
+         _phase = 0;
+         _flyTargetGUID.Clear();
+         _stunnedAchievement = true;
++        _lightningTendrilsActive = false;
+ 
+         events.Reset();
+ 
+@@ -611,6 +613,14 @@ struct boss_stormcaller_brundir : public ScriptedAI
+         }
+     }
+ 
++    void EnterEvadeMode(EvadeReason why = EVADE_REASON_OTHER) override
++    {
++        // Never let the tendrils flight window (CombatStop + PASSIVE) trip a no-hostiles reset.
++        if (_lightningTendrilsActive && why == EVADE_REASON_NO_HOSTILES)
++            return;
++        ScriptedAI::EnterEvadeMode(why);
++    }
++
+     void JustReachedHome() override
+     {
+         me->setActive(false);
+@@ -745,7 +755,11 @@ struct boss_stormcaller_brundir : public ScriptedAI
+             }
+         }
+ 
+-        if (!UpdateVictim())
++        // During Lightning Tendrils, Brundir is REACT_PASSIVE and has CombatStop()'d; UpdateVictim()
++        // would hit its NO_HOSTILES evade the moment no one is attacking him (an all-bot raid that
++        // flees). Skip the gate so the flight events (LAND/FLIGHT/LAND_LAND) still advance; the window
++        // is bounded and self-clears in EVENT_LAND_LAND, so a genuine wipe still resets after landing.
++        if (!_lightningTendrilsActive && !UpdateVictim())
+             return;
+ 
+         events.Update(diff);
+@@ -793,6 +807,7 @@ struct boss_stormcaller_brundir : public ScriptedAI
+                     me->CastSpell(me, SPELL_LIGHTNING_TENDRILS_2, true);
+                     events.ScheduleEvent(EVENT_LIGHTNING_LAND, 16s);
+                     events.ScheduleEvent(EVENT_LIGHTNING_FLIGHT, 1s);
++                    _lightningTendrilsActive = true;
+                     break;
+                 }
+             case EVENT_LIGHTNING_LAND:
+@@ -806,6 +821,7 @@ struct boss_stormcaller_brundir : public ScriptedAI
+                 me->SetCanFly(false);
+                 me->SetHover(false);
+                 me->SetReactState(REACT_AGGRESSIVE);
++                _lightningTendrilsActive = false;
+                 me->SetDisableGravity(false);
+                 if (Unit* flyTarget = ObjectAccessor::GetUnit(*me, _flyTargetGUID))
+                 {

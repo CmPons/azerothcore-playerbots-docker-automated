@@ -12,6 +12,7 @@ public:
     static bool HandleCreate(ChatHandler* handler);
     static bool HandleLogin(ChatHandler* handler, Optional<uint32> size, Optional<std::string> role);
     static bool HandleSync(ChatHandler* handler);
+    static bool HandleSyncOne(ChatHandler* handler, std::string name, Optional<std::string> role);
     static bool HandleLogout(ChatHandler* handler);
     static bool HandleReset(ChatHandler* handler);
     static bool HandleRemove(ChatHandler* handler, Optional<std::string> confirm);

@@ -1,5 +1,6 @@
 #include "PBChatterAmbientPrompt.h"
 #include "PBChatterAmbient.h"   // for AMB_* kind constants
+#include "PBChatterConfig.h"    // for g_PBChatStyleExamples (file-loaded pool)
 #include "PBChatterContext.h"
 #include "Player.h"
 #include "Random.h"
@@ -20,8 +21,10 @@ namespace
         }
     }
 
-    // Authentic WotLK player-chat lines, used as few-shot STYLE anchors only (the model is told
-    // to match the tone/length, not the content). Deliberately varied — statements, LFG, AH,
+    // Built-in FALLBACK few-shot STYLE anchors, used only when no external file is loaded
+    // (g_PBChatStyleExamples empty — see PlayerbotChatter.StyleExamplesFile and
+    // data/style-examples.txt, which is the normal source and is live-editable). The model is
+    // told to match the tone/length, not the content. Deliberately varied — statements, LFG, AH,
     // gripes, congrats, plus dry/sarcastic, teasing, and goofy lines — so a small model doesn't
     // collapse into one rut (e.g. opening every line with "anyone ...?") AND so the edge in the
     // system prompt has concrete patterns to imitate. A couple stay warm/wholesome on purpose so
@@ -100,18 +103,6 @@ namespace
         "PvP — Wintergrasp, a battleground, or arena",
     };
 
-    // A few example lines as a style block. Picks a random run so it varies call to call.
-    std::string Examples(int n)
-    {
-        int const total = (int)(sizeof(kExamples) / sizeof(kExamples[0]));
-        if (n > total) n = total;
-        int start = urand(0, total - 1);
-        std::string out = "\nMatch this tone and length (don't reuse the content):";
-        for (int i = 0; i < n; ++i)
-            out += Acore::StringFormat("\n- {}", kExamples[(start + i) % total]);
-        return out;
-    }
-
     // Pick a topic appropriate to the bot's level: ~half the time a universal topic, otherwise a
     // level-banded content topic.
     char const* PickTopic(uint8_t level)
@@ -138,6 +129,28 @@ namespace
     }
 }
 
+// A few example lines as a style block. Picks a random run so it varies call to call.
+// Draws from the file-loaded pool (g_PBChatStyleExamples) when present, else the built-in
+// kExamples list above.
+std::string PBChatterAmbientPrompt::StyleExamples(int n)
+{
+    bool const useFile = !g_PBChatStyleExamples.empty();
+    int const total = useFile ? (int)g_PBChatStyleExamples.size()
+                              : (int)(sizeof(kExamples) / sizeof(kExamples[0]));
+    if (total <= 0)
+        return "";
+    if (n > total) n = total;
+    int start = urand(0, total - 1);
+    std::string out = "\nMatch this tone and length (don't reuse the content):";
+    for (int i = 0; i < n; ++i)
+    {
+        int idx = (start + i) % total;
+        char const* line = useFile ? g_PBChatStyleExamples[idx].c_str() : kExamples[idx];
+        out += Acore::StringFormat("\n- {}", line);
+    }
+    return out;
+}
+
 std::string PBChatterAmbientPrompt::Build(int mode, Player* bot, uint8_t kind,
                                           std::vector<std::pair<std::string, std::string>> const& recent,
                                           std::string const& eventHint)
@@ -159,7 +172,7 @@ std::string PBChatterAmbientPrompt::Build(int mode, Player* bot, uint8_t kind,
                  "who isn't there yet (curious, or looking forward to it), don't pretend you're "
                  "doing it. Keep it short and natural, don't repeat what they said, and don't start "
                  "with \"anyone\".";
-            return p + Examples(2) + Tail();
+            return p + StyleExamples(2) + Tail();
         }
         case MODE_FLAVOR:
         {
@@ -169,7 +182,7 @@ std::string PBChatterAmbientPrompt::Build(int mode, Player* bot, uint8_t kind,
                 "where you are right now, like a player thinking out loud. Keep it appropriate to "
                 "your level. Don't list your stats or inventory, and don't make it sound like a "
                 "game announcement.{}",
-                snap, where, Examples(2)) + Tail();
+                snap, where, StyleExamples(2)) + Tail();
         }
         case MODE_EVENT:
         {
@@ -177,7 +190,7 @@ std::string PBChatterAmbientPrompt::Build(int mode, Player* bot, uint8_t kind,
                 "{} You're chatting in {}. Something just happened to you: {}. Mention it casually "
                 "the way a real player would — no fanfare, never say \"Ding!\" or \"Quest "
                 "complete\".{}",
-                PBChatterContext::BuildGroundedBrief(bot), where, eventHint, Examples(2)) + Tail();
+                PBChatterContext::BuildGroundedBrief(bot), where, eventHint, StyleExamples(2)) + Tail();
         }
         case MODE_GENERIC:
         default:
@@ -188,7 +201,7 @@ std::string PBChatterAmbientPrompt::Build(int mode, Player* bot, uint8_t kind,
                 "character — you're only that level, so don't talk about raids, zones, or content "
                 "above your level. Make it a natural comment or statement, NOT a poll to the whole "
                 "channel, and don't start with \"anyone\".{}",
-                PBChatterContext::BuildGroundedBrief(bot), where, PickTopic(bot->GetLevel()), Examples(3)) + Tail();
+                PBChatterContext::BuildGroundedBrief(bot), where, PickTopic(bot->GetLevel()), StyleExamples(3)) + Tail();
         }
     }
 }

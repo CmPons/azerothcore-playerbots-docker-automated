@@ -10,5 +10,12 @@
 #     mod-playerbots      = the bot engine (azerothcore-wotlk/modules/mod-playerbots)
 #     mod-aoe-loot, ...   = any other module under azerothcore-wotlk/modules/
 #
-# --- NO ACTIVE PINS ---
-# All repos track their branch tips. Add a "<repo-dir> <commit>" line to pin one back.
+# --- ACTIVE PINS ---
+# The two repos our tracked patches (patches/0001-0016) modify are pinned so an upstream push
+# can never break an update. Bumped 2026-08-03 (from core 52f58186 / mpb 93aaea3, ~3 weeks/1216+271
+# commits behind): all 14 patches re-verified applying cleanly in setup.sh order at these tips.
+# 0009 (CanEquipNewItem probe leak) was RETIRED — upstream merged the identical RemoveFromUpdateQueueOf
+# fix. 0004/0007/0012/0016 were regenerated for context drift. To take upstream later: comment out
+# the pin(s), run ./update.sh, regenerate any patch that aborts, test, then re-pin at new tips.
+azerothcore-wotlk 190184a04539937a617bf033e39378196c0c63f5
+mod-playerbots ba46fcdecde3d0c6c2f244fcb3ea862430b6ae5b

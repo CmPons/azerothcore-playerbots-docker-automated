@@ -1,0 +1,90 @@
+diff --git a/src/server/game/AI/SmartScripts/SmartScriptMgr.cpp b/src/server/game/AI/SmartScripts/SmartScriptMgr.cpp
+index ac021640..59613e88 100644
+--- a/src/server/game/AI/SmartScripts/SmartScriptMgr.cpp
++++ b/src/server/game/AI/SmartScripts/SmartScriptMgr.cpp
+@@ -121,6 +121,9 @@ void SmartAIMgr::LoadSmartAIFromDB()
+     for (uint8 i = 0; i < SMART_SCRIPT_TYPE_MAX; i++)
+         mEventMap[i].clear();  //Drop Existing SmartAI List
+ 
++    mGameEventStartListeners.clear();
++    mGameEventEndListeners.clear();
++
+     WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_SEL_SMART_SCRIPTS);
+     PreparedQueryResult result = WorldDatabase.Query(stmt);
+ 
+@@ -308,6 +311,11 @@ void SmartAIMgr::LoadSmartAIFromDB()
+             SmartAIEventList eventList;
+             mEventMap[source_type][temp.entryOrGuid] = eventList;
+         }
++        if (temp.GetEventType() == SMART_EVENT_GAME_EVENT_START)
++            mGameEventStartListeners.insert(temp.event.gameEvent.gameEventId);
++        else if (temp.GetEventType() == SMART_EVENT_GAME_EVENT_END)
++            mGameEventEndListeners.insert(temp.event.gameEvent.gameEventId);
++
+         // store the new event
+         mEventMap[source_type][temp.entryOrGuid].push_back(temp);
+     } while (result->NextRow());
+diff --git a/src/server/game/AI/SmartScripts/SmartScriptMgr.h b/src/server/game/AI/SmartScripts/SmartScriptMgr.h
+index a8ae1cc9..ce3abd2b 100644
+--- a/src/server/game/AI/SmartScripts/SmartScriptMgr.h
++++ b/src/server/game/AI/SmartScripts/SmartScriptMgr.h
+@@ -26,6 +26,7 @@
+ #include "Optional.h"
+ #include "SpellMgr.h"
+ #include <limits>
++#include <unordered_set>
+ #include "WaypointMgr.h"
+ 
+ typedef uint32 SAIBool;
+@@ -2108,6 +2109,14 @@ public:
+     void LoadSmartAIFromDB();
+     void CheckIfSmartAIInDatabaseExists();
+ 
++    // Whether any SmartAI script listens for this game_event transition
++    // (SMART_EVENT_GAME_EVENT_START / SMART_EVENT_GAME_EVENT_END). GameEventMgr::RunSmartAIScripts
++    // consults this to skip its whole-world object sweep when no script is listening.
++    [[nodiscard]] bool HasGameEventListener(uint32 eventId, bool activate) const
++    {
++        return (activate ? mGameEventStartListeners : mGameEventEndListeners).count(eventId) != 0;
++    }
++
+     SmartAIEventList GetScript(int32 entry, SmartScriptType type)
+     {
+         SmartAIEventList temp;
+@@ -2125,6 +2134,11 @@ private:
+     //event stores
+     SmartAIEventMap mEventMap[SMART_SCRIPT_TYPE_MAX];
+ 
++    // game_event ids with at least one GAME_EVENT_START / GAME_EVENT_END listener (see
++    // HasGameEventListener). Rebuilt by LoadSmartAIFromDB.
++    std::unordered_set<uint32> mGameEventStartListeners;
++    std::unordered_set<uint32> mGameEventEndListeners;
++
+     static bool EventHasInvoker(SMART_EVENT event);
+ 
+     bool IsEventValid(SmartScriptHolder& e);
+diff --git a/src/server/game/Events/GameEventMgr.cpp b/src/server/game/Events/GameEventMgr.cpp
+index ee987592..a135a50a 100644
+--- a/src/server/game/Events/GameEventMgr.cpp
++++ b/src/server/game/Events/GameEventMgr.cpp
+@@ -29,6 +29,7 @@
+ #include "Player.h"
+ #include "PoolMgr.h"
+ #include "ScriptMgr.h"
++#include "SmartScriptMgr.h"
+ #include "Transport.h"
+ #include "UnitAI.h"
+ #include "World.h"
+@@ -1901,6 +1902,12 @@ private:
+ 
+ void GameEventMgr::RunSmartAIScripts(uint16 eventId, bool activate)
+ {
++    // The sweep below visits every creature/GO in every map's object store on the world thread —
++    // with preloaded grids that is a multi-hundred-ms world-tick stall per event transition.
++    // Skip it entirely when no SmartAI script listens for this transition.
++    if (!sSmartScriptMgr->HasGameEventListener(eventId, activate))
++        return;
++
+     //! Iterate over every supported source type (creature and gameobject)
+     //! Not entirely sure how this will affect units in non-loaded grids.
+     sMapMgr->DoForAllMaps([eventId, activate](Map* map)

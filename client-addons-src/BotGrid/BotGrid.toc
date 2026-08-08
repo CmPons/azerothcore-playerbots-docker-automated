@@ -1,0 +1,16 @@
+## Interface: 30300
+## Title: BotGrid
+## Notes: Grid2-style raid management for playerbots (mod-multibot-bridge).
+## Author: thrashernet
+## Version: 1.0
+## SavedVariablesPerCharacter: BotGridDB
+Style.lua
+Spells.lua
+Selection.lua
+Comm.lua
+Model.lua
+Cell.lua
+Grid.lua
+RosterBar.lua
+Menu.lua
+BotGrid.lua

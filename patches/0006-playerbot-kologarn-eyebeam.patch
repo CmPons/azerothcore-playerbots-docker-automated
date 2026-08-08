@@ -1,0 +1,395 @@
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Uld/UldActions.cpp b/modules/mod-playerbots/src/Ai/Raid/Uld/UldActions.cpp
+index 6f58e21..29e06b5 100644
+--- a/modules/mod-playerbots/src/Ai/Raid/Uld/UldActions.cpp
++++ b/modules/mod-playerbots/src/Ai/Raid/Uld/UldActions.cpp
+@@ -5,6 +5,8 @@
+ #include <FollowMasterStrategy.h>
+ 
+ #include <cmath>
++#include <limits>
++#include <vector>
+ 
+ #include "AiObjectContext.h"
+ #include "DBCEnums.h"
+@@ -1200,8 +1202,8 @@ bool KologarnMarkDpsTargetAction::Execute(Event /*event*/)
+ 
+     if (!targetToMark)
+     {
+-        Unit* rightArm = AI_VALUE2(Unit*, "find target", "right arm");
+-        if (rightArm && rightArm->IsAlive())
++        Unit* rightArm = KologarnFindArm(bot, NPC_RIGHT_ARM);
++        if (rightArm && rightArm->IsAlive() && !KologarnShouldHoldRightArm(bot))
+         {
+             targetToMark = rightArm;
+             additionalTargetToMark = boss;
+@@ -1218,7 +1220,7 @@ bool KologarnMarkDpsTargetAction::Execute(Event /*event*/)
+     if (!targetToMark)
+         return false;  // No target to mark
+ 
+-    Unit* leftArm = AI_VALUE2(Unit*, "find target", "left arm");
++    Unit* leftArm = KologarnFindArm(bot, NPC_LEFT_ARM);
+     if (leftArm && leftArm->IsAlive())
+         targetToCcMark = leftArm;
+ 
+@@ -1319,40 +1321,103 @@ bool KologarnRubbleSlowdownAction::Execute(Event /*event*/)
+     return botAI->CastSpell("frost trap", currentSkullUnit);
+ }
+ 
++bool KologarnEyebeamAction::KiteToNearerLane()
++{
++    // Run to whichever fixed side lane is nearer: shortest travel = the beam sweeps the least raid.
++    float const dl = bot->GetExactDist(ULDUAR_KOLOGARN_EYEBEAM_LEFT_POSITION);
++    float const dr = bot->GetExactDist(ULDUAR_KOLOGARN_EYEBEAM_RIGHT_POSITION);
++    Position const& lane =
++        (dl <= dr) ? ULDUAR_KOLOGARN_EYEBEAM_LEFT_POSITION : ULDUAR_KOLOGARN_EYEBEAM_RIGHT_POSITION;
++    return MoveTo(bot->GetMapId(), lane.GetPositionX(), lane.GetPositionY(), lane.GetPositionZ(), false,
++                  false, false, true, MovementPriority::MOVEMENT_FORCED);
++}
++
+ bool KologarnEyebeamAction::Execute(Event /*event*/)
+ {
+-    float distanceToLeftPoint = bot->GetExactDist(ULDUAR_KOLOGARN_EYEBEAM_LEFT_POSITION);
+-    float distanceToRightPoint = bot->GetExactDist(ULDUAR_KOLOGARN_EYEBEAM_RIGHT_POSITION);
++    Unit* boss = AI_VALUE2(Unit*, "find target", "kologarn");
++    if (!boss || !boss->IsAlive())
++        return false;
+ 
+-    bool runToLeftSide;
+-    if (!distanceToLeftPoint)
+-        runToLeftSide = true;
+-    else if (!distanceToRightPoint)
+-        runToLeftSide = false;
+-    else
+-        runToLeftSide = distanceToRightPoint > distanceToLeftPoint;
++    std::vector<Unit*> eyes;
++    KologarnCollectEyes(bot, eyes);
++    if (eyes.empty())
++        return false;
+ 
+-    bool teleportedToPoint;
+-    KologarnEyebeamTrigger kologarnEyebeamTrigger(botAI);
+-    if (runToLeftSide)
++    // Fixated bot: kite the beam away by running to the nearer side lane.
++    for (Unit* eye : eyes)
++        if (eye->GetVictim() == bot)
++            return KiteToNearerLane();
++
++    // Non-fixated bots packed at the origin don't dodge (matches the trigger's standoff gate).
++    if (bot->GetExactDist2d(boss) < ULDUAR_KOLOGARN_EYEBEAM_BOSS_STANDOFF)
++        return false;
++
++    // Find the closest threatening beam corridor and its foot point.
++    float const px = bot->GetPositionX();
++    float const py = bot->GetPositionY();
++    float const bx = boss->GetPositionX();
++    float const by = boss->GetPositionY();
++
++    float bestDist = std::numeric_limits<float>::max();
++    float footX = 0.0f;
++    float footY = 0.0f;
++    Unit* threatEye = nullptr;
++    for (Unit* eye : eyes)
+     {
+-        teleportedToPoint = bot->TeleportTo(bot->GetMapId(), ULDUAR_KOLOGARN_EYEBEAM_LEFT_POSITION.GetPositionX(),
+-                                            ULDUAR_KOLOGARN_EYEBEAM_LEFT_POSITION.GetPositionY(),
+-                                            ULDUAR_KOLOGARN_EYEBEAM_LEFT_POSITION.GetPositionZ(),
+-                                            ULDUAR_KOLOGARN_EYEBEAM_LEFT_POSITION.GetOrientation());
++        float fX = 0.0f;
++        float fY = 0.0f;
++        float const dist =
++            UldDistancePointToSegment2D(px, py, bx, by, eye->GetPositionX(), eye->GetPositionY(), fX, fY);
++        if (dist < ULDUAR_KOLOGARN_EYEBEAM_DANGER_WIDTH && dist < bestDist)
++        {
++            bestDist = dist;
++            footX = fX;
++            footY = fY;
++            threatEye = eye;
++        }
+     }
+-    else
++    if (!threatEye)
++        return false;
++
++    // Perpendicular push-out to a safe distance from the beam.
++    float const safe = ULDUAR_KOLOGARN_EYEBEAM_DANGER_WIDTH + ULDUAR_KOLOGARN_EYEBEAM_MARGIN;
++    float dirX = px - footX;
++    float dirY = py - footY;
++    float len = std::sqrt(dirX * dirX + dirY * dirY);
++    if (len < 0.01f)
+     {
+-        teleportedToPoint = bot->TeleportTo(bot->GetMapId(), ULDUAR_KOLOGARN_EYEBEAM_RIGHT_POSITION.GetPositionX(),
+-                                            ULDUAR_KOLOGARN_EYEBEAM_RIGHT_POSITION.GetPositionY(),
+-                                            ULDUAR_KOLOGARN_EYEBEAM_RIGHT_POSITION.GetPositionZ(),
+-                                            ULDUAR_KOLOGARN_EYEBEAM_RIGHT_POSITION.GetOrientation());
+-    }
++        // Bot sits exactly on the beam: pick a perpendicular from the beam direction (rotate 90 deg).
++        float const abx = threatEye->GetPositionX() - bx;
++        float const aby = threatEye->GetPositionY() - by;
++        float const ablen = std::sqrt(abx * abx + aby * aby);
++        if (ablen < 0.01f)
++            return false;
++        dirX = -aby / ablen;
++        dirY = abx / ablen;
++        len = 1.0f;
++    }
++    float const ux = dirX / len;
++    float const uy = dirY / len;
++    float const destZ = bot->GetPositionZ();
++
++    // Candidate 1: push out on the bot's current side (shortest). Candidate 2: the opposite side.
++    float const c1x = footX + ux * safe;
++    float const c1y = footY + uy * safe;
++    float const c2x = footX - ux * safe;
++    float const c2y = footY - uy * safe;
++
++    if (!IsOverKologarnPit(c1x, c1y) &&
++        MoveTo(bot->GetMapId(), c1x, c1y, destZ, false, false, false, true,
++               MovementPriority::MOVEMENT_FORCED))
++        return true;
+ 
+-    if (teleportedToPoint)
+-        SetNextMovementDelay(5000);
++    if (!IsOverKologarnPit(c2x, c2y) &&
++        MoveTo(bot->GetMapId(), c2x, c2y, destZ, false, false, false, true,
++               MovementPriority::MOVEMENT_FORCED))
++        return true;
+ 
+-    return teleportedToPoint;
++    // Both perpendicular exits are over the pit — fall back to a known-good side lane.
++    return KiteToNearerLane();
+ }
+ 
+ bool KologarnEyebeamAction::isUseful()
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Uld/UldActions.h b/modules/mod-playerbots/src/Ai/Raid/Uld/UldActions.h
+index ebcdedc..b4b9d3f 100644
+--- a/modules/mod-playerbots/src/Ai/Raid/Uld/UldActions.h
++++ b/modules/mod-playerbots/src/Ai/Raid/Uld/UldActions.h
+@@ -168,6 +168,9 @@ public:
+     KologarnEyebeamAction(PlayerbotAI* botAI) : MovementAction(botAI, "kologarn eyebeam action") {}
+     bool Execute(Event event) override;
+     bool isUseful() override;
++
++private:
++    bool KiteToNearerLane();
+ };
+ 
+ class KologarnRtiTargetAction : public Action
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Uld/UldTriggers.cpp b/modules/mod-playerbots/src/Ai/Raid/Uld/UldTriggers.cpp
+index 102bf0f..aea95a5 100644
+--- a/modules/mod-playerbots/src/Ai/Raid/Uld/UldTriggers.cpp
++++ b/modules/mod-playerbots/src/Ai/Raid/Uld/UldTriggers.cpp
+@@ -10,6 +10,7 @@
+ #include "SharedDefines.h"
+ #include "Trigger.h"
+ #include "Vehicle.h"
++#include <vector>
+ #include <MovementActions.h>
+ #include <FollowMasterStrategy.h>
+ #include <RtiTargetValue.h>
+@@ -358,12 +359,13 @@ bool KologarnMarkDpsTargetTrigger::IsActive()
+     // Check that right arm is marked
+     if (currentSkullUnit && currentSkullUnit->IsAlive() && currentSkullUnit->GetEntry() == NPC_RIGHT_ARM)
+     {
+-        return false;  // Skull marker is already set on right arm
++        // Re-mark (move skull to the body) if we should hold the right arm; otherwise it is correctly marked.
++        return KologarnShouldHoldRightArm(bot);
+     }
+ 
+-    // Check that there is right arm to mark
+-    Unit* rightArm = AI_VALUE2(Unit*, "find target", "right arm");
+-    if (rightArm && rightArm->IsAlive())
++    // Check that there is right arm to mark (unless we should hold it to avoid a double-arm Stone Shout)
++    Unit* rightArm = KologarnFindArm(bot, NPC_RIGHT_ARM);
++    if (rightArm && rightArm->IsAlive() && !KologarnShouldHoldRightArm(bot))
+     {
+         return true;  // Found a right arm to mark
+     }
+@@ -423,28 +425,40 @@ bool KologarnRubbleSlowdownTrigger::IsActive()
+ bool KologarnEyebeamTrigger::IsActive()
+ {
+     Unit* boss = AI_VALUE2(Unit*, "find target", "kologarn");
+-
+-    // Check boss and it is alive
+     if (!boss || !boss->IsAlive())
+         return false;
+ 
+-    GuidVector triggers = AI_VALUE(GuidVector, "possible triggers");
++    // Main tank holds the (stationary) body and must never leave to dodge.
++    if (botAI->IsMainTank(bot))
++        return false;
+ 
+-    if (!triggers.empty())
+-    {
+-        for (ObjectGuid const guid : triggers)
+-        {
+-            if (Unit* unit = botAI->GetUnit(guid))
+-            {
+-                std::string triggerName = unit->GetNameForLocaleIdx(sWorld->GetDefaultDbcLocale());
++    std::vector<Unit*> eyes;
++    KologarnCollectEyes(bot, eyes);
++    if (eyes.empty())
++        return false;
+ 
+-                if (triggerName.rfind("Focused Eyebeam", 0) == 0 &&
+-                    bot->GetDistance2d(unit) < ULDUAR_KOLOGARN_EYEBEAM_RADIUS + 1.0f)
+-                {
+-                    return true;
+-                }
+-            }
+-        }
++    // The fixated bot (the eye's chase target) always acts, to kite the beam away.
++    for (Unit* eye : eyes)
++        if (eye->GetVictim() == bot)
++            return true;
++
++    // Non-fixated: skip bots packed at the beam origin (melee under the boss) to avoid thrashing.
++    if (bot->GetExactDist2d(boss) < ULDUAR_KOLOGARN_EYEBEAM_BOSS_STANDOFF)
++        return false;
++
++    // Act if this bot is inside any beam corridor (boss -> eye).
++    float const px = bot->GetPositionX();
++    float const py = bot->GetPositionY();
++    float const bx = boss->GetPositionX();
++    float const by = boss->GetPositionY();
++    for (Unit* eye : eyes)
++    {
++        float footX = 0.0f;
++        float footY = 0.0f;
++        float const dist = UldDistancePointToSegment2D(px, py, bx, by, eye->GetPositionX(),
++                                                       eye->GetPositionY(), footX, footY);
++        if (dist < ULDUAR_KOLOGARN_EYEBEAM_DANGER_WIDTH)
++            return true;
+     }
+ 
+     return false;
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Uld/Util/UldBossHelper.h b/modules/mod-playerbots/src/Ai/Raid/Uld/Util/UldBossHelper.h
+index acc45a5..bfabbe3 100644
+--- a/modules/mod-playerbots/src/Ai/Raid/Uld/Util/UldBossHelper.h
++++ b/modules/mod-playerbots/src/Ai/Raid/Uld/Util/UldBossHelper.h
+@@ -13,6 +13,7 @@
+ #include "PlayerbotAI.h"
+ #include "Playerbots.h"
+ #include "ScriptedCreature.h"
++#include "UldGeometry.h"
+ 
+ constexpr uint32 ULDUAR_MAP_ID = 603;
+ 
+@@ -29,7 +30,10 @@ enum UlduarIDs
+ 
+     // Kologarn
+     NPC_RIGHT_ARM = 32934,
++    NPC_LEFT_ARM = 32933,
+     NPC_RUBBLE = 33768,
++    NPC_EYE_LEFT = 33632,
++    NPC_EYE_RIGHT = 33802,
+     SPELL_CRUNCH_ARMOR = 64002,
+ 
+     SPELL_FOCUSED_EYEBEAM_10_2 = 63346,
+@@ -144,7 +148,20 @@ enum UlduarIDs
+ };
+ 
+ constexpr float ULDUAR_KOLOGARN_AXIS_Z_PATHING_ISSUE_DETECT = 420.0f;
+-constexpr float ULDUAR_KOLOGARN_EYEBEAM_RADIUS = 3.0f;
++
++// Focused Eyebeam — geometric beam-line vacate. All distances in yards; tune DANGER_WIDTH at runtime.
++constexpr float ULDUAR_KOLOGARN_EYEBEAM_DANGER_WIDTH = 6.0f;    // half-width of the lethal beam corridor
++constexpr float ULDUAR_KOLOGARN_EYEBEAM_MARGIN = 3.0f;          // extra standoff past the corridor when vacating
++constexpr float ULDUAR_KOLOGARN_EYEBEAM_BOSS_STANDOFF = 10.0f;  // ignore the beam within this range of the boss (origin) so melee don't thrash
++constexpr float ULDUAR_KOLOGARN_EYEBEAM_SEARCH_RADIUS = 80.0f;  // platform-sized eye search (well under the 533y grid clamp)
++constexpr float ULDUAR_KOLOGARN_ARM_HOLD_PCT = 20.0f;  // hold the right arm at/below this HP% while the left arm is down (avoids double-arm Stone Shout)
++
++// Pit instakill rectangle from boss_kologarn_pit_kill_bunny (x/y footprint of the chasm — never move here).
++constexpr float ULDUAR_KOLOGARN_PIT_MIN_X = 1782.0f;
++constexpr float ULDUAR_KOLOGARN_PIT_MAX_X = 1832.0f;
++constexpr float ULDUAR_KOLOGARN_PIT_MIN_Y = -56.0f;
++constexpr float ULDUAR_KOLOGARN_PIT_MAX_Y = 8.0f;
++
+ constexpr float ULDUAR_THORIM_AXIS_Z_FLOOR_THRESHOLD = 429.6094f;
+ constexpr float ULDUAR_THORIM_AXIS_Z_PATHING_ISSUE_DETECT = 410.0f;
+ constexpr float ULDUAR_AURIAYA_AXIS_Z_PATHING_ISSUE_DETECT = 410.0f;
+@@ -193,6 +210,41 @@ extern const Position ULDUAR_YOGG_SARON_CHAMBER_OF_ASPECTS_ENTRANCE;
+ extern const Position ULDUAR_YOGG_SARON_PHASE_3_MELEE_SPOT;
+ extern const Position ULDUAR_YOGG_SARON_PHASE_3_RANGED_SPOT;
+ 
++// True if the given x/y is over the Kologarn chasm footprint — a vacate destination here is a death.
++inline bool IsOverKologarnPit(float x, float y)
++{
++    return UldPointInRect2D(x, y, ULDUAR_KOLOGARN_PIT_MIN_X, ULDUAR_KOLOGARN_PIT_MAX_X,
++                            ULDUAR_KOLOGARN_PIT_MIN_Y, ULDUAR_KOLOGARN_PIT_MAX_Y);
++}
++
++// Collect the currently-active Focused Eyebeam eyes near the bot (nearest of each variant).
++// One eye is active per cast; two entries cover a rare left+right overlap.
++inline void KologarnCollectEyes(Player* bot, std::vector<Unit*>& eyes)
++{
++    if (Creature* e = bot->FindNearestCreature(NPC_EYE_LEFT, ULDUAR_KOLOGARN_EYEBEAM_SEARCH_RADIUS, true))
++        eyes.push_back(e);
++    if (Creature* e = bot->FindNearestCreature(NPC_EYE_RIGHT, ULDUAR_KOLOGARN_EYEBEAM_SEARCH_RADIUS, true))
++        eyes.push_back(e);
++}
++
++// Resolve a live Kologarn arm by NPC entry (robust; independent of any bot's threat list).
++inline Unit* KologarnFindArm(Player* bot, uint32 entry)
++{
++    return bot->FindNearestCreature(entry, 100.0f, true);
++}
++
++// True when finishing the right arm now would risk both arms dead at once (Stone Shout): the right
++// arm is low AND the left arm is dead or also low. Bots DPS the boss body instead until the left is back.
++inline bool KologarnShouldHoldRightArm(Player* bot)
++{
++    Unit* rightArm = KologarnFindArm(bot, NPC_RIGHT_ARM);
++    if (!rightArm || rightArm->GetHealthPct() >= ULDUAR_KOLOGARN_ARM_HOLD_PCT)
++        return false;
++
++    Unit* leftArm = KologarnFindArm(bot, NPC_LEFT_ARM);
++    return !leftArm || leftArm->GetHealthPct() < ULDUAR_KOLOGARN_ARM_HOLD_PCT;
++}
++
+ class RazorscaleBossHelper : public AiObject
+ {
+ public:
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Uld/Util/UldGeometry.h b/modules/mod-playerbots/src/Ai/Raid/Uld/Util/UldGeometry.h
+new file mode 100644
+index 0000000..02af8fe
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Raid/Uld/Util/UldGeometry.h
+@@ -0,0 +1,38 @@
++/*
++ * Pure 2D geometry helpers for Ulduar bot strategies.
++ * Dependency-free (only <cmath>) so it can be unit-tested standalone.
++ */
++#ifndef PLAYERBOTS_ULDGEOMETRY_H
++#define PLAYERBOTS_ULDGEOMETRY_H
++
++#include <cmath>
++
++// Perpendicular distance (2D, ignoring Z) from point P to the segment AB, clamped to the segment
++// (not the infinite line). Writes the closest point on the segment into footX/footY.
++inline float UldDistancePointToSegment2D(float px, float py, float ax, float ay, float bx, float by,
++                                         float& footX, float& footY)
++{
++    float const abx = bx - ax;
++    float const aby = by - ay;
++    float const apx = px - ax;
++    float const apy = py - ay;
++    float const abLenSq = abx * abx + aby * aby;
++    float t = abLenSq > 0.0f ? (apx * abx + apy * aby) / abLenSq : 0.0f;
++    if (t < 0.0f)
++        t = 0.0f;
++    if (t > 1.0f)
++        t = 1.0f;
++    footX = ax + t * abx;
++    footY = ay + t * aby;
++    float const dx = px - footX;
++    float const dy = py - footY;
++    return std::sqrt(dx * dx + dy * dy);
++}
++
++// Inclusive axis-aligned 2D rectangle containment.
++inline bool UldPointInRect2D(float x, float y, float minX, float maxX, float minY, float maxY)
++{
++    return x >= minX && x <= maxX && y >= minY && y <= maxY;
++}
++
++#endif  // PLAYERBOTS_ULDGEOMETRY_H

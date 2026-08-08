@@ -1,0 +1,41 @@
+[worldserver]
+
+########################################
+# mod-arena-roster configuration
+########################################
+
+# ArenaRoster.Enable
+#   Master switch. Default 0. setup.sh sets this from .env ARENAROSTER_ENABLE.
+ArenaRoster.Enable = 0
+
+# ArenaRoster.Debug
+#   1 = verbose [ArenaRoster] logging of director decisions.
+ArenaRoster.Debug = 0
+
+# ArenaRoster.TierCeilings
+#   Upper rating bound of tiers 1..3 (tier 4 is everything above). Comma-separated.
+ArenaRoster.TierCeilings = "800,1400,1800"
+
+# ArenaRoster.TierRatings
+#   Rating (team + personal + MMR) pinned onto pool teams of tiers 1..4 at creation
+#   and re-normalization targets when a team drifts out of its band.
+ArenaRoster.TierRatings = "400,1100,1600,2000"
+
+# ArenaRoster.GraceLogoutSecs
+#   Seconds after a match ends (or the player unqueues) before pool bots log out.
+ArenaRoster.GraceLogoutSecs = 30
+
+# ArenaCoord.* — read by the patch-0005 arena coordination strategy (mod-playerbots)
+# via sConfigMgr with safe defaults, so the strategy works even if this file is absent.
+# Sharpness index per team-rating band (bands share TierCeilings above).
+# NOTE: ArenaCoord.* and ArenaRoster.TierCeilings latch at worldserver startup (first use) —
+# edits need a worldserver restart; `.reload config` does not re-read them. A malformed or
+# too-short csv logs a [ArenaCoord] warning and falls back to the built-in defaults.
+# Reaction delay (ms) before honoring a kill-target swap, per sharpness 1..4:
+ArenaCoord.ReactMs = "3000,1800,900,300"
+# Per-EVALUATION chance (percent) to keep the current victim instead of swapping to the
+# computed kill target, per sharpness 1..4. Re-rolled every AI evaluation, so it acts as a
+# geometric decay on target swaps — higher = slower swaps (60 ~= follows the team's swap
+# after ~2.5 evaluations on average), not a one-shot "tunnels 60% of the time".
+# This is separate from ArenaCoord.ReactMs (trinket/reaction timing); the two don't stack.
+ArenaCoord.TunnelPct = "60,30,10,0"

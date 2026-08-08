@@ -1,0 +1,615 @@
+diff --git a/modules/mod-playerbots/src/Ai/Base/ActionContext.h b/modules/mod-playerbots/src/Ai/Base/ActionContext.h
+index f0123c8..bc389c0 100644
+--- a/modules/mod-playerbots/src/Ai/Base/ActionContext.h
++++ b/modules/mod-playerbots/src/Ai/Base/ActionContext.h
+@@ -8,6 +8,7 @@
+ #define PLAYERBOTS_ACTIONCONTEXT_H
+ 
+ #include "AddLootAction.h"
++#include "ArenaCoordActions.h"
+ #include "AttackAction.h"
+ #include "ShareQuestAction.h"
+ #include "BattleGroundTactics.h"
+@@ -180,6 +181,7 @@ public:
+         creators["stoneform"] = &ActionContext::stoneform;
+         creators["escape artist"] = &ActionContext::escape_artist;
+         creators["use trinket"] = &ActionContext::use_trinket;
++        creators["arena pvp trinket"] = &ActionContext::arena_pvp_trinket;
+         creators["auto talents"] = &ActionContext::auto_talents;
+         creators["auto share quest"] = &ActionContext::auto_share_quest;
+         creators["auto maintenance on levelup"] = &ActionContext::auto_maintenance_on_levelup;
+@@ -388,6 +390,7 @@ private:
+     static Action* stoneform(PlayerbotAI* botAI) { return new CastStoneformAction(botAI); }
+     static Action* escape_artist(PlayerbotAI* botAI) { return new CastEscapeArtistAction(botAI); }
+     static Action* use_trinket(PlayerbotAI* botAI) { return new UseTrinketAction(botAI); }
++    static Action* arena_pvp_trinket(PlayerbotAI* botAI) { return new ArenaPvpTrinketAction(botAI); }
+     static Action* auto_talents(PlayerbotAI* botAI) { return new AutoSetTalentsAction(botAI); }
+     static Action* auto_share_quest(PlayerbotAI* ai) { return new AutoShareQuestAction(ai); }
+     static Action* auto_maintenance_on_levelup(PlayerbotAI* botAI) { return new AutoMaintenanceOnLevelupAction(botAI); }
+diff --git a/modules/mod-playerbots/src/Ai/Base/Actions/ArenaCoordActions.cpp b/modules/mod-playerbots/src/Ai/Base/Actions/ArenaCoordActions.cpp
+new file mode 100644
+index 0000000..e8bfe76
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Base/Actions/ArenaCoordActions.cpp
+@@ -0,0 +1,134 @@
++/*
++ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
++ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
++ * or (at your option) any later version.
++ */
++
++#include "ArenaCoordActions.h"
++
++#include <algorithm>
++
++#include "ArenaCoordValues.h"
++#include "Battleground.h"
++#include "Event.h"
++#include "Item.h"
++#include "ItemTemplate.h"
++#include "Opcodes.h"
++#include "Player.h"
++#include "Playerbots.h"
++#include "SharedDefines.h"
++#include "SpellAuraDefines.h"
++#include "WorldPacket.h"
++
++namespace
++{
++// "PvP Trinket" — the on-use spell shared by every season's Medallion of the Alliance/Horde
++// in this DB (verified: all 28 medallion item_template rows carry spellid_1 = 42292).
++constexpr uint32 PVP_TRINKET_SPELL = 42292;
++
++// The equipped medallion, or nullptr if none is worn or the effect is on cooldown.
++Item* FindPvpTrinket(Player* bot)
++{
++    for (uint8 slot : {EQUIPMENT_SLOT_TRINKET1, EQUIPMENT_SLOT_TRINKET2})
++    {
++        Item* item = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
++        if (!item)
++            continue;
++
++        for (uint8 i = 0; i < MAX_ITEM_PROTO_SPELLS; ++i)
++        {
++            _Spell const& itemSpell = item->GetTemplate()->Spells[i];
++            if (itemSpell.SpellId == int32(PVP_TRINKET_SPELL) && itemSpell.SpellTrigger == ITEM_SPELLTRIGGER_ON_USE)
++                return bot->HasSpellCooldown(PVP_TRINKET_SPELL) ? nullptr : item;
++        }
++    }
++
++    return nullptr;
++}
++
++// Loss-of-control effects the medallion (42292) removes and that are worth breaking.
++// Polymorph is matched via MECHANIC_POLYMORPH, NOT a bare HasAuraType(SPELL_AURA_TRANSFORM):
++// TRANSFORM also matches non-CC self-forms (Warlock Metamorphosis, novelty transforms), which
++// would burn the 2-min medallion for nothing. UNIT_STATE_LOST_CONTROL was considered and
++// rejected as the umbrella — it is CONTROLLED|JUMPING|CHARGING (UnitDefines.h:219, CONTROLLED
++// = confused|stunned|fleeing), so it false-positives on jumps/charges and misses charm.
++bool IsCCd(Player* p)
++{
++    return p->HasAuraType(SPELL_AURA_MOD_FEAR) || p->HasAuraType(SPELL_AURA_MOD_STUN) ||
++           p->HasAuraType(SPELL_AURA_MOD_CONFUSE) || p->HasAuraType(SPELL_AURA_MOD_CHARM) ||
++           p->HasAuraWithMechanic(1ULL << MECHANIC_POLYMORPH);
++}
++}  // namespace
++
++bool ArenaPvpTrinketAction::isUseful()
++{
++    // Cheap-first: arena gate, then aura-type lookups, then the equipment scan.
++    return bot->InArena() && IsCCd(bot) && FindPvpTrinket(bot) != nullptr;
++}
++
++bool ArenaPvpTrinketAction::Execute(Event /*event*/)
++{
++    Battleground* bg = bot->GetBattleground();
++    if (!bg || !bg->isArena())
++        return false;
++
++    // "Matters" check: don't burn the 2-min cooldown on throwaway CC. Break when the bot is
++    // in danger (< 50% HP) or the team's healer is locked down alongside it (classic
++    // cross-CC kill window).
++    bool matters = bot->GetHealthPct() < 50.0f;
++    if (!matters)
++    {
++        for (auto const& itr : bg->GetPlayers())
++        {
++            Player* mate = itr.second;
++            if (!mate || mate == bot || !mate->IsAlive() || mate->GetBgTeamId() != bot->GetBgTeamId())
++                continue;
++
++            if (ArenaKillTargetValue::IsHealerSpec(mate) && IsCCd(mate))
++            {
++                matters = true;
++                break;
++            }
++        }
++    }
++    if (!matters)
++        return false;
++
++    // Sharpness reaction delay: this action is evaluated at ~1s cadence while the bot sits in
++    // CC, so holding with probability (reactMs - 1000)/reactMs per evaluation makes the
++    // EXPECTED wait ≈ reactMs — a probabilistic hold, not a scheduled timer. Full-sharp bots
++    // (band 4, 300ms <= 1s) break instantly. This is the ReactMs mechanism Task 10 reserved;
++    // it does NOT stack with the tunnel-chance decay. Latched at first use (ParseBands) —
++    // restart the worldserver to apply conf edits.
++    uint8 sharp = ArenaKillTargetValue::SharpnessFor(bot, bg->GetArenaType());
++    static std::vector<uint32> const reactBands =
++        ArenaKillTargetValue::ParseBands("ArenaCoord.ReactMs", {3000, 1800, 900, 300});
++    uint32 reactMs = reactBands[std::min<size_t>(sharp >= 1 ? sharp - 1 : 0, reactBands.size() - 1)];
++    if (reactMs > 1000 && urand(0, reactMs) > 1000)
++        return false;
++
++    Item* item = FindPvpTrinket(bot);
++    if (!item)
++        return false;
++
++    // Use the item exactly the way a real client click does (mirrors UseTrinketAction's cast
++    // path): a CMSG_USE_ITEM through HandleUseItemOpcode. The core's CheckCast honors the
++    // medallion's usable-while-stunned/feared/confused spell attributes, so this is the one
++    // path that provably works from inside CC — a plain CastSpell-style gate would refuse.
++    uint8 bagIndex = item->GetBagSlot();
++    uint8 slot = item->GetSlot();
++    uint8 castCount = 1;
++    ObjectGuid itemGuid = item->GetGUID();
++    uint32 glyphIndex = 0;
++    uint8 castFlags = 0;
++    uint32 targetFlag = TARGET_FLAG_NONE;
++
++    WorldPacket packet(CMSG_USE_ITEM);
++    packet << bagIndex << slot << castCount << PVP_TRINKET_SPELL << itemGuid << glyphIndex << castFlags;
++    packet << targetFlag << bot->GetPackGUID();
++
++    bot->GetSession()->HandleUseItemOpcode(packet);
++
++    LOG_DEBUG("playerbots", "[ArenaCoord] {} trinkets out of CC (sharp={})", bot->GetName(), sharp);
++    return true;
++}
+diff --git a/modules/mod-playerbots/src/Ai/Base/Actions/ArenaCoordActions.h b/modules/mod-playerbots/src/Ai/Base/Actions/ArenaCoordActions.h
+new file mode 100644
+index 0000000..b28c84d
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Base/Actions/ArenaCoordActions.h
+@@ -0,0 +1,25 @@
++/*
++ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
++ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
++ * or (at your option) any later version.
++ */
++
++#ifndef _PLAYERBOT_ARENACOORDACTIONS_H
++#define _PLAYERBOT_ARENACOORDACTIONS_H
++
++#include "Action.h"
++
++// Use the PvP trinket (medallion, spell 42292) to break CC — gated by a sharpness-scaled
++// reaction delay: full-sharp bots break instantly when it matters (self CC'd AND (healer
++// also CC'd OR self < 50% HP)), low tiers sit in the CC for ~ReactMs first (probabilistic
++// hold, expected wait ≈ ReactMs).
++class ArenaPvpTrinketAction : public Action
++{
++public:
++    ArenaPvpTrinketAction(PlayerbotAI* botAI) : Action(botAI, "arena pvp trinket") {}
++
++    bool Execute(Event event) override;
++    bool isUseful() override;
++};
++
++#endif
+diff --git a/modules/mod-playerbots/src/Ai/Base/Actions/BattleGroundTactics.cpp b/modules/mod-playerbots/src/Ai/Base/Actions/BattleGroundTactics.cpp
+index dd34abb..926a17f 100644
+--- a/modules/mod-playerbots/src/Ai/Base/Actions/BattleGroundTactics.cpp
++++ b/modules/mod-playerbots/src/Ai/Base/Actions/BattleGroundTactics.cpp
+@@ -8,6 +8,7 @@
+ 
+ #include <algorithm>
+ 
++#include "ArenaCoordValues.h"
+ #include "ArenaTeam.h"
+ #include "ArenaTeamMgr.h"
+ #include "BattleGroundJoinAction.h"
+@@ -4285,30 +4286,77 @@ bool ArenaTactics::Execute(Event /*event*/)
+     if (botAI->HasStrategy("buff", BOT_STATE_NON_COMBAT))
+         botAI->ChangeStrategy("-buff", BOT_STATE_NON_COMBAT);
+ 
+-    Unit* target = bot->GetVictim();
+-    if (target)
++    // === Arena coordination (patch 0005) ===
++    // (Replaces the old LoS-reposition block: retargeting goes through the focus/centroid flow
++    // below and the combat engine handles the chase — do not "restore" the LoS block in a
++    // future patch regen.)
++    Unit* kill = AI_VALUE(Unit*, "arena kill target");
++    uint8 arenaType = bg->GetArenaType();
++    uint8 sharp = ArenaKillTargetValue::SharpnessFor(bot, arenaType);
++
++    // Sharpness degradation: tunnel chance, re-rolled per Execute — i.e. a GEOMETRIC DECAY on
++    // target swaps, not a one-shot probability: at 60 a lagging bot follows the team's swap
++    // after ~2.5 evaluations on average; higher = slower swaps. Task 11's reaction delay
++    // (ArenaCoord.ReactMs, trinket timing) is a SEPARATE mechanism and does not stack on this.
++    // Latched at first use (ParseBands) — restart to apply conf edits.
++    static std::vector<uint32> const tunnelPcts =
++        ArenaKillTargetValue::ParseBands("ArenaCoord.TunnelPct", {60, 30, 10, 0});
++    uint32 tunnelPct = tunnelPcts[std::min<size_t>(sharp >= 1 ? sharp - 1 : 0, tunnelPcts.size() - 1)];
++    if (kill && bot->GetVictim() && bot->GetVictim() != kill && urand(0, 99) < tunnelPct)
++        kill = bot->GetVictim();
++
++    // Human master's target outranks the function (partner bots follow the player).
++    if (botAI->GetMaster() && !GET_PLAYERBOT_AI(botAI->GetMaster()))
++        if (Unit* mTarget = botAI->GetMaster()->GetVictim())
++            if (mTarget->IsAlive() && mTarget->IsPlayer() &&
++                mTarget->ToPlayer()->GetBgTeamId() != bot->GetBgTeamId())
++                kill = mTarget;
++
++    if (kill && !ArenaKillTargetValue::IsHealerSpec(bot))  // healer bots keep healing, don't retarget
+     {
+-        bool losBlocked = !bot->IsWithinLOSInMap(target) || fabs(bot->GetPositionZ() - target->GetPositionZ()) > 5.0f;
++        if (bot->GetVictim() != kill)
++        {
++            // Mirror AttackAction::Attack's essentials: select, share via "current target",
++            // switch to the combat engine and open the auto-attack.
++            bot->SetSelection(kill->GetGUID());
++            context->GetValue<Unit*>("current target")->Set(kill);
++            botAI->ChangeEngine(BOT_STATE_COMBAT);
++            bot->Attack(kill, bot->IsWithinMeleeRange(kill) || !PlayerbotAI::IsRanged(bot));
++            LOG_DEBUG("playerbots", "[ArenaCoord] {} focuses {} ({}) sharp={} tunnel={}", bot->GetName(),
++                      kill->GetName(), kill->GetGUID().ToString(), sharp, tunnelPct);
++        }
+ 
+-        if (losBlocked)
++        // Anti-tunnel leash: don't chase further than 30y from the team centroid.
++        float cx = 0.f, cy = 0.f, cz = 0.f;
++        uint32 mates = 0;
++        for (auto const& itr : bg->GetPlayers())
+         {
+-            PathGenerator path(bot);
+-            path.CalculatePath(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ(), false);
++            Player* mate = itr.second;
++            if (!mate || !mate->IsAlive() || mate->GetBgTeamId() != bot->GetBgTeamId())
++                continue;
+ 
+-            if (path.GetPathType() != PATHFIND_NOPATH)
+-            {
+-                // If you are casting a spell and lost your target due to LoS, interrupt the cast and move
+-                if (bot->IsNonMeleeSpellCast(false, true, true, false, true))
+-                    bot->InterruptNonMeleeSpells(true);
+-
+-                float x, y, z;
+-                target->GetPosition(x, y, z);
+-                botAI->TellMasterNoFacing("Repositioning to exit the LoS target!");
+-                return MoveTo(target->GetMapId(), x + frand(-1, +1), y + frand(-1, +1), z, false, true);
+-            }
++            cx += mate->GetPositionX();
++            cy += mate->GetPositionY();
++            cz += mate->GetPositionZ();
++            ++mates;
+         }
++        if (mates)
++        {
++            cx /= mates;
++            cy /= mates;
++            cz /= mates;
++            if (bot->GetDistance2d(cx, cy) > 30.0f && !bot->IsWithinMeleeRange(kill))
++                return MoveTo(bg->GetMapId(), cx, cy, cz, false, true);
++        }
++
++        if (!bot->IsInCombat())
++            bot->Attack(kill, bot->IsWithinMeleeRange(kill) || !PlayerbotAI::IsRanged(bot));
++
++        return true;
+     }
+ 
++    // No kill target yet (opener) or healer bot (retargeting is DPS-only): take the per-class
++    // center position; the combat engine picks up from there once a fight starts.
+     if (!bot->IsInCombat())
+         return moveToCenter(bg);
+ 
+diff --git a/modules/mod-playerbots/src/Ai/Base/Strategy/BattlegroundStrategy.cpp b/modules/mod-playerbots/src/Ai/Base/Strategy/BattlegroundStrategy.cpp
+index 241aeef..4554f28 100644
+--- a/modules/mod-playerbots/src/Ai/Base/Strategy/BattlegroundStrategy.cpp
++++ b/modules/mod-playerbots/src/Ai/Base/Strategy/BattlegroundStrategy.cpp
+@@ -85,4 +85,17 @@ void ArenaStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
+ {
+     triggers.push_back(
+         new TriggerNode("no possible targets", { NextAction("arena tactics", ACTION_BG)}));
++    // Periodic cadence for the patch-0005 coordination flow: "no possible targets" alone goes
++    // quiet once the bot has a victim, so mid-fight focus swaps need this "often" re-run
++    // (relevance mirrors BattlegroundStrategy's "bg check objective" ACTION_BG + 1).
++    triggers.push_back(new TriggerNode("often", { NextAction("arena tactics", ACTION_BG + 1)}));
++    // Trinket-out-of-CC (Task 11): isUseful gates on InArena + CC'd + medallion equipped;
++    // ACTION_EMERGENCY + 1 so a CC break preempts everything else the tick it fires. "timer"
++    // (1/s), NOT "often": the action's ReactMs probabilistic-hold math assumes ~1s evaluation
++    // cadence, and "often" is a sparse RandomTrigger (~10s expected) that would leave even a
++    // full-sharp bot sitting in CC.
++    // No healer-dispel node: the base contexts ship no generic dispel/cure trigger+action pair
++    // (class AIs dispel via their own "cure" strategies) — documented skip, don't invent one.
++    // No defensives node either: class AIs already carry low-HP defensives (Task 10/11 scope).
++    triggers.push_back(new TriggerNode("timer", { NextAction("arena pvp trinket", ACTION_EMERGENCY + 1)}));
+ }
+diff --git a/modules/mod-playerbots/src/Ai/Base/Value/ArenaCoordValues.cpp b/modules/mod-playerbots/src/Ai/Base/Value/ArenaCoordValues.cpp
+new file mode 100644
+index 0000000..2a92ecb
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Base/Value/ArenaCoordValues.cpp
+@@ -0,0 +1,200 @@
++/*
++ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
++ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
++ * or (at your option) any later version.
++ */
++
++#include "ArenaCoordValues.h"
++
++#include <tuple>
++
++#include "AiFactory.h"
++#include "ArenaTeam.h"
++#include "ArenaTeamMgr.h"
++#include "Battleground.h"
++#include "Config.h"
++#include "Group.h"
++#include "Playerbots.h"
++#include "StringConvert.h"
++#include "Tokenize.h"
++
++namespace
++{
++// WotLK-canonical "turtle" defensives: a target under one of these is a wasted swap.
++constexpr uint32 TURTLE_AURAS[] = {
++    642,    // Divine Shield
++    45438,  // Ice Block
++    47585,  // Dispersion
++    1022,   // Hand of Protection (rank 1)
++    5599,   // Hand of Protection (rank 2)
++    10278,  // Hand of Protection (rank 3)
++    19263,  // Deterrence
++    31224,  // Cloak of Shadows
++};
++}
++
++std::vector<uint32> ArenaKillTargetValue::ParseBands(char const* key, std::vector<uint32> const& defaults)
++{
++    std::string csv = sConfigMgr->GetOption<std::string>(key, "");
++    if (csv.empty())
++        return defaults;
++
++    std::vector<uint32> out;
++    bool malformed = false;
++    for (std::string_view tok : Acore::Tokenize(csv, ',', false))
++    {
++        if (auto v = Acore::StringTo<uint32>(tok))
++            out.push_back(*v);
++        else
++            malformed = true;
++    }
++
++    if (malformed || out.size() < defaults.size())
++    {
++        LOG_WARN("playerbots", "[ArenaCoord] malformed csv for {} (\"{}\") — using defaults.", key, csv);
++        return defaults;
++    }
++
++    return out;
++}
++
++bool ArenaKillTargetValue::IsHealerSpec(Player* p)
++{
++    if (!p)
++        return false;
++
++    uint8 tab = AiFactory::GetPlayerSpecTab(p);
++    switch (p->getClass())
++    {
++        case CLASS_PRIEST:
++            return tab == PRIEST_TAB_DISCIPLINE || tab == PRIEST_TAB_HOLY;
++        case CLASS_PALADIN:
++            return tab == PALADIN_TAB_HOLY;
++        case CLASS_DRUID:
++            return tab == DRUID_TAB_RESTORATION;
++        case CLASS_SHAMAN:
++            return tab == SHAMAN_TAB_RESTORATION;
++        default:
++            return false;
++    }
++}
++
++uint8 ArenaKillTargetValue::SquishRank(uint8 cls)
++{
++    switch (cls)
++    {
++        case CLASS_MAGE:
++        case CLASS_WARLOCK:
++        case CLASS_PRIEST:
++            return 0;  // cloth
++        case CLASS_ROGUE:
++        case CLASS_DRUID:
++            return 1;  // leather
++        case CLASS_HUNTER:
++        case CLASS_SHAMAN:
++            return 2;  // mail
++        default:
++            return 3;  // plate (warrior, paladin, death knight)
++    }
++}
++
++bool ArenaKillTargetValue::HasTurtleAura(Unit* u)
++{
++    if (!u)
++        return false;
++
++    for (uint32 spellId : TURTLE_AURAS)
++        if (u->HasAura(spellId))
++            return true;
++
++    return false;
++}
++
++uint8 ArenaKillTargetValue::SharpnessFor(Player* bot, uint8 arenaType)
++{
++    if (!bot)
++        return 4;
++
++    PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
++    if (!botAI)
++        return 4;  // a real player plays at full sharpness
++
++    if (botAI->HasRealPlayerMaster())
++        return 4;
++
++    // Grouped with any real player (no playerbot AI attached) => full sharpness.
++    if (Group* group = bot->GetGroup())
++    {
++        for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
++        {
++            Player* member = ref->GetSource();
++            if (member && member != bot && !GET_PLAYERBOT_AI(member))
++                return 4;
++        }
++    }
++
++    // Solo-bot team: band by the bot's own arena team rating.
++    uint32 rating = 1500;  // missing team => mid rating
++    uint8 slot = 0xFF;
++    switch (arenaType)
++    {
++        case ARENA_TYPE_2v2: slot = 0; break;
++        case ARENA_TYPE_3v3: slot = 1; break;
++        case ARENA_TYPE_5v5: slot = 2; break;
++        default: break;
++    }
++    if (slot < 3)
++        if (ArenaTeam* team = sArenaTeamMgr->GetArenaTeamById(bot->GetArenaTeamId(slot)))
++            rating = team->GetRating();
++
++    // Ceilings shared with mod-arena-roster's tier bands (one config store at runtime).
++    // Latched at first use (see ParseBands) — restart the worldserver to apply conf edits.
++    static std::vector<uint32> const ceilings = ParseBands("ArenaRoster.TierCeilings", {800, 1400, 1800});
++
++    if (rating <= ceilings[0])
++        return 1;
++    if (rating <= ceilings[1])
++        return 2;
++    if (rating <= ceilings[2])
++        return 3;
++    return 4;
++}
++
++Unit* ArenaKillTargetValue::Calculate()
++{
++    if (!bot->InBattleground())
++        return nullptr;
++
++    Battleground* bg = bot->GetBattleground();
++    if (!bg || !bg->isArena())
++        return nullptr;
++
++    // Rank key: non-turtled first, healers first, squishiest first, lowest GUID first.
++    // Every team member computes the same ordering => shared focus target with no messaging.
++    using RankKey = std::tuple<bool, uint8, uint8, ObjectGuid>;
++
++    Player* best = nullptr;
++    RankKey bestKey;
++
++    for (auto const& itr : bg->GetPlayers())
++    {
++        Player* enemy = itr.second;
++        if (!enemy || !enemy->IsAlive())
++            continue;
++
++        // GetBgTeamId, not GetTeamId: rated arena teams can share a faction.
++        if (enemy->GetBgTeamId() == bot->GetBgTeamId())
++            continue;
++
++        RankKey key{HasTurtleAura(enemy), IsHealerSpec(enemy) ? 0 : 1, SquishRank(enemy->getClass()),
++                    enemy->GetGUID()};
++        if (!best || key < bestKey)
++        {
++            best = enemy;
++            bestKey = key;
++        }
++    }
++
++    // If every enemy is turtled the best turtled one is still returned; nullptr if no enemies.
++    return best;
++}
+diff --git a/modules/mod-playerbots/src/Ai/Base/Value/ArenaCoordValues.h b/modules/mod-playerbots/src/Ai/Base/Value/ArenaCoordValues.h
+new file mode 100644
+index 0000000..ad10a02
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Base/Value/ArenaCoordValues.h
+@@ -0,0 +1,47 @@
++/*
++ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
++ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
++ * or (at your option) any later version.
++ */
++
++#ifndef _PLAYERBOT_ARENACOORDVALUES_H
++#define _PLAYERBOT_ARENACOORDVALUES_H
++
++#include <vector>
++
++#include "PlayerbotAI.h"
++#include "Value.h"
++
++class Player;
++class Unit;
++
++// Deterministic, team-shared arena kill target: every member computes the same function of
++// world state, so the team focus-fires with no messaging. Priority: healer-spec enemies
++// first, then squishiest armor class; heavy defensive auras defer a target (turtle swap);
++// ties break by GUID for determinism.
++class ArenaKillTargetValue : public UnitCalculatedValue
++{
++public:
++    // checkInterval 1 = recompute on every Get(): a cached Unit* can dangle (an enemy leaving
++    // the arena inside the cache window would flow stale into callers' derefs), and per-tick
++    // recompute keeps "every member sees the same ordering" strictly true (no cache skew).
++    // Calculate is cheap: <=10 players x 8 HasAura checks.
++    ArenaKillTargetValue(PlayerbotAI* botAI) : UnitCalculatedValue(botAI, "arena kill target", 1) {}
++
++    Unit* Calculate() override;
++
++    static bool  IsHealerSpec(Player* p);
++    static uint8 SquishRank(uint8 cls);   // 0 = squishiest (cloth), 3 = plate
++    static bool  HasTurtleAura(Unit* u);  // Divine Shield, Ice Block, Dispersion, ...
++
++    // Sharpness 1..4 for THIS bot (4 = full): grouped-with-real-player => 4, else by the
++    // bot's own arena team rating vs ArenaRoster.TierCeilings bands (sConfigMgr, safe defaults).
++    static uint8 SharpnessFor(Player* bot, uint8 arenaType);
++
++    // Parse a csv config option into uint32 bands, LOG_WARN + defaults on malformed/short csv.
++    // Values latch at first use (callers cache in function-local statics): conf edits need a
++    // worldserver restart, `.reload config` does not re-read them.
++    static std::vector<uint32> ParseBands(char const* key, std::vector<uint32> const& defaults);
++};
++
++#endif
+diff --git a/modules/mod-playerbots/src/Ai/Base/ValueContext.h b/modules/mod-playerbots/src/Ai/Base/ValueContext.h
+index 12a7c6f..a5c9b33 100644
+--- a/modules/mod-playerbots/src/Ai/Base/ValueContext.h
++++ b/modules/mod-playerbots/src/Ai/Base/ValueContext.h
+@@ -12,6 +12,7 @@
+ #include "AlwaysLootListValue.h"
+ #include "AoeHealValues.h"
+ #include "AoeValues.h"
++#include "ArenaCoordValues.h"
+ #include "AttackerCountValues.h"
+ #include "AttackerWithoutAuraTargetValue.h"
+ #include "AttackersValue.h"
+@@ -257,6 +258,7 @@ public:
+         creators["bg type"] = &ValueContext::bg_type;
+         creators["rpg bg type"] = &ValueContext::rpg_bg_type;
+         creators["arena type"] = &ValueContext::arena_type;
++        creators["arena kill target"] = &ValueContext::arena_kill_target;
+         creators["bg role"] = &ValueContext::bg_role;
+         creators["bg master"] = &ValueContext::bg_master;
+         creators["enemy flag carrier"] = &ValueContext::enemy_fc;
+@@ -510,6 +512,7 @@ private:
+     static UntypedValue* bg_master(PlayerbotAI* botAI) { return new BgMasterValue(botAI); }
+     static UntypedValue* bg_role(PlayerbotAI* botAI) { return new BgRoleValue(botAI); }
+     static UntypedValue* arena_type(PlayerbotAI* botAI) { return new ArenaTypeValue(botAI); }
++    static UntypedValue* arena_kill_target(PlayerbotAI* botAI) { return new ArenaKillTargetValue(botAI); }
+     static UntypedValue* bg_type(PlayerbotAI* botAI) { return new BgTypeValue(botAI); }
+     static UntypedValue* rpg_bg_type(PlayerbotAI* botAI) { return new RpgBgTypeValue(botAI); }
+     static UntypedValue* team_fc(PlayerbotAI* botAI) { return new FlagCarrierValue(botAI, true, true); }

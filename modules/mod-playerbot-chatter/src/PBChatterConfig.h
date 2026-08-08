@@ -50,6 +50,14 @@ extern uint32_t    g_PBChatAmbientWEvent;      // content weight: event riff
 
 extern std::vector<std::string> g_PBChatCommandKeywords; // lowercased
 
+// ── Few-shot style anchors ───────────────────────────────────────────────────
+// Real-player chat lines fed to the model as tone/length anchors on both the
+// ambient and reactive paths. Loaded at startup from g_PBChatStyleExamplesFile
+// (one line per example, '#'/blank lines skipped); empty -> use the built-in
+// list in PBChatterAmbientPrompt.cpp.
+extern std::string              g_PBChatStyleExamplesFile;
+extern std::vector<std::string> g_PBChatStyleExamples;
+
 void PBChatterLoadConfig();
 
 #endif

@@ -28,7 +28,7 @@ MODULES=(
 )
 
 # Modules we author and ship from THIS repo (copied in, not git-cloned). Kept by the reconcile.
-LOCAL_MODULES=( "mod-playerbot-chatter" "mod-raid-roster" )
+LOCAL_MODULES=( "mod-playerbot-chatter" "mod-raid-roster" "mod-ahbot-price" "mod-wintergrasp-bots" "mod-arena-roster" )
 
 # Optional commit pins (repo-pins.txt): freeze the fork and/or a module at a known-good commit
 # instead of its branch tip — used to hold a stable upstream when the latest HEAD is broken.
@@ -44,6 +44,9 @@ apply_pin () {  # $1 = repo dir, $2 = basename used in repo-pins.txt
   echo "    Pinning $name to $pin (repo-pins.txt)"
   git -C "$dir" cat-file -e "${pin}^{commit}" 2>/dev/null || git -C "$dir" fetch --depth 1 origin "$pin"
   git -C "$dir" reset --hard "$pin"
+  # Scrub patch-CREATED (untracked) files so apply_patches never hits "already exists" after a
+  # reset. src/ only — patches never create files elsewhere; env/, config/, modules/ must survive.
+  git -C "$dir" clean -fd -- src/ 2>/dev/null || true
 }
 
 # Tracked source patches for the upstream fork. The fork is gitignored/regenerated, so any core
@@ -74,7 +77,6 @@ apply_patches () {
 echo "==> 1/10 Cloning AzerothCore playerbots fork (if missing)"
 [[ -d "$AC_DIR/.git" ]] || git clone "$FORK_URL" --branch="$FORK_BRANCH" "$AC_DIR"
 apply_pin "$AC_DIR" "azerothcore-wotlk"
-apply_patches
 
 echo "==> 2/10 Cloning modules (if missing)"
 for entry in "${MODULES[@]}"; do
@@ -82,6 +84,11 @@ for entry in "${MODULES[@]}"; do
   [[ -d "$AC_DIR/modules/$name/.git" ]] || git clone "$url" "$AC_DIR/modules/$name"
   apply_pin "$AC_DIR/modules/$name" "$name"
 done
+
+# Patches must apply AFTER the module clones/pins: several (0002+) target files inside
+# modules/mod-playerbots, which doesn't exist yet on a fresh install at fork-clone time —
+# applying earlier made a fresh install abort on a perfectly good patch.
+apply_patches
 
 # Reconcile: the build compiles EVERY module dir under modules/ (CMake globs the tree), so a
 # module dropped from MODULES above must be physically removed or it keeps getting compiled.
@@ -227,6 +234,11 @@ innodb_io_capacity           = ${DB_IO_CAPACITY:-500}
 innodb_io_capacity_max       = ${DB_IO_CAPACITY_MAX:-2500}
 innodb_log_buffer_size       = 32M
 transaction_isolation        = READ-COMMITTED
+# 2 = flush the redo log to disk ~once/second instead of at every commit. Thousands of bot saves
+# make per-commit fsyncs the DB's dominant cost; the trade is losing up to ~1s of the most recent
+# transactions if the HOST OS crashes (a mysqld-only crash loses nothing) — fine for a LAN game
+# server. Set DB_FLUSH_LOG_AT_TRX_COMMIT=1 for full ACID durability.
+innodb_flush_log_at_trx_commit = ${DB_FLUSH_LOG_AT_TRX_COMMIT:-2}
 CNF
 # Must NOT be world-writable or mysqld ignores it ("World-writable config file is ignored").
 chmod 0644 "$AC_DIR/config/mysql-tuning.cnf"
@@ -246,6 +258,19 @@ cd "$AC_DIR"
 
 echo "==> 4/10 Building & starting the stack (first run compiles core+modules,"
 echo "          imports the DB, and downloads client data — this can take a while)"
+# An upstream client-data version bump makes ac-client-data-init re-download the data archive into
+# the ac-client-data VOLUME. That write fails ("Permission denied") when a PRE-EXISTING volume is
+# root-owned while the container runs as the non-root UID above — which cascades to ac-worldserver
+# never starting (it depends on client-data-init completing). Chown the volume to the container user
+# so the download can write. Only touch it if it already exists: a fresh install has no volume yet
+# and inherits the image's (acore-owned) data dir on first mount. Idempotent; safe to re-run.
+DATA_VOL_BASE="${DOCKER_VOL_DATA:-ac-client-data}"
+DATA_VOL="$(docker volume ls --format '{{.Name}}' | grep -E "(^|_)${DATA_VOL_BASE}$" | head -1 || true)"
+if [[ -n "$DATA_VOL" ]]; then
+  echo "    Ensuring client-data volume ($DATA_VOL) is writable by UID ${HOST_UID} (survives client-data version bumps)"
+  docker run --rm -v "${DATA_VOL}:/d" alpine chown -R "${HOST_UID}:${HOST_GID}" /d 2>/dev/null || true
+fi
+
 # --remove-orphans: the override was just rewritten above WITHOUT ac-webreg (it's appended
 # later, once its secrets exist), so a webreg container from a prior run looks orphaned here
 # and Compose warns. Drop it now; the ac-webreg step below recreates it from the fresh config.
@@ -383,37 +408,98 @@ set_conf "AiPlayerbot.RandomBotAutoJoinBGAVCount" "0" "$PB_CONF"  # Alterac Vall
 set_conf "AiPlayerbot.RandomBotAutoJoinBGICCount" "0" "$PB_CONF"  # Isle of Conquest (on-demand)
 # Rated arena (level 80 only — lower brackets need core code changes per module docs).
 # Bot arena teams (RandomBotArenaTeam*Count defaults: 10/10/5) provide the opposition.
-set_conf "AiPlayerbot.RandomBotAutoJoinBGRatedArena2v2Count" "1" "$PB_CONF"
-set_conf "AiPlayerbot.RandomBotAutoJoinBGRatedArena3v3Count" "1" "$PB_CONF"
-set_conf "AiPlayerbot.RandomBotAutoJoinBGRatedArena5v5Count" "1" "$PB_CONF"
+# NOTE: the RatedArena*Count knobs themselves are set further below, gated on
+# ARENAROSTER_ENABLE (mod-arena-roster's premade ladder replaces this stock ambiance
+# when the module is on).
+# Fast rated-arena pops: the core matchmaker only pairs teams within Arena.MaxRatingDifference
+# MMR (default 150) of each other until a team has waited Arena.RatingDiscardTimer ms
+# (default 600000 = TEN minutes), after which rating is ignored (BattlegroundQueue.cpp).
+# With only a handful of bot teams to draw from, an out-of-band team sits most of that
+# window before a pop. Widen the band and cut the discard so any queued bot team becomes
+# a legal opponent within ~a minute.
+set_conf "Arena.MaxRatingDifference" "500"   "$WS_CONF"
+set_conf "Arena.RatingDiscardTimer"  "60000" "$WS_CONF"
+# Arena points: the core default is Arena.AutoDistributePoints=0 — points are NEVER paid out
+# automatically. Enable it on a daily cycle (retail was weekly). The first payout happens
+# shortly after the next restart (the stored next-distribution worldstate starts in the past),
+# then every AutoDistributeInterval days. Arena.GamesRequired is per-CYCLE (default 10, tuned
+# for a week): a daily payout would demand 10 games/day, so relax it to 3. The core also
+# requires each member to have played >=30% of the team's games that cycle (hardcoded).
+set_conf "Arena.AutoDistributePoints"   "1" "$WS_CONF"
+set_conf "Arena.AutoDistributeInterval" "1" "$WS_CONF"
+set_conf "Arena.GamesRequired"          "3" "$WS_CONF"
 
-# Performance / scaling tuning (mod-playerbots "Playerbot Configuration" wiki). These are the
-# throughput knobs, separate from the gameplay rates above. The CPU/threading knobs are .env-driven
-# (scale them to your host's cores, RAM, and bot count); the rest are sane fixed defaults.
+# Arena roster (mod-arena-roster): per-player partner pool + premade opponent ladder +
+# arena coordination AI (fork patch 0005). When enabled, the module's director serves
+# premade tiered teams into the player's rated queue — the stock random-bot rated
+# ambiance would race it into matches at random gear/ratings, so pin it off.
+# NOTE: the Arena.MaxRatingDifference=500 / Arena.RatingDiscardTimer=60000 knobs above
+# are LOAD-BEARING for this module: the director's 120s queue window assumes them
+# (stock 150/600000 would abort most engagements before the discard timer pairs them).
+AR_CONF="$MODETC/mod_arena_roster.conf"
+if [[ "${ARENAROSTER_ENABLE:-0}" == "1" ]]; then
+  set_conf "ArenaRoster.Enable" "1" "$AR_CONF"
+  set_conf "AiPlayerbot.RandomBotAutoJoinBGRatedArena2v2Count" "0" "$PB_CONF"
+  set_conf "AiPlayerbot.RandomBotAutoJoinBGRatedArena3v3Count" "0" "$PB_CONF"
+  set_conf "AiPlayerbot.RandomBotAutoJoinBGRatedArena5v5Count" "0" "$PB_CONF"
+else
+  set_conf "ArenaRoster.Enable" "0" "$AR_CONF"
+  set_conf "AiPlayerbot.RandomBotAutoJoinBGRatedArena2v2Count" "1" "$PB_CONF"
+  set_conf "AiPlayerbot.RandomBotAutoJoinBGRatedArena3v3Count" "1" "$PB_CONF"
+  set_conf "AiPlayerbot.RandomBotAutoJoinBGRatedArena5v5Count" "1" "$PB_CONF"
+fi
+
+# Performance / scaling tuning (mod-playerbots "Playerbot Configuration" wiki + the 2026-07 source
+# audit for 4000-5000 bots). These are the throughput knobs, separate from the gameplay rates above.
+# The CPU/threading knobs are .env-driven (scale them to your host's cores, RAM, and bot count);
+# the rest are sane fixed defaults.
 #   worldserver.conf:
 #   - MapUpdate.Threads (.env MAP_UPDATE_THREADS): stock is 1 — the single biggest CPU lever with a
-#     high bot count. The wiki caps its advice around 6 even on big boxes (diminishing returns vs.
-#     DB/network/bot-AI threads competing for cores), so the default is 6, not cores-2.
+#     high bot count. One map = one thread's work (no intra-map parallelism), and open-world bots
+#     live on ~5 continent maps, so past ~8 extra threads only serve instanced maps.
 #   - MapUpdateInterval/MinWorldUpdateTime: keep the world tick responsive under bot load.
-#   - PreloadAllNonInstancedMapGrids=0: don't pin every map grid in RAM at boot (stock default;
-#     pinned here so re-running setup.sh restores it).
+#   - CharacterDatabase.WorkerThreads/SynchThreads (.env CHAR_DB_WORKER_THREADS /
+#     CHAR_DB_SYNCH_THREADS): stock is 1/1 — every bot save funnels through ONE async connection,
+#     and an undersized synch pool BUSY-SPINS on the map threads (GetFreeConnection).
+#   - Visibility.Distance.Continents (.env VISIBILITY_DISTANCE_CONTINENTS): unit/object draw
+#     distance, GLOBAL (affects real players too — units pop in at this range; terrain is
+#     client-side and unaffected). Visibility notification cost is O(mutually-visible-players^2),
+#     so this is the cheapest big CPU win with dense bots. 80 is barely noticeable on the ground;
+#     stock is 100.
+#   - PreloadAllNonInstancedMapGrids (.env PRELOAD_MAP_GRIDS): pin every continent grid in RAM at
+#     boot (~9 GB). Grids never unload in this fork anyway, so with wandering bots you pay the RAM
+#     regardless — preloading just moves the grid+mmap+vmap file I/O out of the map threads'
+#     mid-tick path. Needs the RAM headroom; set 0 on small hosts.
 #   - Quests.IgnoreAutoAccept=1: skip the auto-accept path bots otherwise hammer.
-set_conf "MapUpdate.Threads"               "${MAP_UPDATE_THREADS:-6}"  "$WS_CONF"
+set_conf "MapUpdate.Threads"               "${MAP_UPDATE_THREADS:-8}"  "$WS_CONF"
 set_conf "MapUpdateInterval"               "10" "$WS_CONF"
 set_conf "MinWorldUpdateTime"              "1"  "$WS_CONF"
-set_conf "PreloadAllNonInstancedMapGrids"  "0"  "$WS_CONF"
+set_conf "CharacterDatabase.WorkerThreads" "${CHAR_DB_WORKER_THREADS:-4}" "$WS_CONF"
+set_conf "CharacterDatabase.SynchThreads"  "${CHAR_DB_SYNCH_THREADS:-4}"  "$WS_CONF"
+set_conf "Visibility.Distance.Continents"  "${VISIBILITY_DISTANCE_CONTINENTS:-80}" "$WS_CONF"
+set_conf "PreloadAllNonInstancedMapGrids"  "${PRELOAD_MAP_GRIDS:-1}"  "$WS_CONF"
 set_conf "Quests.IgnoreAutoAccept"         "1"  "$WS_CONF"
 #   playerbots.conf:
 #   - BotActiveAlone + botActiveAloneSmartScale (.env BOT_ACTIVE_ALONE / BOT_ACTIVE_ALONE_SMART_SCALE):
 #     the wiki's "Profile 1 (best for high bot counts)". Only ~BotActiveAlone% of bots run full AI
 #     when no real player is near, and SmartScale auto-throttles that further if the tick gets heavy.
+#   - botActiveAloneSmartScaleDiffLimitCeiling (.env BOT_SMART_SCALE_CEILING): the world-tick ms at
+#     which SmartScale throttles bot activity to ZERO (scaling starts at the 50ms floor). Stock 200
+#     silently mass-idles bots once the tick sits there; 300 trades a laggier tick for bots that
+#     still do things at high populations.
 #   - PlayerbotsDatabase.WorkerThreads/SynchThreads (.env PLAYERBOTS_DB_WORKER_THREADS /
-#     PLAYERBOTS_DB_SYNCH_THREADS): the wiki's recommended bot-DB thread split.
+#     PLAYERBOTS_DB_SYNCH_THREADS): stock 1/1; all bot-event writes serialize onto one worker.
+#   - RandomBotsPerInterval (.env RANDOM_BOTS_PER_INTERVAL): hard cap on bots the random-bot
+#     manager touches per ~20s cycle (logins + maintenance). Stock 60 means a full roster sweep
+#     takes N/45*20s (~15 min at 2000 bots, ~37 min at 5000) — scale it with the bot count or
+#     teleport/randomize maintenance starves. Runs on the world thread, so raise gradually.
 #   - RandomBot*Interval: the module authors' tuned cadence for the random-bot manager.
 set_conf "AiPlayerbot.BotActiveAlone"               "${BOT_ACTIVE_ALONE:-10}"   "$PB_CONF"
 set_conf "AiPlayerbot.botActiveAloneSmartScale"     "${BOT_ACTIVE_ALONE_SMART_SCALE:-1}"    "$PB_CONF"
-set_conf "PlayerbotsDatabase.WorkerThreads"         "${PLAYERBOTS_DB_WORKER_THREADS:-1}"    "$PB_CONF"
+set_conf "AiPlayerbot.botActiveAloneSmartScaleDiffLimitCeiling" "${BOT_SMART_SCALE_CEILING:-300}" "$PB_CONF"
+set_conf "PlayerbotsDatabase.WorkerThreads"         "${PLAYERBOTS_DB_WORKER_THREADS:-2}"    "$PB_CONF"
 set_conf "PlayerbotsDatabase.SynchThreads"          "${PLAYERBOTS_DB_SYNCH_THREADS:-2}"    "$PB_CONF"
+set_conf "AiPlayerbot.RandomBotsPerInterval"        "${RANDOM_BOTS_PER_INTERVAL:-150}" "$PB_CONF"
 set_conf "AiPlayerbot.RandomBotUpdateInterval"      "20"   "$PB_CONF"
 set_conf "AiPlayerbot.RandomBotCountChangeMinInterval" "1800" "$PB_CONF"
 set_conf "AiPlayerbot.RandomBotCountChangeMaxInterval" "7200" "$PB_CONF"
@@ -440,7 +526,38 @@ if [[ -f "$AH_CONF" ]]; then
     set_conf "AuctionHouseBot.Buyer.Enabled"               "true"           "$AH_CONF"
     # 1.0 = pays roughly the item's calculated value; raise (e.g. 1.25) to be more generous.
     set_conf "AuctionHouseBot.Buyer.AcceptablePriceModifier" "1"            "$AH_CONF"
+
+    # Stock depth: more total listings so bought-out goods reappear sooner
+    # (refill is ItemsPerCycle=150/min toward this cap; there is no per-item restock).
+    set_conf "AuctionHouseBot.Alliance.MaxItems" "25000" "$AH_CONF"
+    set_conf "AuctionHouseBot.Horde.MaxItems"    "25000" "$AH_CONF"
+    set_conf "AuctionHouseBot.Neutral.MaxItems"  "25000" "$AH_CONF"
+
+    # Listing mix (relative weights per category/quality roll): bias the AH toward a
+    # consumable/crafting economy — gems, glyphs, trade goods, reagents up; the
+    # weapon/armor flood down. Glyph weight is sized so ~all ~350 WotLK glyphs are
+    # statistically always in stock (no hard per-item guarantee exists in the module).
+    set_conf "AuctionHouseBot.ListProportion.CategoryGem.QualityUncommon"  "40" "$AH_CONF"
+    set_conf "AuctionHouseBot.ListProportion.CategoryGem.QualityRare"      "20" "$AH_CONF"
+    set_conf "AuctionHouseBot.ListProportion.CategoryGem.QualityEpic"      "8"  "$AH_CONF"
+    set_conf "AuctionHouseBot.ListProportion.CategoryGlyph.QualityNormal"  "60" "$AH_CONF"
+    set_conf "AuctionHouseBot.ListProportion.CategoryConsumable.QualityNormal"   "60" "$AH_CONF"
+    set_conf "AuctionHouseBot.ListProportion.CategoryConsumable.QualityUncommon" "15" "$AH_CONF"
+    set_conf "AuctionHouseBot.ListProportion.CategoryTradeGood.QualityNormal"    "120" "$AH_CONF"
+    set_conf "AuctionHouseBot.ListProportion.CategoryTradeGood.QualityUncommon"  "25" "$AH_CONF"
+    set_conf "AuctionHouseBot.ListProportion.CategoryTradeGood.QualityRare"      "12" "$AH_CONF"
+    set_conf "AuctionHouseBot.ListProportion.CategoryReagent.QualityNormal"      "20" "$AH_CONF"
+    set_conf "AuctionHouseBot.ListProportion.CategoryWeapon.QualityNormal"   "5"  "$AH_CONF"
+    set_conf "AuctionHouseBot.ListProportion.CategoryWeapon.QualityUncommon" "15" "$AH_CONF"
+    set_conf "AuctionHouseBot.ListProportion.CategoryWeapon.QualityRare"     "6"  "$AH_CONF"
+    set_conf "AuctionHouseBot.ListProportion.CategoryWeapon.QualityEpic"     "2"  "$AH_CONF"
+    set_conf "AuctionHouseBot.ListProportion.CategoryArmor.QualityPoor"      "0"  "$AH_CONF"
+    set_conf "AuctionHouseBot.ListProportion.CategoryArmor.QualityNormal"    "10" "$AH_CONF"
+    set_conf "AuctionHouseBot.ListProportion.CategoryArmor.QualityUncommon"  "20" "$AH_CONF"
+    set_conf "AuctionHouseBot.ListProportion.CategoryArmor.QualityRare"      "10" "$AH_CONF"
+    set_conf "AuctionHouseBot.ListProportion.CategoryArmor.QualityEpic"      "3"  "$AH_CONF"
     echo "    AHBot ON (char GUIDs: ${AHBOT_GUIDS}) -> lists goods and buys fairly-priced player auctions."
+    echo "      (consumable/crafting-weighted mix: gems+glyphs+trade goods up, weapons/armor down; 25k listings/house)"
   else
     set_conf "AuctionHouseBot.EnableSeller"  "false" "$AH_CONF"
     set_conf "AuctionHouseBot.Buyer.Enabled" "false" "$AH_CONF"
@@ -491,6 +608,7 @@ if [[ -f "$PBCHAT_CONF" ]]; then
   CHATTER_SYSTEM_PROMPT="${CHATTER_SYSTEM_PROMPT:-${_CHATTER_SP_DEFAULT}}"
   set_conf "PlayerbotChatter.SystemPrompt" "\"${CHATTER_SYSTEM_PROMPT}\"" "$PBCHAT_CONF"
   set_conf "PlayerbotChatter.MaxConcurrent" "${CHATTER_MAX_CONCURRENT:-3}"          "$PBCHAT_CONF"
+  set_conf "PlayerbotChatter.StyleExamplesFile" "${CHATTER_STYLE_EXAMPLES_FILE:-/azerothcore/modules/mod-playerbot-chatter/data/style-examples.txt}" "$PBCHAT_CONF"
   set_conf "PlayerbotChatter.SayRange"      "${CHATTER_SAY_RANGE:-40}"              "$PBCHAT_CONF"
   set_conf "PlayerbotChatter.SayMaxBots"    "${CHATTER_SAY_MAX_BOTS:-2}"            "$PBCHAT_CONF"
   set_conf "PlayerbotChatter.SayChance"     "${CHATTER_SAY_CHANCE:-35}"             "$PBCHAT_CONF"
@@ -566,6 +684,48 @@ if [[ -f "$RAID_CONF" ]]; then
   set_conf "RaidRoster.Enable" "${RAIDROSTER_ENABLE:-0}" "$RAID_CONF"
 fi
 
+# ── AH price lookup (mod-ahbot-price) ────────────────────────────────────────
+# Read-only .ahprice command + AHPrice addon: shows the buy-value RANGE the AH bot
+# will pay for an item, computed from the live AuctionHouseBot.* config. Built always;
+# inert unless enabled. Useful whether or not the AHBot buyer itself is on.
+AHPRICE_CONF="$MODETC/mod_ahbot_price.conf"
+if [[ -f "$AHPRICE_CONF" ]]; then
+  set_conf "AHBotPrice.Enable"            "${AHPRICE_ENABLE:-0}"              "$AHPRICE_CONF"
+  set_conf "AHBotPrice.HideUnauctionable" "${AHPRICE_HIDE_UNAUCTIONABLE:-1}"  "$AHPRICE_CONF"
+fi
+
+# ── Wintergrasp bots (mod-wintergrasp-bots) ──────────────────────────────────
+# Self-sustaining playerbot participation in Wintergrasp: a world-thread director
+# pulls eligible random bots into the battle so a solo player has enemies to fight
+# and can rank up. Built always; inert unless enabled.
+WGBOTS_CONF="$MODETC/mod_wintergrasp_bots.conf"
+if [[ -f "$WGBOTS_CONF" ]]; then
+  set_conf "WintergraspBots.Enable"     "${WGBOTS_ENABLE:-0}"       "$WGBOTS_CONF"
+  set_conf "WintergraspBots.PerFaction" "${WGBOTS_PER_FACTION:-15}" "$WGBOTS_CONF"
+  set_conf "WintergraspBots.MinLevel"   "${WGBOTS_MIN_LEVEL:-75}"   "$WGBOTS_CONF"
+  set_conf "WintergraspBots.TickMs"     "${WGBOTS_TICK_MS:-5000}"   "$WGBOTS_CONF"
+  set_conf "WintergraspBots.Debug"      "${WGBOTS_DEBUG:-0}"        "$WGBOTS_CONF"
+  set_conf "WintergraspBots.WorkshopCapture" "${WGBOTS_WORKSHOP_CAPTURE:-1}" "$WGBOTS_CONF"
+  set_conf "WintergraspBots.ArriveRadius"    "${WGBOTS_ARRIVE_RADIUS:-8.0}"  "$WGBOTS_CONF"
+  set_conf "WintergraspBots.StuckSeconds"    "${WGBOTS_STUCK_SECONDS:-12}"   "$WGBOTS_CONF"
+  set_conf "WintergraspBots.StuckEpsilon"    "${WGBOTS_STUCK_EPSILON:-3.0}"  "$WGBOTS_CONF"
+  set_conf "WintergraspBots.ReassertMove"    "${WGBOTS_REASSERT_MOVE:-1}"    "$WGBOTS_CONF"
+  set_conf "WintergraspBots.EngageVehicleRadius" "${WGBOTS_ENGAGE_VEHICLE_RADIUS:-80}" "$WGBOTS_CONF"
+  set_conf "WintergraspBots.DefenseShare"    "${WGBOTS_DEFENSE_SHARE:-60}"   "$WGBOTS_CONF"
+  set_conf "WintergraspBots.FieldGarrison"   "${WGBOTS_FIELD_GARRISON:-1}"   "$WGBOTS_CONF"
+  set_conf "WintergraspBots.TurretCrewMax"   "${WGBOTS_TURRET_CREW_MAX:-4}"    "$WGBOTS_CONF"
+  set_conf "WintergraspBots.RallyPerVehicle" "${WGBOTS_RALLY_PER_VEHICLE:-3}"  "$WGBOTS_CONF"
+  set_conf "WintergraspBots.ThreatRadius"    "${WGBOTS_THREAT_RADIUS:-350}"    "$WGBOTS_CONF"
+  set_conf "WintergraspBots.PatrolRadius"    "${WGBOTS_PATROL_RADIUS:-12}"     "$WGBOTS_CONF"
+  set_conf "WintergraspBots.SortieQuorum"    "${WGBOTS_SORTIE_QUORUM:-4}"      "$WGBOTS_CONF"
+  set_conf "WintergraspBots.CaptureSquad"    "${WGBOTS_CAPTURE_SQUAD:-5}"      "$WGBOTS_CONF"
+  set_conf "WintergraspBots.SiegeEnable"     "${WGBOTS_SIEGE_ENABLE:-1}"        "$WGBOTS_CONF"
+  set_conf "WintergraspBots.HumanReserve"    "${WGBOTS_SIEGE_HUMAN_RESERVE:-2}" "$WGBOTS_CONF"
+  set_conf "WintergraspBots.RecrewRadius"       "${WGBOTS_RECREW_RADIUS:-40}"        "$WGBOTS_CONF"
+  set_conf "WintergraspBots.VehicleReapSeconds" "${WGBOTS_VEHICLE_REAP_SECONDS:-30}" "$WGBOTS_CONF"
+  set_conf "WintergraspBots.KeepScreen"         "${WGBOTS_KEEP_SCREEN:-4}"           "$WGBOTS_CONF"
+fi
+
 echo "==> 7/10 Hardening auth/world for external exposure"
 # Authserver brute-force lockout. The shipped default is WrongPass.MaxCount=0 — i.e. UNLIMITED
 # password guesses, which is fine on a trusted LAN but unacceptable once 3724 faces the internet.
@@ -624,6 +784,80 @@ fi
 docker compose exec -T ac-database \
   mysql -uroot -p"${DOCKER_DB_ROOT_PASSWORD}" \
   -e "UPDATE acore_world.gossip_menu_option SET BoxMoney=${DUALSPEC_COST} WHERE OptionType=18;"
+
+# Molten Core douse cooldown (.env MC_DOUSE_NO_COOLDOWN). Eternal Quintessence
+# (22754) ships a 3600000ms (1h) cooldown that blocks dousing all 7 Runes of
+# Warding in a single clear to reach Majordomo. Aqual Quintessence (17333) already
+# has none (gated by charges instead), so only 22754 needs touching.
+# Idempotent + reversible — flip the knob and re-run to restore the retail cooldown.
+if [[ "${MC_DOUSE_NO_COOLDOWN:-1}" == "1" ]]; then
+  MC_DOUSE_CD=0;       MC_DOUSE_CATCD=-1;      echo "    MC douse cooldown REMOVED (Eternal Quintessence)."
+else
+  MC_DOUSE_CD=3600000; MC_DOUSE_CATCD=3600000; echo "    MC douse cooldown at retail 1h."
+fi
+docker compose exec -T ac-database \
+  mysql -uroot -p"${DOCKER_DB_ROOT_PASSWORD}" \
+  -e "UPDATE acore_world.item_template
+        SET spellcooldown_1=${MC_DOUSE_CD}, spellcategorycooldown_1=${MC_DOUSE_CATCD}
+      WHERE entry=22754;"
+
+# Darkmoon Faire continuous rotation (.env DARKMOON_CONTINUOUS). Stock 3.3.5a runs
+# the Faire ~1 week/month with a ~3-week gap, holiday-linked to the client calendar.
+# This detaches the three Faire events from the holiday calendar (holiday=0) and
+# phase-offsets their start_time by 7 days each, so exactly one location is always
+# up: Elwynn (event 4) -> Mulgore (5) -> Terokkar (3), 1 week each on a 21-day cycle,
+# no gap/overlap. length=10080 (7d), occurence=30240 (21d). The three "Building"
+# setup pre-events (23/71/77) are disabled (start pushed to 2038 + holiday detached)
+# so each Faire appears fully-formed. end_time=NULL => End=now+2yr, recomputed each
+# boot, so it never expires on a server that restarts. Idempotent + reversible: flip
+# the knob and re-run. game_event reloads on the step 9/10 worldserver restart below.
+# The Calendar UI won't advertise it (client-side Holidays.dbc, unpatched); the Faire
+# is fully present in-world regardless.
+if [[ "${DARKMOON_CONTINUOUS:-1}" == "1" ]]; then
+  echo "    Darkmoon Faire CONTINUOUS (Elwynn->Mulgore->Terokkar, 1 week each, no gap)."
+  docker compose exec -T ac-database \
+    mysql -uroot -p"${DOCKER_DB_ROOT_PASSWORD}" acore_world <<'SQL'
+UPDATE game_event SET start_time='2024-01-01 00:00:00', end_time=NULL, occurence=30240, length=10080, holiday=0, holidayStage=0 WHERE eventEntry=4;
+UPDATE game_event SET start_time='2024-01-08 00:00:00', end_time=NULL, occurence=30240, length=10080, holiday=0, holidayStage=0 WHERE eventEntry=5;
+UPDATE game_event SET start_time='2024-01-15 00:00:00', end_time=NULL, occurence=30240, length=10080, holiday=0, holidayStage=0 WHERE eventEntry=3;
+UPDATE game_event SET start_time='2038-01-01 00:00:00', end_time=NULL, holiday=0, holidayStage=0 WHERE eventEntry IN (23,71,77);
+SQL
+else
+  echo "    Darkmoon Faire at retail cadence (monthly, holiday-linked)."
+  docker compose exec -T ac-database \
+    mysql -uroot -p"${DOCKER_DB_ROOT_PASSWORD}" acore_world <<'SQL'
+UPDATE game_event SET start_time=NULL, end_time=NULL, occurence=131040, length=10079, holiday=374, holidayStage=2 WHERE eventEntry=4;
+UPDATE game_event SET start_time=NULL, end_time=NULL, occurence=131040, length=10079, holiday=375, holidayStage=2 WHERE eventEntry=5;
+UPDATE game_event SET start_time=NULL, end_time=NULL, occurence=131040, length=10079, holiday=376, holidayStage=2 WHERE eventEntry=3;
+UPDATE game_event SET start_time=NULL, end_time=NULL, occurence=131040, length=4320, holiday=374, holidayStage=1 WHERE eventEntry=23;
+UPDATE game_event SET start_time=NULL, end_time=NULL, occurence=131040, length=4320, holiday=375, holidayStage=1 WHERE eventEntry=71;
+UPDATE game_event SET start_time=NULL, end_time=NULL, occurence=131040, length=4320, holiday=376, holidayStage=1 WHERE eventEntry=77;
+SQL
+fi
+
+# "Stave of the Ancients" fast respawn (.env STAVE_FAST_RESPAWN). The four demonic
+# corrupters for the mage quest (7636) are killed by talking to a neutral "disguise"
+# NPC that then turns hostile: Simone the Inconspicuous (14527, + her cat Precious
+# 14528), Franklin the Friendly (14529), Artorius the Amiable (14531), Nelson the
+# Nice (14536). The demons themselves are transforms, not spawns, so the disguise
+# NPC's spawntimesecs governs the wait after a failed solo attempt (retail 600s, or
+# 900s for Franklin). This shrinks it to 30s for quick retries. (Live schema keys
+# the creature spawn table on `id`, not `id1`.) Idempotent + reversible: flip the
+# knob and re-run to restore the retail timers.
+if [[ "${STAVE_FAST_RESPAWN:-1}" == "1" ]]; then
+  echo "    Stave of the Ancients demons respawn FAST (30s)."
+  docker compose exec -T ac-database \
+    mysql -uroot -p"${DOCKER_DB_ROOT_PASSWORD}" \
+    -e "UPDATE acore_world.creature SET spawntimesecs=30
+          WHERE id IN (14527,14528,14529,14531,14536);"
+else
+  echo "    Stave of the Ancients demons at retail respawn timers."
+  docker compose exec -T ac-database \
+    mysql -uroot -p"${DOCKER_DB_ROOT_PASSWORD}" acore_world <<'SQL'
+UPDATE creature SET spawntimesecs=600 WHERE id IN (14527,14528,14531,14536);
+UPDATE creature SET spawntimesecs=900 WHERE id=14529;
+SQL
+fi
 
 # --- Registration website (ac-webreg) ----------------------------------------
 # Opt-in: only wired up when WEBREG_ADMIN_PASS is set in .env. Adds a container

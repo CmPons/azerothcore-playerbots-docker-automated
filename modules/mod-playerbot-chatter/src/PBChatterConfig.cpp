@@ -2,6 +2,7 @@
 #include "Config.h"
 #include "Log.h"
 #include <cctype>
+#include <fstream>
 #include <sstream>
 
 bool        g_PBChatEnable        = false;
@@ -61,6 +62,41 @@ uint32_t    g_PBChatAmbientWFlavor       = 12;
 uint32_t    g_PBChatAmbientWEvent        = 8;
 
 std::vector<std::string> g_PBChatCommandKeywords;
+
+std::string              g_PBChatStyleExamplesFile;
+std::vector<std::string> g_PBChatStyleExamples;
+
+// Load few-shot style lines from a plain-text file: one example per line,
+// blank lines and '#' comments skipped, surrounding whitespace trimmed. On any
+// failure the vector is left empty so callers fall back to the built-in list.
+static std::vector<std::string> LoadStyleExamples(std::string const& path)
+{
+    std::vector<std::string> out;
+    if (path.empty())
+        return out;
+
+    std::ifstream in(path);
+    if (!in.is_open())
+    {
+        LOG_WARN("server.loading", "[PlayerbotChatter] StyleExamplesFile '{}' could not be opened; using built-in examples.", path);
+        return out;
+    }
+
+    std::string line;
+    while (std::getline(in, line))
+    {
+        if (!line.empty() && line.back() == '\r')  // tolerate CRLF
+            line.pop_back();
+        size_t a = line.find_first_not_of(" \t");
+        if (a == std::string::npos)
+            continue;                               // blank
+        if (line[a] == '#')
+            continue;                               // comment
+        size_t b = line.find_last_not_of(" \t");
+        out.push_back(line.substr(a, b - a + 1));
+    }
+    return out;
+}
 
 static std::vector<std::string> SplitCsvLower(std::string const& csv)
 {
@@ -132,5 +168,9 @@ void PBChatterLoadConfig()
         "enter vehicle,leave vehicle,buy,sell,trade,cast,co,nc,rti,los,ll");
     g_PBChatCommandKeywords = SplitCsvLower(kw);
 
-    LOG_INFO("server.loading", "[PlayerbotChatter] Config loaded (enabled={}).", g_PBChatEnable);
+    g_PBChatStyleExamplesFile = sConfigMgr->GetOption<std::string>("PlayerbotChatter.StyleExamplesFile", "");
+    g_PBChatStyleExamples     = LoadStyleExamples(g_PBChatStyleExamplesFile);
+
+    LOG_INFO("server.loading", "[PlayerbotChatter] Config loaded (enabled={}, style_examples={}).",
+             g_PBChatEnable, g_PBChatStyleExamples.size());
 }

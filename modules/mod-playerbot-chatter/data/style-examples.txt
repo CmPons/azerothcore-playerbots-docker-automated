@@ -1,0 +1,69 @@
+# mod-playerbot-chatter — style example lines (few-shot STYLE anchors)
+#
+# The chatter mod feeds a random handful of these lines to the local LLM as
+# "match this tone and length (don't reuse the content)" anchors, on BOTH the
+# ambient (self-initiated) and reactive (reply) paths. The goal is to pin the
+# model's voice to how real players actually type in WotLK global/party/guild
+# chat: short, casual, abbreviated, game-jargon-heavy, dry humor, some gripes.
+#
+# FORMAT: one example per line. Blank lines and lines starting with '#' are
+# ignored. Put the MESSAGE only, no "Name:" prefix and no timestamp. Keep lines
+# short and lowercase-casual — they are imitated literally in shape.
+#
+# These are NOT content the bot should repeat; they only shape tone/length.
+# Avoid ad-style multi-line WTS/LFM blurbs here (we don't want bots spamming
+# ads) and don't start a line with "anyone" (the prompt forbids that opener).
+#
+# LIVE-EDITABLE: this file is read at worldserver startup. Edit it and restart
+# ac-worldserver to apply — no rebuild. If the file is missing/empty the mod
+# falls back to its built-in list. Path is set by PlayerbotChatter.StyleExamplesFile.
+#
+# Drawn from a real WotLK private-server chat capture plus the module's original
+# built-in flavor lines. Add more by pasting cleaned lines from your own logs.
+
+# --- gripes / bad luck / self-deprecating ---
+ugh wiped on the last boss in heroic HoL again, healer went oom
+0 for 40 on this drop, the rng hates me specifically
+loot table really said no again, cool cool cool
+this sons of hodir rep grind is killing me
+man the cooking daily in dalaran takes forever
+oh good, another escort quest, hope the npc walks extra slow this time
+brb gotta fly back and repair, totally broke
+respecced, hated it, respecced back, there goes my gold
+tank dc'd mid-pull, classic
+i would lose a 1v1 to a single murloc right now ngl
+pretty sure my hearthstone cooldown is shorter than my attention span
+
+# --- teasing / dry banter ---
+gg tank, bold pull, real bold
+nice of the healer to finally show up lol
+warmane is a dad in 2 weeks lol
+server's been "dying" since the molten wow days and here we are 16 years later
+this server's already ded, didn't you hear
+eh, it'll outlive us all
+free res for what? nah go back to icecrown dude
+
+# --- chill / wholesome ---
+gz on the mount drop man, so jealous
+finally hit 80, what a grind lol
+grizzly hills has the best zone music in the game imo
+honestly i just log in to chat on global and help people out
+everything dies in the end man
+ty for the summon
+
+# --- lfg / trade / logistics ---
+wts titansteel bar x5, pst with an offer
+saronite prices on the ah are nuts right now
+lf1m heroic gundrak, need a tank then we're good
+lfg icc rep farm, ppala tank 4.4k
+still need 2 more for sartharion, pst
+tank for a random dungeon around 40? i'll pay for the summon
+wtb boost 75-80, ive got like 2 hours to kill
+lf blacksmith to put rune of razorice on my weapon, will pay well pst
+can someone summon me to dalaran, im stuck out in icecrown
+wts naked druid, fast fly and max professions
+
+# --- random / short ---
+wsup
+ello
+help, a nelf hunter is ganking the whole village with his pet lol

@@ -2,6 +2,7 @@
 #include "RaidRosterConfig.h"
 #include "RaidRosterComp.h"
 #include "RaidRosterStore.h"
+#include "RaidRosterGear.h"
 #include "Chat.h"
 #include "CommandScript.h"
 #include "RBAC.h"
@@ -16,6 +17,9 @@
 #include "PlayerbotAI.h"
 #include "PlayerbotAIConfig.h"
 #include "InstanceSaveMgr.h"
+#include "DatabaseEnv.h"
+#include "QueryResult.h"
+#include "Field.h"
 #include "SharedDefines.h"
 #include "Containers.h"
 #include <set>
@@ -23,6 +27,7 @@
 #include <vector>
 #include <map>
 #include <cctype>
+#include <algorithm>
 
 using namespace Acore::ChatCommands;
 
@@ -38,6 +43,7 @@ ChatCommandTable RaidRosterCommand::GetCommands() const
         { "create", HandleCreate, SEC_PLAYER, Console::Yes },
         { "login",  HandleLogin,  SEC_PLAYER, Console::Yes },
         { "sync",   HandleSync,   SEC_PLAYER, Console::Yes },
+        { "syncone",HandleSyncOne,SEC_PLAYER, Console::Yes },
         { "logout", HandleLogout, SEC_PLAYER, Console::Yes },
         { "reset",  HandleReset,  SEC_PLAYER, Console::Yes },
         { "remove", HandleRemove, SEC_PLAYER, Console::Yes },
@@ -62,6 +68,21 @@ bool RaidRosterCommand::HandleCreate(ChatHandler* handler)
 
     // Load every GUID already in any roster so we don't double-pin (would hit uk_bot).
     std::unordered_set<uint32> pinned = RaidRosterStore::AllPinnedBots();
+
+    // Exclude mod-arena-roster pins (partner pool + opponent ladder) — arena bots are
+    // offline most of the time and would otherwise look available here. Guarded by a
+    // one-time table-existence probe (static local) so installs WITHOUT mod-arena-roster
+    // (its SQL never ran) don't log a missing-table query error on every create.
+    static bool const arenaTablesExist =
+        bool(CharacterDatabase.Query("SHOW TABLES LIKE 'mod_arena_roster'")) &&
+        bool(CharacterDatabase.Query("SHOW TABLES LIKE 'mod_arena_pool'"));
+    if (arenaTablesExist)
+    {
+        if (QueryResult r = CharacterDatabase.Query("SELECT bot_guid FROM mod_arena_roster"))
+            do { pinned.insert(r->Fetch()[0].Get<uint32>()); } while (r->NextRow());
+        if (QueryResult r = CharacterDatabase.Query("SELECT bot_guid FROM mod_arena_pool"))
+            do { pinned.insert(r->Fetch()[0].Get<uint32>()); } while (r->NextRow());
+    }
 
     // Take a working copy of the addclass pools per class so we can pop chosen GUIDs.
     std::map<uint8, std::vector<ObjectGuid>> avail;
@@ -225,6 +246,85 @@ bool RaidRosterCommand::HandleLogin(ChatHandler* handler, Optional<uint32> sizeA
     return true;
 }
 
+// Force one bot to the master's level and the given talent spec (0-based tab), re-derive
+// role strategies, then deterministically re-gear it for that spec (set-aware, enchanted,
+// gemmed) via RaidRosterGear. Shared by full sync and syncone.
+static void SyncBotToSpec(Player* master, Player* bot, int specTab)
+{
+    // 1) Level to master + learn spells/skills/glyphs/pet/consumables. Randomize also
+    //    rolls random-spec gear and enchants — ALL of it is replaced in step 4/5; it's
+    //    kept purely for the non-gear work.
+    PlayerbotFactory factory(bot, master->GetLevel(), ITEM_QUALITY_LEGENDARY, 0);
+    factory.Randomize(false);
+    // 2) Force the target talent spec (0-based tab).
+    PlayerbotFactory::InitTalentsBySpecNo(bot, specTab, true);
+    // 3) Re-derive tank/heal/dps strategies from the new spec.
+    if (PlayerbotAI* ai = GET_PLAYERBOT_AI(bot)) ai->ResetStrategies(false);
+    // 4) Deterministic set-aware re-gear for the forced spec (replaces the old
+    //    factory.InitEquipment call, whose hardcoded 25% candidate skip produced
+    //    role-wrong picks). MUST run after step 2: all scoring reads the active tab.
+    RaidRosterGear::EquipForSpec(bot, master, specTab);
+    // 5) Enchant + gem the final gear, and ammo so hunters shoot. Both operate on the
+    //    CURRENT gear without replacing it. This step is the "no enchants" fix: any
+    //    InitEquipment-style re-gear discards Randomize's enchants and nothing upstream
+    //    re-applies them.
+    factory.ApplyEnchantAndGemsNew();
+    factory.InitAmmo();
+    // 6) Unlock the Dungeon Finder for Death Knights. Core hard-gates every DK out of ALL
+    //    LFG dungeons until it's been rewarded the DK-intro finale quest — 13188 "Where
+    //    Kings Walk" (Alliance) or 13189 "The Warchief's Blessing" (Horde) — see
+    //    LFGMgr.cpp (LFG_LOCKSTATUS_QUEST_NOT_COMPLETED). Roster bots are spawned via
+    //    addclass and never run the intro chain, so a DK bot in your group locks the
+    //    whole queue. SetRewardedQuest flips IsQuestRewarded immediately and flags it
+    //    for the next SaveToDB.
+    if (bot->IsClass(CLASS_DEATH_KNIGHT))
+    {
+        uint32 dkQuest = (bot->GetTeamId(true) == TEAM_ALLIANCE) ? 13188 : 13189;
+        if (!bot->IsQuestRewarded(dkQuest))
+            bot->SetRewardedQuest(dkQuest);
+    }
+}
+
+// Canonical spec tab for a class filling a role (0=tank, 1=heal, 2=dps), matching the
+// RAID_COMP defaults. Returns -1 if the class cannot fill that role (e.g. mage tank).
+static int SpecTabForRole(uint8 cls, uint8 role)
+{
+    switch (cls)
+    {
+        case CLASS_WARRIOR:
+            if (role == 0) return WARRIOR_TAB_PROTECTION;
+            if (role == 2) return WARRIOR_TAB_FURY;
+            return -1;
+        case CLASS_PALADIN:
+            if (role == 0) return PALADIN_TAB_PROTECTION;
+            if (role == 1) return PALADIN_TAB_HOLY;
+            if (role == 2) return PALADIN_TAB_RETRIBUTION;
+            return -1;
+        case CLASS_DEATH_KNIGHT:
+            if (role == 0) return DEATH_KNIGHT_TAB_BLOOD;
+            if (role == 2) return DEATH_KNIGHT_TAB_UNHOLY;
+            return -1;
+        case CLASS_DRUID:
+            if (role == 0) return DRUID_TAB_FERAL;
+            if (role == 1) return DRUID_TAB_RESTORATION;
+            if (role == 2) return DRUID_TAB_BALANCE;
+            return -1;
+        case CLASS_PRIEST:
+            if (role == 1) return PRIEST_TAB_HOLY;
+            if (role == 2) return PRIEST_TAB_SHADOW;
+            return -1;
+        case CLASS_SHAMAN:
+            if (role == 1) return SHAMAN_TAB_RESTORATION;
+            if (role == 2) return SHAMAN_TAB_ENHANCEMENT;
+            return -1;
+        case CLASS_MAGE:    if (role == 2) return MAGE_TAB_FROST;          return -1;
+        case CLASS_WARLOCK: if (role == 2) return WARLOCK_TAB_AFFLICTION;  return -1;
+        case CLASS_HUNTER:  if (role == 2) return HUNTER_TAB_MARKSMANSHIP; return -1;
+        case CLASS_ROGUE:   if (role == 2) return ROGUE_TAB_COMBAT;        return -1;
+    }
+    return -1;
+}
+
 bool RaidRosterCommand::HandleSync(ChatHandler* handler)
 {
     if (!g_RaidRosterEnable) { handler->SendSysMessage("RaidRoster is disabled (set RaidRoster.Enable=1)."); return true; }
@@ -239,11 +339,6 @@ bool RaidRosterCommand::HandleSync(ChatHandler* handler)
     PlayerbotMgr* mgr = GET_PLAYERBOT_MGR(master);
     if (!mgr) { handler->SendSysMessage("Playerbot manager unavailable."); return true; }
 
-    // Mirror the init=auto ceiling formula (Bot/PlayerbotMgr.cpp:799-803).
-    uint32 ceiling = (uint32)(PlayerbotAI::GetMixedGearScore(master, true, false, 12)
-                              * sPlayerbotAIConfig.autoInitEquipLevelLimitRatio);
-    if (ceiling == 0) ceiling = 1;
-
     uint32 synced = 0, offline = 0;
     for (RaidRosterRow const& r : rows)
     {
@@ -251,29 +346,74 @@ bool RaidRosterCommand::HandleSync(ChatHandler* handler)
         Player* bot = mgr->GetPlayerBot(g);
         if (!bot) { ++offline; continue; }
 
-        // 1) Level to master + learn spells/skills + gear to ceiling (re-rolls spec, fixed next).
-        //    With upstream defaults AiPlayerbot.EquipAndSpecPersistence=true /
-        //    EquipAndSpecPersistenceLevel=1 (PlayerbotAIConfig.cpp:579-580), Randomize(false)
-        //    already itemizes the bot for its *randomly-rolled* spec. We intentionally throw that
-        //    gearing away: the spec it geared for is not the spec this slot must run. Step 4's
-        //    explicit InitEquipment re-gears for the pinned spec (see why there).
-        PlayerbotFactory factory(bot, master->GetLevel(), ITEM_QUALITY_LEGENDARY, ceiling);
-        factory.Randomize(false);
-        // 2) Force the pinned talent spec (0-based tab).
-        PlayerbotFactory::InitTalentsBySpecNo(bot, (int)r.specTab, true);
-        // 3) Re-derive tank/heal/dps strategies from the new spec.
-        if (PlayerbotAI* ai = GET_PLAYERBOT_AI(bot)) ai->ResetStrategies(false);
-        // 4) Re-itemize for the forced spec under the same ceiling. REQUIRED, not redundant:
-        //    step 1's Randomize geared for a *random* spec; StatsWeightCalculator weights gear by
-        //    the bot's active talent tab (StatsWeightCalculator.cpp:65), so once step 2 forces the
-        //    pinned spec this re-gears correctly for it. Do not delete this thinking it duplicates
-        //    step 1 — it would silently break role-correct gear.
-        factory.InitEquipment(false);
+        SyncBotToSpec(master, bot, (int)r.specTab);
         ++synced;
     }
 
     handler->PSendSysMessage("Synced {} online bot(s) to your level/gear and roles; {} offline (login them first).",
         synced, offline);
+    return true;
+}
+
+// Per-bot version of sync: force ONE roster bot to a role's canonical spec (or, with no role,
+// back to its stored roster default). Deliberately does NOT rewrite the roster row, so a later
+// full `.raidroster sync` reverts this bot (and all others) to the roster defaults.
+bool RaidRosterCommand::HandleSyncOne(ChatHandler* handler, std::string name, Optional<std::string> roleArg)
+{
+    if (!g_RaidRosterEnable) { handler->SendSysMessage("RaidRoster is disabled (set RaidRoster.Enable=1)."); return true; }
+
+    Player* master = handler->GetSession() ? handler->GetSession()->GetPlayer() : nullptr;
+    if (!master) { handler->SendSysMessage("Run this in-world as a player."); return true; }
+
+    if (name.empty()) { handler->SendSysMessage("Usage: .raidroster syncone <botname> [tank|heal|dps]"); return true; }
+
+    uint32 owner = master->GetGUID().GetCounter();
+    std::vector<RaidRosterRow> rows = RaidRosterStore::Load(owner);
+    if (rows.empty()) { handler->SendSysMessage("No roster. Use .raidroster create."); return true; }
+
+    PlayerbotMgr* mgr = GET_PLAYERBOT_MGR(master);
+    if (!mgr) { handler->SendSysMessage("Playerbot manager unavailable."); return true; }
+
+    // Find the online roster bot by (case-insensitive) name.
+    std::string wanted = name;
+    std::transform(wanted.begin(), wanted.end(), wanted.begin(), ::tolower);
+    Player* bot = nullptr;
+    RaidRosterRow const* row = nullptr;
+    for (RaidRosterRow const& r : rows)
+    {
+        ObjectGuid g = ObjectGuid::Create<HighGuid::Player>(r.botGuid);
+        Player* b = mgr->GetPlayerBot(g);
+        if (!b) continue;
+        std::string bn = b->GetName();
+        std::transform(bn.begin(), bn.end(), bn.begin(), ::tolower);
+        if (bn == wanted) { bot = b; row = &r; break; }
+    }
+    if (!bot) { handler->PSendSysMessage("No online roster bot named '{}'. Log it in first (.raidroster login).", name); return true; }
+
+    // Target spec: explicit role -> canonical spec for this class; else the bot's roster default.
+    int specTab;
+    if (roleArg)
+    {
+        std::string rs = *roleArg;
+        std::transform(rs.begin(), rs.end(), rs.begin(), ::tolower);
+        uint8 role;
+        if (rs == "tank") role = 0;
+        else if (rs == "heal" || rs == "healer") role = 1;
+        else if (rs == "dps" || rs == "dd") role = 2;
+        else { handler->SendSysMessage("Role must be tank, heal, or dps."); return true; }
+
+        specTab = SpecTabForRole(bot->getClass(), role);
+        if (specTab < 0) { handler->PSendSysMessage("{} cannot fill the {} role.", bot->GetName(), rs); return true; }
+    }
+    else
+    {
+        specTab = (int)row->specTab;   // reset just this bot to its roster default
+    }
+
+    SyncBotToSpec(master, bot, specTab);
+
+    handler->PSendSysMessage("Synced {} to your level/gear as {}. (A full .raidroster sync reverts it to the roster default.)",
+        bot->GetName(), roleArg ? *roleArg : std::string("its roster role"));
     return true;
 }
 

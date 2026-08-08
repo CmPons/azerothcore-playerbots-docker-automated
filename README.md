@@ -5,8 +5,9 @@ with player-like bots.** This repo is *not* the game server — it's an **automa
 set of scripts and docs that clone, build, configure, tune, and operate
 [AzerothCore](https://github.com/azerothcore/azerothcore-wotlk) (via its
 [playerbots fork](https://github.com/mod-playerbots/azerothcore-wotlk)) and a curated set of
-community modules in Docker. On top of that orchestration it adds **a couple of custom mods of its
-own** (AI bot chat, a lore Q&A sidecar, and a web registration site).
+community modules in Docker. On top of that orchestration it adds **several custom mods of its
+own** — AI bot chat, a lore Q&A sidecar, a persistent raid roster, rated-arena support,
+bot-driven Wintergrasp, an AH price tool, scripted raid-boss AI, and a web registration site.
 
 The goal is to take you from a bare Linux or Windows host to a populated, self-running world with a
 single `./setup.sh`, then keep it running with plain `start` / `stop` / `update` / `backup`
@@ -16,8 +17,9 @@ modules); this repo's job is to assemble and manage it. See
 [Credits & acknowledgements](#credits--acknowledgements) — please support the upstream projects.
 
 **What lives in *this* repo:** the orchestration scripts (`setup.sh`, `update.sh`, `start.sh` /
-`stop.sh`, `backup.sh`, `fetch-client-addons.sh`), the Windows/WSL2 wrapper layer (`windows/`), the
-three custom components (`modules/mod-playerbot-chatter/`, `lore-sidecar/`, `webreg/`), and this
+`stop.sh`, `backup.sh`, `restore.sh`, `fetch-client-addons.sh`), the Windows/WSL2 wrapper layer
+(`windows/`), the custom components (the local modules under `modules/`, `lore-sidecar/`, `webreg/`,
+the client addons under `client-addons-src/`, and the fork patches under `patches/`), and this
 documentation. The core, the bot engine, and every community module are fetched from their own
 upstream repos at build time (and are gitignored here) — none of their code is redistributed in
 this repo.
@@ -30,7 +32,13 @@ this repo.
   you invite into your group. (Only a fraction run full AI at once unless near a real
   player; `SmartScale` auto-throttles under load. Set the count with `MAX_RANDOM_BOTS` in
   `.env` — roughly `MAX_RANDOM_BOTS / 20` bots per faction per level bracket.)
-- **Boosted XP** (3×) for relaxed solo/co-op progression.
+- **Boosted progression rates** (XP, money, reputation, honor, rest) for relaxed solo/co-op
+  play — every multiplier is `.env`-tunable (defaults: 3× XP, 2× money, 5× rep/honor).
+- **Scripted raid encounters for bots.** Beyond ordinary questing and 5-mans, the bots run
+  authored strategies for a growing list of hard raid mechanics — Sunwell Plateau (all six
+  bosses), AQ40 Twin Emperors, Ulduar Kologarn, ICC Lich King phase 3, Naxxramas Heigan, and
+  more — so a bot raid can actually clear fights that would otherwise wipe on the mechanics.
+  These ship as tracked fork patches applied automatically by `setup.sh`/`update.sh`.
 - Optional **AI bot chat** (`mod-playerbot-chatter`): bots hold natural conversations through a
   local Ollama LLM — both **reactive** (they reply when you whisper, `/say`, or talk in
   party/raid) and **ambient** (bots self-initiate WoW small-talk and banter in General / party /
@@ -43,6 +51,18 @@ this repo.
   roles, every time), then bulk-log a 5/10/25/40-man subset that auto-forms a raid — geared to
   match you, with a one-click **minimap addon** to drive it. Off by default (`RAIDROSTER_ENABLE`).
   See [Raid roster](#raid-roster-mod-raid-roster).
+- Optional **Wintergrasp battles with bots** (`mod-wintergrasp-bots`): the WotLK outdoor siege
+  battleground runs as a real, full battle even solo — bots fill both sides, rank up, build and
+  crew siege engines, breach the keep, and defend it, reacting to the fight like players. Off by
+  default (`WGBOTS_ENABLE`). See [Wintergrasp with bots](#wintergrasp-battles-with-bots-mod-wintergrasp-bots).
+- Optional **rated arena with bots** (`mod-arena-roster`): a personal pool of arena partner bots
+  plus a premade, tiered opponent ladder that feeds the **real** rated queue (ratings/points stay
+  real) — so you can play 2v2/3v3/5v5 arena solo or with friends and actually climb. Off by
+  default (`ARENAROSTER_ENABLE`). See [Rated arena with bots](#rated-arena-with-bots-mod-arena-roster).
+- Optional **AH price lookup** (`mod-ahbot-price`): a `.ahprice` command and matching client addon
+  that show the buy-value range the AH bot buyer will pay for an item, so you can price your
+  listings to actually sell. Off by default (`AHPRICE_ENABLE`). See
+  [Auction house economy](#auction-house-economy-ahbot--optional).
 
 ## Requirements
 - **A host to run the server on**, with Docker + Docker Compose. Either:
@@ -308,6 +328,17 @@ Install on **each player's machine** (these are client addons, not server softwa
    (ensure a `.toc` sits at the folder's top level — `find client-addons -name '*.toc'`).
 2. Enable them in the "AddOns" menu at character select.
 
+This repo also **authors its own client addons** (under `client-addons-src/`, staged into
+`client-addons/` by `./fetch-client-addons.sh` alongside the downloaded ones):
+- **BotGrid** — a Grid2-style raid manager for your bots: role-sorted cells (tanks / healers / dps)
+  with right-click combat / mark / position / cast control and bulk multi-select. Open with
+  `/botgrid`. Needs `mod-multibot-bridge` (built in) and pairs with the raid roster.
+- **RaidRoster** — the minimap menu for the raid-roster module (see
+  [Raid roster](#raid-roster-mod-raid-roster)).
+- **AHPrice** — the client half of the AH price lookup (see
+  [Auction house economy](#auction-house-economy-ahbot--optional)).
+- **DarkmoonFaire** — a small minimap tracker for the (continuously-rotating) Darkmoon Faire.
+
 Other community addons you may want (not auto-installed): **DBM** (boss-fight warnings)
 and **CompactRaidFrame-3.3.5** (raid frames) for raiding with bot groups.
 
@@ -347,6 +378,21 @@ or below an item's calculated value and the bot buys it out**; overprice it and 
 
 Note: with both this and playerbots running, the AH gets listings from both — that's fine.
 
+### AH price lookup (mod-ahbot-price)
+
+Because the AHBot buyer pays a *calculated* value rather than reacting to the market, it's easy to
+overprice a listing and have it sit forever. A small local module in this repo (`mod-ahbot-price`)
+exposes that hidden number: the **`.ahprice`** chat command — and a matching **AHPrice** client
+addon — show the per-item buy-value **range** the buyer will pay (the price band × stack count),
+computed live from your `AuctionHouseBot.*` config. Price a listing at or under the top of that
+range and the bot buys it out.
+
+It's built into the server always but inert unless enabled. Turn it on with `AHPRICE_ENABLE=1` in
+`.env` and re-run `./setup.sh`. It's read-only (it only *reads* the AHBot pricing formula), so it's
+useful whether or not the AHBot buyer itself is running. `AHPRICE_HIDE_UNAUCTIONABLE=1` (default)
+hides items the bot can never buy (soulbound/quest-bound, conjured, limited-duration) from results.
+The AHPrice addon is staged by `./fetch-client-addons.sh` — install it like any other client addon.
+
 ## Start / stop / manage
 From this folder:
 ```bash
@@ -371,13 +417,21 @@ docker compose down                    # remove containers (volumes/data kept)
 ```
 
 ## Tuning
-Edit `azerothcore-wotlk/env/dist/etc/worldserver.conf` (rates) or
-`azerothcore-wotlk/env/dist/etc/modules/playerbots.conf` (bot counts), then:
+Most tuning is meant to be driven from repo-root **`.env`** and applied by re-running
+`./setup.sh` — that's the source of truth. The gameplay rate multipliers (`XP_KILL_RATE`,
+`XP_QUEST_RATE`, `MONEY_DROP_RATE`, `REPUTATION_RATE`, `HONOR_RATE`, rest rates, …), the bot count
+(`MAX_RANDOM_BOTS`), and every feature toggle live there; `setup.sh` writes them into the generated
+`.conf` files for you. See `.env.example` for the annotated list.
+
+For a quick one-off tweak you can also edit the live conf and restart:
 ```bash
+# edit azerothcore-wotlk/env/dist/etc/worldserver.conf (rates) or
+#      azerothcore-wotlk/env/dist/etc/modules/playerbots.conf (bot counts), then:
 docker compose restart ac-worldserver
 ```
-Key knobs: `Rate.XP.Kill/Quest/Explore`, `AiPlayerbot.MinRandomBots`,
-`AiPlayerbot.MaxRandomBots`. Re-running `./setup.sh` re-applies the documented defaults.
+Key conf knobs: `Rate.XP.Kill/Quest/Explore`, `AiPlayerbot.MinRandomBots`,
+`AiPlayerbot.MaxRandomBots`. Note that **re-running `./setup.sh` re-applies the values from `.env`**,
+overwriting hand-edits — so for anything you want to keep, set it in `.env`, not just the conf.
 
 ## Updating to the latest from upstream
 To pull the newest code from the AzerothCore fork and all cloned modules (and re-sync the
@@ -390,19 +444,55 @@ This fetches the latest commits, recompiles only what changed, and re-runs the d
 migration step automatically. Your tuned config (`env/dist/etc/*.conf`) and your database
 (named Docker volume) are **preserved**.
 
+### Why this repo pins its upstreams (read before updating)
+
+Out of the box, this repo **freezes the AzerothCore fork and the `mod-playerbots` engine at
+specific, known-good commits** rather than tracking their branch tips. Those two pins live in
+[`repo-pins.txt`](repo-pins.txt) and are active by default. Here's why, because it directly shapes
+how you update:
+
+- **Several features here are shipped as *patches* against upstream source.** The scripted raid
+  encounters, the Wintergrasp siege AI, the arena AI, and a handful of core fixes aren't separate
+  modules — they're `patches/*.patch` files that `setup.sh`/`update.sh` apply directly onto the
+  fork and the bot engine after cloning them. A patch is tied to the exact lines of code it edits.
+- **An upstream push can move those lines and break the patch.** The playerbots fork and engine are
+  actively developed community projects; a refactor upstream can make a patch fail to apply, which
+  aborts the build. Pinning to commits where **every patch is verified to apply cleanly** means a
+  routine `./update.sh` can't be broken by someone else's push at an inconvenient time.
+- So on this repo, an update is a **deliberate act**, not a moving target: `update.sh` resets every
+  *unpinned* repo to its branch tip, but the pinned fork/engine stay exactly where they are until
+  *you* decide to move them.
+
+**How pins work.** Each non-comment line in `repo-pins.txt` is `<repo-basename> <commit>` — e.g.
+`azerothcore-wotlk <sha>` (the fork) or `mod-playerbots <sha>` (the engine). Both `setup.sh` and
+`update.sh` honor it. Comment out (or delete) a line to let that repo resume tracking its branch tip.
+
+**Moving to newer upstream** (when you want the latest fork/engine code):
+
+1. **Back up first** — code rollback doesn't undo DB migrations, so pair any risky update with a
+   fresh backup (`./backup.sh`, or the `mysqldump` below).
+2. **Un-pin** the repo(s) you want to advance — comment out their line(s) in `repo-pins.txt`.
+3. **Run `./update.sh`.** It pulls the branch tips and re-applies every patch in `patches/`.
+4. **If a patch fails to apply,** that patch's upstream code moved. Each patch has a
+   `tools/regen-*.sh` helper to regenerate it against the new source; regenerate, re-run, and test
+   the affected feature. (This is real work — it's exactly the breakage the pins exist to prevent
+   on a normal day.)
+5. **Once it builds and tests clean, re-pin** at the new commits (put the new SHAs back in
+   `repo-pins.txt`) so your good state is frozen again for next time.
+
+You can pin/un-pin any *cloned module* the same way (`mod-junk-to-gold <sha>`, etc.) if a specific
+module HEAD misbehaves — the local modules authored in this repo aren't cloned, so they're never
+pinned.
+
 Tips:
-- Updates to this fork are community-driven and occasionally introduce breaking changes.
-  Before a big update, back up the database (run from the `azerothcore-wotlk/` dir):
+- Updates to the community fork occasionally introduce breaking changes. Before a big update, back
+  up the database (run from the `azerothcore-wotlk/` dir):
   ```bash
   docker compose exec -T ac-database \
     mysqldump -uroot -p"$DOCKER_DB_ROOT_PASSWORD" --all-databases > backup-$(date +%F).sql
   ```
-- **Pin to a known-good commit if an update breaks.** `update.sh` resets the fork *and every
-  cloned module* to its branch tip. To freeze one at a specific commit instead, add a line to
-  `repo-pins.txt` — `<repo-basename> <commit>`, e.g. `azerothcore-wotlk <sha>` or
-  `mod-aoe-loot <sha>`; both `setup.sh` and `update.sh` honor it. Remove the line to resume
-  tracking. Caveat: rolling *code* back does **not** undo database migrations a newer build
-  already applied, so for a clean rollback pair the pin with a pre-update backup restore.
+- **Rolling *code* back does not undo database migrations** a newer build already applied. For a
+  clean rollback, pair the pin with a pre-update backup restore (`./restore.sh <bundle>`).
 - New config options added by an update are not auto-merged into your existing `.conf`
   files; they fall back to compiled defaults. Diff against the `.conf.dist` files in
   `env/dist/etc/` if you want to adopt new settings.
@@ -592,6 +682,105 @@ It's authored in `client-addons-src/RaidRoster/` (version-controlled); `./fetch-
 stages it into `client-addons/RaidRoster/` alongside the downloaded addons. Like every client
 addon here, copy that folder into each player's `World of Warcraft/Interface/AddOns/`.
 
+## Wintergrasp battles with bots (mod-wintergrasp-bots)
+
+A local module (authored in this repo) that turns **Wintergrasp** — WotLK's large outdoor siege
+battleground — into a real, scheduled battle even on a solo server. Without it, WG on a bot
+server is a ghost town: random bots never join, so every battle is an empty timer.
+
+**What a battle looks like.** When a battle starts, the module pulls eligible bots (level 75+)
+into the zone for both factions and directs them like human teams:
+
+- **Attackers** open by storming guard camps and capturing workshops — killing guards earns the
+  WG ranks that unlock siege vehicles. Ranked bots then **build demolishers at owned workshops,
+  drive them to the fortress, and shell the walls**, with infantry escorting the engines and
+  pushing through each new breach — gate, mid wall, last door — until the titan relic is theirs.
+- **Defenders** react to where the attack actually is: they **muster inside the keep and
+  sortie in force** to meet the siege (leaving via the gatehouse rampart jump or the Defender's
+  Portals, like players do — no solo trickle), man the keep's tower cannons **only while enemy
+  vehicles threaten the walls**, keep pickets on owned workshops and retake lost ones, and fall
+  back inward as walls fall — courtyard fight, last stand, relic-room contest.
+- Both sides get **guard squads at the workshops and bridge posts** (rank fodder the stock
+  server never spawns), bots patrol their posts instead of standing like statues, and everything
+  scales/retasks continuously as workshops flip and vehicles die.
+
+**Playing in it.** Just ride in (or take the battle invite) and fight — the bots carry the
+objective load, and you rank up and drive siege like any WG match. Joining the auto-formed raid
+is safe: the bots keep fighting their own battle rather than following you around.
+
+Off by default; enable with `WGBOTS_ENABLE=1` in `.env` and re-run `./setup.sh`. Requires bots
+at level 75+ in the pool (WG's own minimum) — on a fresh server, raise the bot level range or
+wait for the population to level.
+
+**Tuning** (all in `.env`, applied by `./setup.sh`):
+
+| Setting | Default | What it does |
+|---|---|---|
+| `WGBOTS_PER_FACTION` | 15 | Bots kept in the battle per faction. |
+| `WGBOTS_MIN_LEVEL` | 75 | Minimum bot level pulled in. |
+| `WGBOTS_SIEGE_ENABLE` | 1 | Attacker bots build + pilot demolishers. |
+| `WGBOTS_SIEGE_HUMAN_RESERVE` | 2 | Vehicle slots left free for human players. |
+| `WGBOTS_DEFENSE_SHARE` | 60 | Max % of defenders sent to the rally when the keep is threatened. |
+| `WGBOTS_TURRET_CREW_MAX` | 4 | Keep tower cannons manned while under threat. |
+| `WGBOTS_RALLY_PER_VEHICLE` | 3 | Defenders sent out per enemy vehicle near the keep. |
+| `WGBOTS_THREAT_RADIUS` | 350 | Yards from the gate within which enemy vehicles count as a keep threat. |
+| `WGBOTS_FIELD_GARRISON` | 1 | Spawn guard squads at workshops + bridges (rank-up targets). |
+| `WGBOTS_PATROL_RADIUS` | 12 | Patrol-loop radius at held objectives (0 = stand still). |
+| `WGBOTS_SORTIE_QUORUM` | 4 | Defenders gathered inside before a rally wave sorties together (0 = no mustering). |
+| `WGBOTS_CAPTURE_SQUAD` | 5 | Attackers per workshop-capture squad (+2 while the attacker holds no workshop). |
+
+**Performance note.** A battle runs ~2× `WGBOTS_PER_FACTION` fully-active bots plus siege
+vehicles on one map thread, so expect the world-update time to rise while one is running —
+lower `WGBOTS_PER_FACTION` if a battle makes your server feel laggy.
+
+**Console extras** (GM/console): `.wgbots status` shows the live battle picture (bots per side,
+workshops, vehicles, breach stage); `.bf start 1` / `.bf stop 1` force a battle for testing.
+
+Under the hood the module ships with two tracked fork patches (`patches/0003`, `0004`) that
+`setup.sh`/`update.sh` apply automatically — bots auto-accepting the battle invite and the
+siege-vehicle AI live there.
+
+## Rated arena with bots (mod-arena-roster)
+
+A local module (authored in this repo) that makes **rated arena** playable on a solo/small server.
+Stock playerbots will fill a *casual* arena, but rated 2v2/3v3/5v5 needs stable teammates and a
+supply of opponents at your rating — which a quiet realm doesn't have. This module provides both,
+while keeping the queue **real**: your rating and arena points are earned normally.
+
+**Two halves:**
+- **Your partners** — `.arenaroster create` reserves one bot of each class from the addclass pool
+  as your personal partner pool. `.arenaroster go <2v2|3v3|5v5> <class…>` logs in the partners you
+  name and forms your arena team; `.arenaroster sync` gears them in season sets matched to your
+  average item level and forces the right spec. Then queue rated at any battlemaster as usual.
+- **The opponents** — `.arenaroster poolinit` (run once) builds a premade **4-tier opponent ladder**
+  (teams geared and rated from entry-level up to top-end) that a queue director feeds into the real
+  rated queue so your pops are rating-matched. It takes a few minutes to build; watch progress with
+  `.arenaroster poolstatus`.
+
+Off by default; enable with `ARENAROSTER_ENABLE=1` in `.env` and re-run `./setup.sh` (like the raid
+roster it draws from the addclass pool, so it needs a worldserver restart to populate). Partner
+gearing requires the partners to be **level 80** and online.
+
+**Commands** (in-game as a normal player, or from the console):
+
+| Command | What it does |
+|---|---|
+| `.arenaroster create` | Reserve one partner bot per class as your pool. |
+| `.arenaroster go <2v2\|3v3\|5v5> <class…>` | Log in the named partners and form your rated team. |
+| `.arenaroster sync` | Gear + spec your online partners to match you (needs level 80). |
+| `.arenaroster spec <class> <tab>` | Set which talent spec a partner runs, then `sync`. |
+| `.arenaroster logout` | Log out your partner bots (the pool stays reserved). |
+| `.arenaroster status` | Show your reserved partners and who's online. |
+| `.arenaroster poolinit` | Build the tiered opponent ladder (run once; slow). |
+| `.arenaroster poolstatus` | Progress of the `poolinit` build. |
+
+> Note: the root command is **`.arenaroster`**, never `.arena` (the core already owns that).
+> `.arenaroster forcequeue` exists but is **test-only** — it fields a lineup without a real queue.
+
+Under the hood the arena AI (team-shared kill target, rating-banded aggression, and a PvP-trinket
+use that works while crowd-controlled) ships as tracked fork patch `patches/0005`, applied
+automatically by `setup.sh`/`update.sh`.
+
 ## Backups & data safety
 Everything (characters, gear, gold, guilds, AH) lives in MySQL in a persistent Docker volume,
 so restarts and host reboots are safe. Characters auto-save every **5 minutes**
@@ -706,6 +895,10 @@ star and support the original projects; they did the hard part.
   (Wishmaster117) — in-game bot-control panel (roster, gear, specs, strategies, loot).
 - **[PlayerBotManager](https://github.com/Lichborne-AC/PlayerbotManager)** (Lichborne-AC) —
   gear/GearScore tracking and raid-composition planning across your roster.
+- **BotGrid** (`client-addons-src/BotGrid/`) — Grid2-style playerbot raid manager: role-sorted
+  bot cells (tanks / healers / dps) with right-click combat/mark/position/cast control and bulk
+  multi-select. Requires `mod-multibot-bridge` + `mod-raid-roster`; staged by
+  `./fetch-client-addons.sh`. Use `/botgrid` in-game to open (or the minimap button).
 
 **Platform & tooling**
 - **[Docker](https://www.docker.com/) & Docker Compose** — the containerization the whole stack
@@ -719,9 +912,21 @@ star and support the original projects; they did the hard part.
 - **`modules/mod-raid-roster/`** — persistent 40-bot raid roster over the addclass pool, with
   role-balanced subset login and gear-to-master sync. Paired with the **`RaidRoster`** client
   addon (`client-addons-src/RaidRoster/`) — a minimap menu that runs its commands.
+- **`modules/mod-arena-roster/`** — rated arena partner pool + tiered opponent ladder + arena AI.
+  Paired with a season-set gear engine; arena AI ships as fork patch `patches/0005`.
+- **`modules/mod-wintergrasp-bots/`** — bot-driven Wintergrasp battles (director + siege/defense
+  jobs); the battle-invite and siege-vehicle AI ship as fork patches `patches/0003`/`0004`.
+- **`modules/mod-ahbot-price/`** — read-only `.ahprice` AH price lookup, paired with the
+  **`AHPrice`** client addon (`client-addons-src/AHPrice/`).
+- **Scripted raid strategies** (`patches/0002`, `0006`, `0007`, `0014`, `0016`, …) — authored bot
+  AI for hard raid encounters (Heigan, Kologarn, Lich King p3, Sunwell, AQ40 Twins), plus core
+  performance and correctness patches, applied onto the fork by `setup.sh`/`update.sh`.
 - **`lore-sidecar/`** — a Python sidecar that answers whispered factual questions from real game
   data.
 - **`webreg/`** — a Go self-service account-registration and client-download site.
+- **Client addons** (`client-addons-src/`): **BotGrid** (Grid2-style bot raid manager),
+  **RaidRoster**, **AHPrice**, and **DarkmoonFaire** — see
+  [Bot-management addons](#bot-management-addons-recommended).
 
 *World of Warcraft* and *Wrath of the Lich King* are trademarks of Blizzard Entertainment. This is
 a non-commercial, private-use project; it ships no Blizzard game data or client files.

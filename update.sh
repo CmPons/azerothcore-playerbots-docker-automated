@@ -35,6 +35,7 @@ update_repo () {
     git -C "$dir" cat-file -e "${pin}^{commit}" 2>/dev/null \
       || git -C "$dir" fetch --depth 1 origin "$pin"
     git -C "$dir" reset --hard "$pin"
+    git -C "$dir" clean -fd -- src/ 2>/dev/null || true
     return
   fi
   local branch
@@ -42,6 +43,10 @@ update_repo () {
   echo "==> Updating $label ($branch)"
   git -C "$dir" fetch --depth 1 origin "$branch"
   git -C "$dir" reset --hard "origin/$branch"
+  # reset --hard reverts tracked files but LEAVES patch-CREATED files (untracked), which then
+  # block the next apply_patches with "already exists". Scrub untracked files under src/ only —
+  # that's the only place patches create files; env/, config/, modules/ etc. must survive.
+  git -C "$dir" clean -fd -- src/ 2>/dev/null || true
 }
 
 # Re-apply tracked source patches (patches/*.patch) to the fork. update_repo just reset it to the
@@ -68,15 +73,18 @@ apply_patches () {
 }
 
 update_repo "$AC_DIR" "AzerothCore (playerbots fork)"
-apply_patches
 # Update every module present under modules/ (so any added module is covered).
 for moddir in "$AC_DIR"/modules/*/; do
   [[ -d "$moddir/.git" ]] || continue
   update_repo "$moddir" "$(basename "$moddir")"
 done
+# Patches must apply AFTER the module updates: several (0002+) target files inside
+# modules/mod-playerbots, and update_repo's reset --hard would wipe hunks applied earlier.
+apply_patches
 
-# Re-sync in-repo modules (mod-playerbot-chatter) so source edits land before rebuild.
-for lm in mod-playerbot-chatter; do
+# Re-sync in-repo modules so source edits land before rebuild (same list as setup.sh's
+# LOCAL_MODULES — a module missing here rebuilds from a stale copy after every update).
+for lm in mod-playerbot-chatter mod-raid-roster mod-ahbot-price mod-wintergrasp-bots mod-arena-roster; do
   if [[ -d "$ROOT/modules/$lm" ]]; then
     echo "==> Syncing local module: $lm"
     rm -rf "$AC_DIR/modules/$lm"
@@ -85,9 +93,32 @@ for lm in mod-playerbot-chatter; do
 done
 
 cd "$AC_DIR"
+
+# An upstream client-data version bump makes ac-client-data-init re-download the data archive into
+# the ac-client-data VOLUME. That write fails ("data.zip: Permission denied") when a pre-existing
+# volume is root-owned but the container runs as the non-root UID, and Compose then reports the
+# misleading "dependency ... failed to start" while ac-worldserver never boots. Chown the volume to
+# the container UID (read from the live .env that setup.sh wrote) so the download can write. Mirrors
+# the same guard in setup.sh; idempotent and best-effort.
+CD_UID="$(grep -E '^DOCKER_USER_ID='  "$AC_DIR/.env" 2>/dev/null | cut -d= -f2)"; CD_UID="${CD_UID:-1000}"
+CD_GID="$(grep -E '^DOCKER_GROUP_ID=' "$AC_DIR/.env" 2>/dev/null | cut -d= -f2)"; CD_GID="${CD_GID:-1000}"
+DATA_VOL_BASE="${DOCKER_VOL_DATA:-ac-client-data}"
+DATA_VOL="$(docker volume ls --format '{{.Name}}' | grep -E "(^|_)${DATA_VOL_BASE}$" | head -1 || true)"
+if [[ -n "$DATA_VOL" ]]; then
+  echo "==> Ensuring client-data volume ($DATA_VOL) is writable by UID ${CD_UID} (survives client-data version bumps)"
+  docker run --rm -v "${DATA_VOL}:/d" alpine chown -R "${CD_UID}:${CD_GID}" /d 2>/dev/null || true
+fi
+
 echo "==> Rebuilding & restarting"
 echo "    (recompiles only what changed; ac-db-import re-runs to apply new DB migrations)"
 docker compose up -d --build
+
+# Trim stale Docker build cache. Each rebuild leaves multi-GB cache layers that are never
+# reclaimed on their own (they ballooned to 284 GB once). Keep a 7-day window so recent layers
+# still speed up incremental rebuilds. Only touches build cache — never images or volumes (the
+# ac-database volume holds character/world data). Best-effort: never fail the update over it.
+echo "==> Pruning Docker build cache older than 7 days"
+docker builder prune -f --filter until=168h || echo "    (build-cache prune skipped)"
 
 cat <<EOF
 

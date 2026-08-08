@@ -20,6 +20,12 @@ namespace PBChatterAmbientPrompt
     std::string Build(int mode, Player* bot, uint8_t kind,
                       std::vector<std::pair<std::string, std::string>> const& recent,
                       std::string const& eventHint);
+
+    // Few-shot STYLE block: a random run of n example lines with a lead-in telling
+    // the model to match tone/length, not content. Draws from the file-loaded pool
+    // (g_PBChatStyleExamples) when present, else the built-in list. Shared by the
+    // ambient prompts here and the reactive prompt in PBChatterObserver.
+    std::string StyleExamples(int n);
 }
 
 #endif

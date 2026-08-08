@@ -1,0 +1,267 @@
+diff --git a/modules/mod-playerbots/src/Ai/Base/Actions/AcceptWintergraspInvitationAction.cpp b/modules/mod-playerbots/src/Ai/Base/Actions/AcceptWintergraspInvitationAction.cpp
+new file mode 100644
+index 0000000..cff4a7f
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Base/Actions/AcceptWintergraspInvitationAction.cpp
+@@ -0,0 +1,33 @@
++/*
++ * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
++ * and/or modify it under version 3 of the License, or (at your option), any later version.
++ */
++
++#include "AcceptWintergraspInvitationAction.h"
++
++#include "Battlefield.h"
++#include "Event.h"
++#include "Opcodes.h"
++#include "PlayerbotAI.h"
++#include "WorldPacket.h"
++#include "WorldSession.h"
++
++bool AcceptWintergraspWarAction::Execute(Event /*event*/)
++{
++    WorldPacket packet(CMSG_BATTLEFIELD_MGR_ENTRY_INVITE_RESPONSE, 5);
++    packet << uint32(BATTLEFIELD_BATTLEID_WG);
++    packet << uint8(1);
++    bot->GetSession()->HandleBfEntryInviteResponse(packet);
++
++    return true;
++}
++
++bool AcceptWintergraspQueueAction::Execute(Event /*event*/)
++{
++    WorldPacket packet(CMSG_BATTLEFIELD_MGR_QUEUE_INVITE_RESPONSE, 5);
++    packet << uint32(BATTLEFIELD_BATTLEID_WG);
++    packet << uint8(1);
++    bot->GetSession()->HandleBfQueueInviteResponse(packet);
++
++    return true;
++}
+diff --git a/modules/mod-playerbots/src/Ai/Base/Actions/AcceptWintergraspInvitationAction.h b/modules/mod-playerbots/src/Ai/Base/Actions/AcceptWintergraspInvitationAction.h
+new file mode 100644
+index 0000000..32456d9
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Base/Actions/AcceptWintergraspInvitationAction.h
+@@ -0,0 +1,29 @@
++/*
++ * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license, you may redistribute it
++ * and/or modify it under version 3 of the License, or (at your option), any later version.
++ */
++
++#ifndef _PLAYERBOT_ACCEPTWINTERGRASPINVITATIONACTION_H
++#define _PLAYERBOT_ACCEPTWINTERGRASPINVITATIONACTION_H
++
++#include "Action.h"
++
++class PlayerbotAI;
++
++class AcceptWintergraspWarAction : public Action
++{
++public:
++    AcceptWintergraspWarAction(PlayerbotAI* botAI) : Action(botAI, "accept wg war") {}
++
++    bool Execute(Event event) override;
++};
++
++class AcceptWintergraspQueueAction : public Action
++{
++public:
++    AcceptWintergraspQueueAction(PlayerbotAI* botAI) : Action(botAI, "accept wg queue") {}
++
++    bool Execute(Event event) override;
++};
++
++#endif
+diff --git a/modules/mod-playerbots/src/Ai/Base/Strategy/WorldPacketHandlerStrategy.cpp b/modules/mod-playerbots/src/Ai/Base/Strategy/WorldPacketHandlerStrategy.cpp
+index 63a6a43..0f002f8 100644
+--- a/modules/mod-playerbots/src/Ai/Base/Strategy/WorldPacketHandlerStrategy.cpp
++++ b/modules/mod-playerbots/src/Ai/Base/Strategy/WorldPacketHandlerStrategy.cpp
+@@ -53,6 +53,8 @@ void WorldPacketHandlerStrategy::InitTriggers(std::vector<TriggerNode*>& trigger
+     triggers.push_back(new TriggerNode("arena team invite", { NextAction("arena team accept", relevance) }));
+     //triggers.push_back(new TriggerNode("no non bot players around", { NextAction("delay", relevance) }));
+     triggers.push_back(new TriggerNode("bg status", { NextAction("bg status", relevance) }));
++    triggers.push_back(new TriggerNode("accept wg war", { NextAction("accept wg war", relevance) }));
++    triggers.push_back(new TriggerNode("accept wg queue", { NextAction("accept wg queue", relevance) }));
+     triggers.push_back(new TriggerNode("xpgain", { NextAction("xp gain", relevance) }));
+     triggers.push_back(
+         new TriggerNode("levelup", { NextAction("auto maintenance on levelup", relevance + 3) }));
+diff --git a/modules/mod-playerbots/src/Ai/Base/WorldPacketActionContext.h b/modules/mod-playerbots/src/Ai/Base/WorldPacketActionContext.h
+index f94ed6e..1bc748d 100644
+--- a/modules/mod-playerbots/src/Ai/Base/WorldPacketActionContext.h
++++ b/modules/mod-playerbots/src/Ai/Base/WorldPacketActionContext.h
+@@ -8,6 +8,7 @@
+ #define PLAYERBOTS_WORLDPACKETACTIONCONTEXT_H
+ 
+ #include "AcceptBattlegroundInvitationAction.h"
++#include "AcceptWintergraspInvitationAction.h"
+ #include "AcceptDuelAction.h"
+ #include "AcceptInvitationAction.h"
+ #include "AcceptQuestAction.h"
+@@ -112,6 +113,8 @@ public:
+         creators["lfg teleport"] = &WorldPacketActionContext::lfg_teleport;
+         creators["see spell"] = &WorldPacketActionContext::see_spell;
+         creators["arena team accept"] = &WorldPacketActionContext::arena_team_accept;
++        creators["accept wg war"] = &WorldPacketActionContext::accept_wg_war;
++        creators["accept wg queue"] = &WorldPacketActionContext::accept_wg_queue;
+     }
+ 
+ private:
+@@ -178,6 +181,8 @@ private:
+     static Action* lfg_join(PlayerbotAI* botAI) { return new LfgJoinAction(botAI); }
+     static Action* see_spell(PlayerbotAI* botAI) { return new SeeSpellAction(botAI); }
+     static Action* arena_team_accept(PlayerbotAI* botAI) { return new ArenaTeamAcceptAction(botAI); }
++    static Action* accept_wg_war(PlayerbotAI* botAI) { return new AcceptWintergraspWarAction(botAI); }
++    static Action* accept_wg_queue(PlayerbotAI* botAI) { return new AcceptWintergraspQueueAction(botAI); }
+ };
+ 
+ #endif
+diff --git a/modules/mod-playerbots/src/Ai/Base/WorldPacketTriggerContext.h b/modules/mod-playerbots/src/Ai/Base/WorldPacketTriggerContext.h
+index cf8445b..519f490 100644
+--- a/modules/mod-playerbots/src/Ai/Base/WorldPacketTriggerContext.h
++++ b/modules/mod-playerbots/src/Ai/Base/WorldPacketTriggerContext.h
+@@ -65,6 +65,8 @@ public:
+         creators["lfg teleport"] = &WorldPacketTriggerContext::lfg_teleport;
+         creators["inventory change failure"] = &WorldPacketTriggerContext::inventory_change_failure;
+         creators["bg status"] = &WorldPacketTriggerContext::bg_status;
++        creators["accept wg war"] = &WorldPacketTriggerContext::accept_wg_war;
++        creators["accept wg queue"] = &WorldPacketTriggerContext::accept_wg_queue;
+         creators["levelup"] = &WorldPacketTriggerContext::levelup;
+         creators["xpgain"] = &WorldPacketTriggerContext::xpgain;
+         creators["see spell"] = &WorldPacketTriggerContext::seespell;
+@@ -126,6 +128,8 @@ private:
+     static Trigger* loot_roll(PlayerbotAI* botAI) { return new WorldPacketTrigger(botAI, "loot roll"); }
+     static Trigger* taxi(PlayerbotAI* botAI) { return new WorldPacketTrigger(botAI, "activate taxi"); }
+     static Trigger* bg_status(PlayerbotAI* botAI) { return new WorldPacketTrigger(botAI, "bg status"); }
++    static Trigger* accept_wg_war(PlayerbotAI* botAI) { return new WorldPacketTrigger(botAI, "accept wg war"); }
++    static Trigger* accept_wg_queue(PlayerbotAI* botAI) { return new WorldPacketTrigger(botAI, "accept wg queue"); }
+     static Trigger* levelup(PlayerbotAI* botAI) { return new WorldPacketTrigger(botAI, "levelup"); }
+     static Trigger* xpgain(PlayerbotAI* botAI) { return new WorldPacketTrigger(botAI, "xpgain"); }
+     static Trigger* petition_offer(PlayerbotAI* botAI) { return new WorldPacketTrigger(botAI, "petition offer"); }
+diff --git a/modules/mod-playerbots/src/Bot/Factory/AiFactory.cpp b/modules/mod-playerbots/src/Bot/Factory/AiFactory.cpp
+index c895385..ba8e726 100644
+--- a/modules/mod-playerbots/src/Bot/Factory/AiFactory.cpp
++++ b/modules/mod-playerbots/src/Bot/Factory/AiFactory.cpp
+@@ -5,6 +5,8 @@
+  */
+ 
+ #include "AiFactory.h"
++#include "Battlefield.h"
++#include "BattlefieldMgr.h"
+ 
+ #include "BattlegroundMgr.h"
+ #include "DKAiObjectContext.h"
+@@ -710,6 +712,22 @@ void AiFactory::AddDefaultNonCombatStrategies(Player* player, PlayerbotAI* const
+             nonCombatEngine->removeStrategy("mount", false);
+         }
+     }
++
++    // Wintergrasp: WG is overworld and not a Battleground, so the BG switch above misses it.
++    // Give combatants the same PvP loadout and drop the wander strategies (travel/rpg/grind) so
++    // they fight the enemy faction instead of grinding/pathing out of the zone.
++    if (player->GetZoneId() == 4197 /*Wintergrasp*/)
++    {
++        Battlefield* bf = sBattlefieldMgr->GetBattlefieldToZoneId(4197);
++        if (bf && bf->IsWarTime())
++        {
++            nonCombatEngine->addStrategiesNoInit("pvp", "dps assist", "attack tagged", nullptr);
++            nonCombatEngine->removeStrategy("custom::say", false);
++            nonCombatEngine->removeStrategy("travel", false);
++            nonCombatEngine->removeStrategy("rpg", false);
++            nonCombatEngine->removeStrategy("grind", false);
++        }
++    }
+ }
+ 
+ Engine* AiFactory::createNonCombatEngine(Player* player, PlayerbotAI* const facade, AiObjectContext* aiObjectContext)
+diff --git a/modules/mod-playerbots/src/Bot/PlayerbotAI.cpp b/modules/mod-playerbots/src/Bot/PlayerbotAI.cpp
+index ff9059b..8caa01e 100644
+--- a/modules/mod-playerbots/src/Bot/PlayerbotAI.cpp
++++ b/modules/mod-playerbots/src/Bot/PlayerbotAI.cpp
+@@ -11,6 +11,8 @@
+ #include <string>
+ 
+ #include "AiFactory.h"
++#include "Battlefield.h"
++#include "BattlefieldMgr.h"
+ #include "BudgetValues.h"
+ #include "ChannelMgr.h"
+ #include "CharacterPackets.h"
+@@ -196,6 +198,8 @@ PlayerbotAI::PlayerbotAI(Player* bot)
+     botOutgoingPacketHandlers.AddHandler(SMSG_DUEL_REQUESTED, "duel requested");
+     botOutgoingPacketHandlers.AddHandler(SMSG_INVENTORY_CHANGE_FAILURE, "inventory change failure");
+     botOutgoingPacketHandlers.AddHandler(SMSG_BATTLEFIELD_STATUS, "bg status");
++    botOutgoingPacketHandlers.AddHandler(SMSG_BATTLEFIELD_MGR_ENTRY_INVITE, "accept wg war");
++    botOutgoingPacketHandlers.AddHandler(SMSG_BATTLEFIELD_MGR_QUEUE_INVITE, "accept wg queue");
+     botOutgoingPacketHandlers.AddHandler(SMSG_LFG_ROLE_CHECK_UPDATE, "lfg role check");
+     botOutgoingPacketHandlers.AddHandler(SMSG_LFG_PROPOSAL_UPDATE, "lfg proposal");
+     botOutgoingPacketHandlers.AddHandler(SMSG_TEXT_EMOTE, "receive text emote");
+@@ -4629,6 +4633,17 @@ bool PlayerbotAI::AllowActive(ActivityType activityType)
+     if (bot->InBattlegroundQueue())
+         return true;
+ 
++    // bot is a Wintergrasp combatant — stay fully active for the whole battle. WG is on the
++    // overworld (so isOverworld() above doesn't catch it) and is not a Battleground, so without
++    // this a WG bot goes inactive when no real player is near -> gets flagged AFK -> the WG
++    // battlefield kicks it (KickAfkPlayers) -> the director re-teleports it (the churn).
++    if (bot->GetZoneId() == 4197 /*Wintergrasp*/)
++    {
++        Battlefield* bf = sBattlefieldMgr->GetBattlefieldToZoneId(4197);
++        if (bf && bf->IsWarTime())
++            return true;
++    }
++
+     // bot is in a guild that contains a real player
+     if (sPlayerbotAIConfig.BotActiveAloneForceWhenInGuild)
+     {
+diff --git a/modules/mod-playerbots/src/Bot/RandomPlayerbotMgr.cpp b/modules/mod-playerbots/src/Bot/RandomPlayerbotMgr.cpp
+index 6abae47..8b88bfc 100644
+--- a/modules/mod-playerbots/src/Bot/RandomPlayerbotMgr.cpp
++++ b/modules/mod-playerbots/src/Bot/RandomPlayerbotMgr.cpp
+@@ -29,10 +29,26 @@
+ #include "MapMgr.h"
+ #include "NewRpgInfo.h"
+ #include "NewRpgStrategy.h"
++#include "Battlefield.h"
++#include "BattlefieldMgr.h"
+ #include "ObjectGuid.h"
+ #include "PerfMonitor.h"
+ #include "Player.h"
+ #include "PlayerbotAI.h"
++
++namespace
++{
++    // True while the bot is a Wintergrasp combatant. WG is a Battlefield, not a Battleground,
++    // so InBattleground() is false there and the random-bot manager would otherwise relocate
++    // WG bots out of the fight (the "churn"). Used to exempt them, exactly like InBattleground().
++    bool IsInWintergraspWar(Player* bot)
++    {
++        if (!bot || bot->GetZoneId() != 4197 /*Wintergrasp*/)
++            return false;
++        Battlefield* bf = sBattlefieldMgr->GetBattlefieldToZoneId(4197);
++        return bf && bf->IsWarTime();
++    }
++}
+ #include "PlayerbotAIConfig.h"
+ #include "PlayerbotFactory.h"
+ #include "PlayerbotTextMgr.h"
+@@ -1456,6 +1472,9 @@ bool RandomPlayerbotMgr::ProcessBot(Player* bot)
+     if (bot->InBattlegroundQueue())
+         return false;
+ 
++    if (IsInWintergraspWar(bot))
++        return false;
++
+      uint32 botId = bot->GetGUID().GetCounter();
+ 
+     // if death revive
+@@ -1593,6 +1612,10 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation>&
+     if (bot->InBattleground() || bot->InArena())
+         return;
+ 
++    // ignore Wintergrasp combatants (Battlefield, not a Battleground — see above).
++    if (IsInWintergraspWar(bot))
++        return;
++
+     // ignore when in group (e.g. world, dungeons, raids) and leader is not a player.
+     if (bot->GetGroup() && !bot->GetGroup()->IsLeader(bot->GetGUID()))
+         return;

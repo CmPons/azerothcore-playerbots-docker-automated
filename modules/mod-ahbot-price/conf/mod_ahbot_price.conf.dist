@@ -1,0 +1,18 @@
+[worldserver]
+
+########################################
+# mod-ahbot-price configuration
+########################################
+
+# AHBotPrice.Enable
+#   Master switch. Default 0. setup.sh sets this from .env AHPRICE_ENABLE.
+#   When 0 the .ahprice command replies that it is disabled and does nothing else.
+AHBotPrice.Enable = 0
+
+# AHBotPrice.HideUnauctionable
+#   When 1 (default), items that can never be listed on the auction house are excluded
+#   from `ahprice search` results: soulbound / quest-bound (bonding 1, 4, 5), conjured
+#   items, and limited-duration items. The bot can't buy these from a player, so their
+#   "buy range" is meaningless. Set 0 to show them. setup.sh sets this from .env
+#   AHPRICE_HIDE_UNAUCTIONABLE. (Direct `.ahprice item <id>` lookups are never filtered.)
+AHBotPrice.HideUnauctionable = 1
