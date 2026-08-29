@@ -16,6 +16,7 @@
 #include "PlayerbotFactory.h"
 #include "PlayerbotAI.h"
 #include "PlayerbotAIConfig.h"
+#include "Group.h"
 #include "InstanceSaveMgr.h"
 #include "DatabaseEnv.h"
 #include "QueryResult.h"
@@ -40,6 +41,7 @@ ChatCommandTable RaidRosterCommand::GetCommands() const
     // Console::Yes still allows the worldserver console (handled before that check).
     static ChatCommandTable sub =
     {
+        { "",       HandleQuickLogin, SEC_PLAYER, Console::Yes }, // .raidroster <5|10|25|40>
         { "create", HandleCreate, SEC_PLAYER, Console::Yes },
         { "login",  HandleLogin,  SEC_PLAYER, Console::Yes },
         { "sync",   HandleSync,   SEC_PLAYER, Console::Yes },
@@ -131,6 +133,16 @@ bool RaidRosterCommand::HandleCreate(ChatHandler* handler)
     return true;
 }
 
+bool RaidRosterCommand::HandleQuickLogin(ChatHandler* handler, Optional<uint32> sizeArg, Optional<std::string> roleArg)
+{
+    if (!sizeArg)
+    {
+        handler->SendSysMessage("Usage: .raidroster <5|10|25|40> [tank|heal|dps]");
+        return true;
+    }
+    return HandleLogin(handler, sizeArg, roleArg);
+}
+
 bool RaidRosterCommand::HandleLogin(ChatHandler* handler, Optional<uint32> sizeArg, Optional<std::string> roleArg)
 {
     if (!g_RaidRosterEnable) { handler->SendSysMessage("RaidRoster is disabled (set RaidRoster.Enable=1)."); return true; }
@@ -164,24 +176,72 @@ bool RaidRosterCommand::HandleLogin(ChatHandler* handler, Optional<uint32> sizeA
     if (rows.empty()) { handler->SendSysMessage("No roster. Use .raidroster create."); return true; }
 
     // Roster capacity per role (caps how many of each we can actually field).
-    uint8 availT = 0, availH = 0, availD = 0;
+    uint32 availT = 0, availH = 0, availD = 0;
+    std::unordered_set<uint32> rosterGuids;
     for (RaidRosterRow const& r : rows)
-    { if (r.role == 0) ++availT; else if (r.role == 1) ++availH; else ++availD; }
-
-    // Bot sub-comp for this size; then let the player take their slot: drop one bot of the
-    // player's role and backfill the freed slot (prefer dps, then heal, then tank) within roster
-    // capacity, so the group stays full. A DPS player leaves the comp unchanged.
-    uint8 needT = sc->tanks, needH = sc->heals, needD = sc->dps;
-    bool tookSlot = false;
-    if (playerRole == 0 && needT) { --needT; tookSlot = true; }
-    else if (playerRole == 1 && needH) { --needH; tookSlot = true; }
-    if (tookSlot)
     {
-        if (needD < availD) ++needD;
-        else if (needH < availH) ++needH;
-        else if (needT < availT) ++needT;
+        rosterGuids.insert(r.botGuid);
+        if (r.role == 0) ++availT; else if (r.role == 1) ++availH; else ++availD;
     }
-    uint8 const botT = needT, botH = needH, botD = needD;   // final line-up, for the report
+
+    // Target size is the whole party/raid, not "bots to add". Count non-roster group
+    // members that are already with the player (e.g. Meliah/Arinerica) and let their
+    // current specs satisfy the tank/heal/dps quotas before choosing raidroster bots.
+    uint32 fixedT = 0, fixedH = 0, fixedD = 0, fixedCount = 0;
+    auto countFixedMember = [&](Player* member)
+    {
+        if (!member || !member->IsInWorld())
+            return;
+        uint32 guid = member->GetGUID().GetCounter();
+        if (rosterGuids.count(guid))
+            return; // online roster bots are selected/trimmed below, not treated as fixed
+
+        int role = (member == master) ? playerRole
+            : (PlayerbotAI::IsTank(member, true) ? 0 : (PlayerbotAI::IsHeal(member, true) ? 1 : 2));
+        if (role == 0) ++fixedT;
+        else if (role == 1) ++fixedH;
+        else ++fixedD;
+        ++fixedCount;
+    };
+
+    if (Group* group = master->GetGroup())
+        for (GroupReference* r = group->GetFirstMember(); r; r = r->next())
+            countFixedMember(r->GetSource());
+    else
+        countFixedMember(master);
+
+    uint32 slotsForRoster = size > fixedCount ? size - fixedCount : 0;
+
+    // Desired total composition includes the human/fixed members. The subcomp dps value
+    // is the old "bots when the player is DPS" value, so add one DPS slot to get the
+    // target whole-raid composition: 5 => 1/1/3, 10 => 2/2/6, 25 => 2/6/17, 40 => 4/8/28.
+    uint32 desiredT = sc->tanks, desiredH = sc->heals, desiredD = sc->dps + 1;
+    uint32 needT = fixedT >= desiredT ? 0 : desiredT - fixedT;
+    uint32 needH = fixedH >= desiredH ? 0 : desiredH - fixedH;
+    uint32 needD = fixedD >= desiredD ? 0 : desiredD - fixedD;
+
+    auto totalNeed = [&]() { return needT + needH + needD; };
+
+    // If the current fixed group already overfills one role, trim desired roster needs down
+    // to the remaining slots. Prefer preserving tank/heal quotas, reducing DPS first.
+    while (totalNeed() > slotsForRoster)
+    {
+        if (needD) --needD;
+        else if (needH) --needH;
+        else if (needT) --needT;
+        else break;
+    }
+
+    // Cap impossible role requests to the roster pool, then fill leftover slots with
+    // available roster bots, preferring DPS, then heals, then tanks.
+    if (needT > availT) needT = availT;
+    if (needH > availH) needH = availH;
+    if (needD > availD) needD = availD;
+    while (totalNeed() < slotsForRoster && needD < availD) ++needD;
+    while (totalNeed() < slotsForRoster && needH < availH) ++needH;
+    while (totalNeed() < slotsForRoster && needT < availT) ++needT;
+
+    uint32 const botT = needT, botH = needH, botD = needD;   // final line-up, for the report
 
     PlayerbotMgr* mgr = GET_PLAYERBOT_MGR(master);
     if (!mgr) { handler->SendSysMessage("Playerbot manager unavailable."); return true; }
@@ -193,7 +253,7 @@ bool RaidRosterCommand::HandleLogin(ChatHandler* handler, Optional<uint32> sizeA
     // only vary *which* reserved bots of a role get picked (each still runs its pinned tank/heal/dps
     // spec once you .raidroster sync).
     std::vector<RaidRosterRow> want;
-    auto selectRole = [&](uint8 role, uint8 need)
+    auto selectRole = [&](uint8 role, uint32 need)
     {
         std::vector<RaidRosterRow> online, offline;
         for (RaidRosterRow const& r : rows)
@@ -238,11 +298,13 @@ bool RaidRosterCommand::HandleLogin(ChatHandler* handler, Optional<uint32> sizeA
     for (RaidRosterRow const& r : want)
         if (mgr->GetPlayerBot(ObjectGuid::Create<HighGuid::Player>(r.botGuid))) ++online;
 
-    // `size` is the raid size incl. you; you fill one slot, bots fill the rest.
+    // `size` is the target group size incl. you and any existing non-roster party members.
     char const* roleName = playerRole == 0 ? "TANK" : (playerRole == 1 ? "HEALER" : "DPS");
-    handler->PSendSysMessage("Raid {} — you fill the {} slot; {} bots ({} tank / {} heal / {} dps): "
-        "{} online now, dismissed {}. (Bots load async; re-check or see .raidroster status.)",
-        size, roleName, (uint32)want.size(), (uint32)botT, (uint32)botH, (uint32)botD, online, dismissed);
+    handler->PSendSysMessage("Raid target {} — you count as {}; keeping {} existing non-roster member(s) "
+        "({} tank / {} heal / {} dps), adding/keeping {} roster bot(s) ({} tank / {} heal / {} dps): "
+        "{} roster bot(s) online now, dismissed {}. (Bots load async; re-check or see .raidroster status.)",
+        size, roleName, fixedCount, fixedT, fixedH, fixedD, (uint32)want.size(), (uint32)botT,
+        (uint32)botH, (uint32)botD, online, dismissed);
     return true;
 }
 

@@ -10,6 +10,7 @@ public:
     Acore::ChatCommands::ChatCommandTable GetCommands() const override;
 
     static bool HandleCreate(ChatHandler* handler);
+    static bool HandleQuickLogin(ChatHandler* handler, Optional<uint32> size, Optional<std::string> role);
     static bool HandleLogin(ChatHandler* handler, Optional<uint32> size, Optional<std::string> role);
     static bool HandleSync(ChatHandler* handler);
     static bool HandleSyncOne(ChatHandler* handler, std::string name, Optional<std::string> role);
