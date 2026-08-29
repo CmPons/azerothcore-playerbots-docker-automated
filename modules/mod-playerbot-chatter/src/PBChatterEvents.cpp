@@ -1,35 +1,144 @@
 #include "PBChatterEvents.h"
 #include "PBChatterAmbient.h"
+#include "PBChatterAmbientPrompt.h"
 #include "PBChatterConfig.h"
+#include "PBChatterQueue.h"
 #include "ScriptMgr.h"
 #include "Player.h"
 #include "Creature.h"
+#include "Group.h"
 #include "Item.h"
 #include "ItemTemplate.h"
 #include "QuestDef.h"
 #include "Playerbots.h"
+#include "DBCStores.h"
 #include "SharedDefines.h"
+#include "World.h"
+#include "ObjectAccessor.h"
+#include "ObjectGuid.h"
+#include "Random.h"
+#include <deque>
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 namespace
 {
     struct Seed { uint32_t ms; std::string hint; };
-    std::unordered_map<uint64_t, Seed> g_seeds; // bot GUID counter -> last event
+    struct GroupEvent { uint32_t ms; std::string text; };
+    struct EventReaction
+    {
+        uint32_t ms = 0;
+        uint64_t groupGuid = 0;
+        uint64_t anchorGuid = 0;
+        std::string hint;
+    };
 
-    // The event hooks below fire from Unit kill/level/quest handling inside Map::Update, which
-    // AzerothCore runs on MapUpdater WORKER THREADS (AiPlayerbot drives ~2000 bots across many
-    // maps in parallel). Take() runs on the world thread. So g_seeds is touched concurrently
-    // from multiple threads and MUST be serialized — an unlocked std::unordered_map mutated
-    // from two map threads at once corrupts the heap and crashes the server, even with no
-    // players online. This mutex is the single guard for every g_seeds access.
-    std::mutex g_seedsMutex;
+    std::unordered_map<uint64_t, Seed> g_seeds; // bot GUID counter -> last notable event seed
+    std::unordered_map<uint64_t, std::deque<GroupEvent>> g_groupEvents; // group GUID raw -> recent party/raid events
+    std::deque<EventReaction> g_eventReactions; // event-triggered LLM chatter candidates
+
+    // World-thread only state for event-triggered LLM calls.
+    uint32_t g_eventNowMs = 0;
+    uint32_t g_eventRateWindowMs = 0;
+    uint32_t g_eventRateCount = 0;
+    uint32_t g_pvpScanTimerMs = 0;
+    std::unordered_map<uint64_t, uint32_t> g_groupEventCooldownUntil;
+    std::unordered_map<uint64_t, uint32_t> g_botEventCooldownUntil;
+    std::unordered_map<uint64_t, uint32_t> g_seenEnemyCooldownUntil;
+
+    // The event hooks below fire from Unit kill/level/quest/item handling inside Map::Update,
+    // which AzerothCore can run on MapUpdater worker threads. Take()/RecentForGroup() run on
+    // the world thread while prompts are built. All shared maps/deques are behind this mutex.
+    std::mutex g_eventsMutex;
+
+    constexpr uint32_t GROUP_EVENT_TTL_MS = 4 * 60 * 1000;
+    constexpr size_t GROUP_EVENT_MAX = 18;
 
     bool IsBot(Player* p)
     {
         PlayerbotAI* ai = GET_PLAYERBOT_AI(p);
         return ai && !ai->IsRealPlayer();
+    }
+
+    bool IsRealPlayer(Player* p)
+    {
+        if (!p)
+            return false;
+        PlayerbotAI* ai = GET_PLAYERBOT_AI(p);
+        return !ai || ai->IsRealPlayer();
+    }
+
+    Player* FindByCounter(uint64_t counter)
+    {
+        return ObjectAccessor::FindPlayer(
+            ObjectGuid::Create<HighGuid::Player>(static_cast<ObjectGuid::LowType>(counter)));
+    }
+
+    char const* ClassName(uint8 c)
+    {
+        switch (c)
+        {
+            case CLASS_WARRIOR: return "warrior";
+            case CLASS_PALADIN: return "paladin";
+            case CLASS_HUNTER: return "hunter";
+            case CLASS_ROGUE: return "rogue";
+            case CLASS_PRIEST: return "priest";
+            case CLASS_DEATH_KNIGHT: return "death knight";
+            case CLASS_SHAMAN: return "shaman";
+            case CLASS_MAGE: return "mage";
+            case CLASS_WARLOCK: return "warlock";
+            case CLASS_DRUID: return "druid";
+            default: return "player";
+        }
+    }
+
+    char const* FactionWord(Player* p)
+    {
+        return p && p->GetTeamId() == TEAM_HORDE ? "Horde" : "Alliance";
+    }
+
+    bool OpposingFaction(Player* a, Player* b)
+    {
+        return a && b && a != b && a->GetTeamId() != b->GetTeamId();
+    }
+
+    uint64_t PairKey(uint64_t a, uint64_t b)
+    {
+        return (a * 11400714819323198485ull) ^ (b + 0x9e3779b97f4a7c15ull + (a << 6) + (a >> 2));
+    }
+
+    std::string AreaName(uint32 areaId)
+    {
+        if (AreaTableEntry const* a = sAreaTableStore.LookupEntry(areaId))
+            if (char const* nm = a->area_name[sWorld->GetDefaultDbcLocale()])
+                if (*nm)
+                    return nm;
+        return "somewhere nearby";
+    }
+
+    void Prune(std::deque<GroupEvent>& events, uint32_t now)
+    {
+        while (!events.empty() && now - events.front().ms > GROUP_EVENT_TTL_MS)
+            events.pop_front();
+        while (events.size() > GROUP_EVENT_MAX)
+            events.pop_front();
+    }
+
+    std::string AgePhrase(uint32_t now, uint32_t then)
+    {
+        uint32_t ageMs = now >= then ? now - then : 0;
+        uint32_t sec = ageMs / 1000u;
+        if (sec < 10)
+            return "just now";
+        if (sec < 60)
+            return std::to_string(sec) + "s ago";
+        uint32_t min = sec / 60u;
+        if (min <= 1)
+            return "about 1m ago";
+        return "about " + std::to_string(min) + "m ago";
     }
 
     void Stamp(Player* p, std::string hint)
@@ -40,14 +149,295 @@ namespace
             return;
         uint64_t key = p->GetGUID().GetCounter();
         uint32_t now = PBChatterAmbient::NowMs();
-        std::lock_guard<std::mutex> lock(g_seedsMutex);
+        std::lock_guard<std::mutex> lock(g_eventsMutex);
         g_seeds[key] = Seed{ now, std::move(hint) };
     }
+
+    void AppendGroupEvent(Player* actor, std::string text)
+    {
+        if (!g_PBChatEnable)
+            return;
+        if (!actor || text.empty())
+            return;
+        Group* group = actor->GetGroup();
+        if (!group)
+            return;
+
+        uint32_t now = PBChatterAmbient::NowMs();
+        uint64_t key = group->GetGUID().GetRawValue();
+        std::lock_guard<std::mutex> lock(g_eventsMutex);
+        std::deque<GroupEvent>& events = g_groupEvents[key];
+        Prune(events, now);
+
+        // Area updates and trash pulls can fire for multiple party members; keep the prompt useful,
+        // not spammy. Exact duplicate text within 20s becomes a single event.
+        if (!events.empty() && events.back().text == text && now - events.back().ms <= 20000u)
+        {
+            events.back().ms = now;
+            return;
+        }
+
+        events.push_back(GroupEvent{ now, std::move(text) });
+        Prune(events, now);
+    }
+
+    Player* FindRealAnchor(Group* group)
+    {
+        if (!group)
+            return nullptr;
+        for (GroupReference* r = group->GetFirstMember(); r; r = r->next())
+        {
+            Player* m = r->GetSource();
+            if (m && m->IsInWorld() && IsRealPlayer(m))
+                return m;
+        }
+        return nullptr;
+    }
+
+    void QueueEventReaction(Player* contextPlayer, std::string hint)
+    {
+        if (!g_PBChatEnable || !g_PBChatEventEnable || hint.empty())
+            return;
+        if (!contextPlayer)
+            return;
+        Group* group = contextPlayer->GetGroup();
+        if (!group)
+            return;
+        Player* anchor = IsRealPlayer(contextPlayer) ? contextPlayer : FindRealAnchor(group);
+        if (!anchor)
+            return; // never spend model calls for bot-only groups
+
+        uint32_t now = PBChatterAmbient::NowMs();
+        std::lock_guard<std::mutex> lock(g_eventsMutex);
+        g_eventReactions.push_back(EventReaction{ now, group->GetGUID().GetRawValue(),
+                                                  anchor->GetGUID().GetCounter(), std::move(hint) });
+        while (g_eventReactions.size() > 24)
+            g_eventReactions.pop_front();
+    }
+
+    void RecordKill(Player* killer, Creature* killed, bool pet)
+    {
+        if (!g_PBChatEnable)
+            return;
+        if (!killer || !killed)
+            return;
+
+        std::string name = killed->GetName();
+        if (name.empty())
+            return;
+
+        bool const notable = killed->isElite() || killed->isWorldBoss();
+        AppendGroupEvent(killer, notable ? ("the party took down " + name)
+                                         : ("the party killed " + name));
+
+        // Self-initiated ambient event lines stay reserved for notable kills; normal trash kills
+        // are still available as recent party context in other prompts.
+        if (notable)
+            Stamp(killer, pet ? ("your pet helped take down " + name)
+                              : ("you just took down " + name));
+    }
+
+    void RecordStoredItem(Player* player, Item* item, uint32 count, char const* verb)
+    {
+        if (!g_PBChatEnable)
+            return;
+        if (!player || !item || count == 0)
+            return;
+
+        // OnPlayerLootItem was unsafe on the bot-loot path in this server. OnPlayerStoreNewItem
+        // hands us the inventory item after it exists; still keep handling conservative and only
+        // mention quest/green+ items so trash/vendor/crafting noise doesn't dominate party chat.
+        ItemTemplate const* proto = item->GetTemplate();
+        if (!proto)
+            return;
+        if (proto->Quality < ITEM_QUALITY_UNCOMMON && proto->Class != ITEM_CLASS_QUEST)
+            return;
+
+        std::string label = proto->Name1;
+        if (label.empty())
+            return;
+        std::string qty = count > 1 ? (" x" + std::to_string(count)) : "";
+        AppendGroupEvent(player, std::string(player->GetName()) + " " + verb + " " + label + qty);
+    }
+
+    void RecordPvPCombat(Player* player, Unit* enemy)
+    {
+        if (!g_PBChatEnable || !player || !enemy || !player->GetGroup())
+            return;
+        Player* enemyPlayer = dynamic_cast<Player*>(enemy);
+        if (!enemyPlayer || !OpposingFaction(player, enemyPlayer))
+            return;
+
+        std::string hint = Acore::StringFormat("PvP contact: {} is fighting a {} {} named {} nearby",
+            player->GetName(), FactionWord(enemyPlayer), ClassName(enemyPlayer->getClass()), enemyPlayer->GetName());
+        AppendGroupEvent(player, hint);
+        QueueEventReaction(player, hint);
+    }
+
+    PBChatChannel ChannelForGroup(Group* group)
+    {
+        return group && group->isRaidGroup() ? PBChatChannel::Raid : PBChatChannel::Party;
+    }
+
+    void CollectGroupBots(Group* group, std::vector<Player*>& out)
+    {
+        if (!group)
+            return;
+        for (GroupReference* r = group->GetFirstMember(); r; r = r->next())
+        {
+            Player* m = r->GetSource();
+            if (m && m->IsInWorld() && m->IsAlive() && IsBot(m))
+                out.push_back(m);
+        }
+    }
+
+    void ProcessEventReactions()
+    {
+        std::deque<EventReaction> pending;
+        {
+            std::lock_guard<std::mutex> lock(g_eventsMutex);
+            pending.swap(g_eventReactions);
+        }
+
+        for (EventReaction const& ev : pending)
+        {
+            if (!g_PBChatEventEnable)
+                continue;
+            if (g_PBChatEventMaxPerMin && g_eventRateCount >= g_PBChatEventMaxPerMin)
+                break;
+            if (ev.ms && g_eventNowMs - ev.ms > 60000u)
+                continue; // too stale for an organic event reaction
+            if (g_eventNowMs < g_groupEventCooldownUntil[ev.groupGuid])
+                continue;
+            if (!roll_chance_i(static_cast<int>(g_PBChatEventChance)))
+                continue;
+
+            Player* anchor = FindByCounter(ev.anchorGuid);
+            if (!anchor || !anchor->IsInWorld())
+                continue;
+            Group* group = anchor->GetGroup();
+            if (!group || group->GetGUID().GetRawValue() != ev.groupGuid)
+                continue;
+
+            std::vector<Player*> bots;
+            CollectGroupBots(group, bots);
+            std::vector<Player*> pool;
+            for (Player* bot : bots)
+            {
+                uint64_t counter = bot->GetGUID().GetCounter();
+                if (g_eventNowMs < g_botEventCooldownUntil[counter])
+                    continue;
+                pool.push_back(bot);
+            }
+            if (pool.empty())
+                continue;
+
+            Player* bot = pool[urand(0, pool.size() - 1)];
+            PBChatJob job;
+            job.botGuid          = bot->GetGUID().GetCounter();
+            job.playerGuid       = anchor->GetGUID().GetCounter();
+            job.playerName       = anchor->GetName();
+            job.channel          = ChannelForGroup(group);
+            job.systemPrompt     = g_PBChatSystemPrompt;
+            job.prompt           = PBChatterAmbientPrompt::Build(PBChatterAmbientPrompt::MODE_EVENT,
+                                                                 bot, AMB_GROUP, {}, ev.hint);
+            job.ambient          = true;
+            job.ambientKind      = AMB_GROUP;
+            job.ambientIdent     = ev.groupGuid;
+            job.anchorPlayerGuid = anchor->GetGUID().GetCounter();
+            PBChatterQueue::Submit(std::move(job));
+
+            ++g_eventRateCount;
+            g_groupEventCooldownUntil[ev.groupGuid] = g_eventNowMs + g_PBChatEventCooldown * 1000u;
+            g_botEventCooldownUntil[bot->GetGUID().GetCounter()] =
+                g_eventNowMs + g_PBChatEventPerBotCooldown * 1000u;
+        }
+    }
+
+    bool RecordVisibleEnemy(Player* anchor, Player* enemy)
+    {
+        if (!anchor || !enemy || !anchor->GetGroup() || !OpposingFaction(anchor, enemy))
+            return false;
+        if (!enemy->IsAlive() || !enemy->IsInWorld())
+            return false;
+        if (enemy->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NON_ATTACKABLE_2))
+            return false;
+
+        uint64_t groupGuid = anchor->GetGroup()->GetGUID().GetRawValue();
+        uint64_t seenKey = PairKey(groupGuid, enemy->GetGUID().GetCounter());
+        if (g_eventNowMs < g_seenEnemyCooldownUntil[seenKey])
+            return false;
+        g_seenEnemyCooldownUntil[seenKey] = g_eventNowMs + 90000u;
+
+        std::string hint = Acore::StringFormat("PvP sighting: a {} {} named {} came into view near the party in {}",
+            FactionWord(enemy), ClassName(enemy->getClass()), enemy->GetName(), AreaName(anchor->GetAreaId()));
+        AppendGroupEvent(anchor, hint);
+        QueueEventReaction(anchor, hint);
+        return true;
+    }
+
+    void ScanPvPContacts()
+    {
+        if (!g_PBChatEnable || !g_PBChatEventEnable || !g_PBChatAmbientGroup)
+            return;
+
+        std::unordered_set<uint64_t> reportedGroups;
+        for (auto const& pair : ObjectAccessor::GetPlayers())
+        {
+            Player* anchor = pair.second;
+            if (!anchor || !anchor->IsInWorld() || !IsRealPlayer(anchor))
+                continue;
+            Group* group = anchor->GetGroup();
+            if (!group)
+                continue;
+            uint64_t groupGuid = group->GetGUID().GetRawValue();
+            if (reportedGroups.find(groupGuid) != reportedGroups.end())
+                continue;
+
+            bool reported = false;
+            anchor->DoForAllVisibleWorldObjects([&](WorldObject* worldObject)
+            {
+                if (reported || !worldObject || !worldObject->IsPlayer())
+                    return;
+                Player* enemy = worldObject->ToPlayer();
+                if (!enemy || !OpposingFaction(anchor, enemy))
+                    return;
+                if (RecordVisibleEnemy(anchor, enemy))
+                    reported = true;
+            });
+
+            if (reported)
+                reportedGroups.insert(groupGuid);
+        }
+    }
+}
+
+void PBChatterEvents::Tick(uint32_t diff)
+{
+    if (!g_PBChatEnable)
+        return;
+
+    g_eventNowMs += diff;
+    g_eventRateWindowMs += diff;
+    if (g_eventRateWindowMs >= 60000u)
+    {
+        g_eventRateWindowMs = 0;
+        g_eventRateCount = 0;
+    }
+
+    g_pvpScanTimerMs += diff;
+    if (g_pvpScanTimerMs >= g_PBChatEventPvpScanMs)
+    {
+        g_pvpScanTimerMs = 0;
+        ScanPvPContacts();
+    }
+
+    ProcessEventReactions();
 }
 
 bool PBChatterEvents::Take(uint64_t botGuidCounter, uint32_t nowMs, std::string& outHint)
 {
-    std::lock_guard<std::mutex> lock(g_seedsMutex);
+    std::lock_guard<std::mutex> lock(g_eventsMutex);
     auto it = g_seeds.find(botGuidCounter);
     if (it == g_seeds.end())
         return false;
@@ -58,52 +448,104 @@ bool PBChatterEvents::Take(uint64_t botGuidCounter, uint32_t nowMs, std::string&
     return fresh;
 }
 
+std::vector<std::string> PBChatterEvents::RecentForGroup(Group* group, uint32_t nowMs, uint32_t maxItems)
+{
+    std::vector<std::string> out;
+    if (!group || maxItems == 0)
+        return out;
+
+    uint64_t key = group->GetGUID().GetRawValue();
+    std::lock_guard<std::mutex> lock(g_eventsMutex);
+    auto it = g_groupEvents.find(key);
+    if (it == g_groupEvents.end())
+        return out;
+
+    Prune(it->second, nowMs);
+    if (it->second.empty())
+    {
+        g_groupEvents.erase(it);
+        return out;
+    }
+
+    size_t start = it->second.size() > maxItems ? it->second.size() - maxItems : 0;
+    for (size_t i = start; i < it->second.size(); ++i)
+        out.push_back(AgePhrase(nowMs, it->second[i].ms) + ": " + it->second[i].text);
+    return out;
+}
+
 namespace
 {
     class PBChatterEventScript : public PlayerScript
     {
     public:
-        // NOTE: deliberately NO PLAYERHOOK_ON_LOOT_ITEM. OnPlayerLootItem fired on the
-        // playerbots bot-loot path (PlayerbotHolder::HandleBotPackets -> StoreLootItem) with an
-        // Item* that is NOT safe to dereference there — item->GetTemplate() segfaulted the world
-        // thread under heavy bot loot ~90s after start, even with the module disabled (confirmed
-        // via gdb: GetUInt32Value <- Item::GetTemplate <- OnPlayerLootItem). Loot riffs are an
-        // optional flavor; the remaining seeds (ding/quest/boss-kill) deref objects that ARE
-        // valid for the duration of their hook.
         PBChatterEventScript() : PlayerScript("PBChatterEventScript", {
             PLAYERHOOK_ON_LEVEL_CHANGED,
             PLAYERHOOK_ON_PLAYER_COMPLETE_QUEST,
             PLAYERHOOK_ON_CREATURE_KILL,
+            PLAYERHOOK_ON_CREATURE_KILLED_BY_PET,
+            PLAYERHOOK_ON_STORE_NEW_ITEM,
+            PLAYERHOOK_ON_GROUP_ROLL_REWARD_ITEM,
+            PLAYERHOOK_ON_UPDATE_AREA,
+            PLAYERHOOK_ON_PLAYER_ENTER_COMBAT,
         }) {}
 
         // Each hook bails on the enable flags BEFORE touching any game object, so a disabled
-        // module does zero work (and never dereferences a hook argument). The check used to live
-        // only in Stamp(), which ran last — letting the deref crash even when disabled.
+        // module does zero work (and never dereferences a hook argument).
         void OnPlayerLevelChanged(Player* player, uint8 /*oldLevel*/) override
         {
-            if (!g_PBChatEnable || !g_PBChatAmbientEnable)
+            if (!g_PBChatEnable)
                 return;
+            if (!player)
+                return;
+            AppendGroupEvent(player, std::string(player->GetName()) + " hit level " + std::to_string(player->GetLevel()));
             Stamp(player, "you just dinged level " + std::to_string(player->GetLevel()));
         }
 
         void OnPlayerCompleteQuest(Player* player, Quest const* quest) override
         {
-            if (!g_PBChatEnable || !g_PBChatAmbientEnable)
+            if (!g_PBChatEnable)
+                return;
+            if (!player)
                 return;
             std::string title = quest ? quest->GetTitle() : "";
+            AppendGroupEvent(player, title.empty() ? (std::string(player->GetName()) + " finished a quest")
+                                                  : (std::string(player->GetName()) + " finished " + title));
             Stamp(player, title.empty() ? "you just finished a quest"
                                         : ("you just finished the quest \"" + title + "\""));
         }
 
         void OnPlayerCreatureKill(Player* killer, Creature* killed) override
         {
-            if (!g_PBChatEnable || !g_PBChatAmbientEnable)
+            RecordKill(killer, killed, false);
+        }
+
+        void OnPlayerCreatureKilledByPet(Player* petOwner, Creature* killed) override
+        {
+            RecordKill(petOwner, killed, true);
+        }
+
+        void OnPlayerStoreNewItem(Player* player, Item* item, uint32 count) override
+        {
+            RecordStoredItem(player, item, count, "looted");
+        }
+
+        void OnPlayerGroupRollRewardItem(Player* player, Item* item, uint32 count, RollVote /*voteType*/, Roll* /*roll*/) override
+        {
+            RecordStoredItem(player, item, count, "won");
+        }
+
+        void OnPlayerEnterCombat(Player* player, Unit* enemy) override
+        {
+            RecordPvPCombat(player, enemy);
+        }
+
+        void OnPlayerUpdateArea(Player* player, uint32 /*oldArea*/, uint32 newArea) override
+        {
+            if (!g_PBChatEnable)
                 return;
-            if (!killed)
+            if (!player || !player->GetGroup())
                 return;
-            if (!killed->isElite() && !killed->isWorldBoss())
-                return; // only notable kills become flavor
-            Stamp(killer, "you just took down " + killed->GetName());
+            AppendGroupEvent(player, "the party moved into " + AreaName(newArea));
         }
     };
 }

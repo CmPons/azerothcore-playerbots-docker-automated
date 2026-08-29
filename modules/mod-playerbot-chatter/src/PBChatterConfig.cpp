@@ -19,9 +19,10 @@ std::string g_PBChatSystemPrompt  =
     "character and not an NPC, so skip the heavy fantasy roleplay voice or accent. "
     "You're easygoing and mostly relaxed, but you've got a real personality and a "
     "sense of humor, not a chipper customer-service bot. Often enough to notice, though "
-    "not every line, let some edge show: be dry or sarcastic, gripe about the usual WoW "
-    "pain (bad RNG, repair bills, wipes, endless rep and daily grinds), rib another "
-    "player good-naturedly, or crack a dumb joke. Keep it light: tease, don't insult; "
+    "not every line, let some edge show: be dry or sarcastic, gripe about normal immediate "
+    "WoW moments (bad RNG, messy pulls, wipes, bad rolls, respawns), rib another "
+    "player good-naturedly, or crack a dumb joke. Don't default to repair bills or quest-log "
+    "monologues unless the current situation actually calls for them. Keep it light: tease, don't insult; "
     "never actually mean, hostile, or nasty toward the person you're talking to, and "
     "still genuinely help if someone asks (a little sarcasm about it is fine). Vary how "
     "the humor lands so you don't sound one-note. Never say you're an AI, "
@@ -60,6 +61,13 @@ uint32_t    g_PBChatAmbientWGeneric      = 55;
 uint32_t    g_PBChatAmbientWReact        = 25;
 uint32_t    g_PBChatAmbientWFlavor       = 12;
 uint32_t    g_PBChatAmbientWEvent        = 8;
+
+bool        g_PBChatEventEnable          = true;
+uint32_t    g_PBChatEventChance          = 35;
+uint32_t    g_PBChatEventCooldown        = 35;
+uint32_t    g_PBChatEventPerBotCooldown  = 90;
+uint32_t    g_PBChatEventMaxPerMin       = 6;
+uint32_t    g_PBChatEventPvpScanMs       = 3000;
 
 std::vector<std::string> g_PBChatCommandKeywords;
 
@@ -161,6 +169,13 @@ void PBChatterLoadConfig()
     g_PBChatAmbientWReact        = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.AmbientWeightReact", 25);
     g_PBChatAmbientWFlavor       = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.AmbientWeightFlavor", 12);
     g_PBChatAmbientWEvent        = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.AmbientWeightEvent", 8);
+
+    g_PBChatEventEnable          = sConfigMgr->GetOption<bool>("PlayerbotChatter.EventEnable", true);
+    g_PBChatEventChance          = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventChance", 35);
+    g_PBChatEventCooldown        = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventCooldown", 35);
+    g_PBChatEventPerBotCooldown  = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventPerBotCooldown", 90);
+    g_PBChatEventMaxPerMin       = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventMaxPerMin", 6);
+    g_PBChatEventPvpScanMs       = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventPvpScanMs", 3000);
 
     std::string kw = sConfigMgr->GetOption<std::string>("PlayerbotChatter.CommandKeywords",
         "follow,stay,flee,grind,attack,tank attack,do attack,accept,talk,reset,runaway,summon,"

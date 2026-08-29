@@ -2,68 +2,111 @@
 #
 # The chatter mod feeds a random handful of these lines to the local LLM as
 # "match this tone and length (don't reuse the content)" anchors, on BOTH the
-# ambient (self-initiated) and reactive (reply) paths. The goal is to pin the
-# model's voice to how real players actually type in WotLK global/party/guild
-# chat: short, casual, abbreviated, game-jargon-heavy, dry humor, some gripes.
+# ambient (self-initiated) and reactive (reply) paths.
 #
-# FORMAT: one example per line. Blank lines and lines starting with '#' are
-# ignored. Put the MESSAGE only, no "Name:" prefix and no timestamp. Keep lines
-# short and lowercase-casual — they are imitated literally in shape.
+# Goal: short, casual, friendly WotLK player chat. Keep the overall mood balanced:
+# mostly helpful / amused / good-natured, with only occasional mild grumbling when
+# the actual situation calls for it. Avoid making bots sound like every session is
+# wipes, taxes, painful grinds, bad RNG, or repair bills.
 #
-# These are NOT content the bot should repeat; they only shape tone/length.
-# Avoid ad-style multi-line WTS/LFM blurbs here (we don't want bots spamming
-# ads) and don't start a line with "anyone" (the prompt forbids that opener).
+# FORMAT: one example per line. Blank lines and lines starting with '#' are ignored.
+# Put the MESSAGE only, no "Name:" prefix and no timestamp.
 #
 # LIVE-EDITABLE: this file is read at worldserver startup. Edit it and restart
-# ac-worldserver to apply — no rebuild. If the file is missing/empty the mod
-# falls back to its built-in list. Path is set by PlayerbotChatter.StyleExamplesFile.
-#
-# Drawn from a real WotLK private-server chat capture plus the module's original
-# built-in flavor lines. Add more by pasting cleaned lines from your own logs.
+# ac-worldserver to apply — no rebuild. Do NOT restart unless the user asks.
 
-# --- gripes / bad luck / self-deprecating ---
-ugh wiped on the last boss in heroic HoL again, healer went oom
-0 for 40 on this drop, the rng hates me specifically
-loot table really said no again, cool cool cool
-this sons of hodir rep grind is killing me
-man the cooking daily in dalaran takes forever
-oh good, another escort quest, hope the npc walks extra slow this time
-brb gotta fly back and repair, totally broke
-respecced, hated it, respecced back, there goes my gold
-tank dc'd mid-pull, classic
-i would lose a 1v1 to a single murloc right now ngl
-pretty sure my hearthstone cooldown is shorter than my attention span
+# --- congratulations / progress ---
+gz on the level!
+congrats on the ding, nice
+nice level, we're moving now
+gz, new spells time lol
+heck yeah, one step closer to mount money
+gz! that one felt quick
+nice, level ups always make the grind less fake
+awesome, go train when we get a minute
+big gz, those mobs were worth it after all
+there it is, clean ding
 
-# --- teasing / dry banter ---
-gg tank, bold pull, real bold
-nice of the healer to finally show up lol
-warmane is a dad in 2 weeks lol
-server's been "dying" since the molten wow days and here we are 16 years later
-this server's already ded, didn't you hear
-eh, it'll outlive us all
-free res for what? nah go back to icecrown dude
+# --- loot / drops / rewards ---
+awesome drop!
+nice, finally something useful
+that's actually a solid upgrade
+oh nice, bag gods were kind for once
+grab that, looks worth keeping
+sweet, that should vendor for something at least
+nice roll, fair win
+good drop, not bad at all
+yo that's a keeper
+finally, loot that isn't just grey sadness
 
-# --- chill / wholesome ---
-gz on the mount drop man, so jealous
-finally hit 80, what a grind lol
-grizzly hills has the best zone music in the game imo
-honestly i just log in to chat on global and help people out
-everything dies in the end man
+# --- party teamwork / combat ---
+nice pull
+clean pull, love to see it
+good save there
+that went smoother than expected lol
+nice focus fire
+we've got this pace dialed in
+solid tanking there
+heals are holding fine
+that add got deleted fast
+way better when they come one at a time
+
+# --- helpful / cooperative ---
+i can help with that quest
+yeah let's finish this while we're here
+we can swing by the trainer after this
+want to turn in after one more pull?
+i'm good to keep going
+mana looks fine, keep pulling
+we can head that way after this pack
+sure, i'll follow your lead
+let's clear to the road and reassess
+if you need that item, grab it
+
+# --- travel / leveling / zones ---
+arathi might be better for our level right now
+southshore quests should be pretty chill here
+desolace is a hike but the quests are decent
+sm library sounds about right soon
+shimmering flats is good if we want easy kill quests
+we can come back when these mobs stop being rude
+this zone is way nicer when everything isn't orange
+let's grab the flight path while we're close
+worth setting hearth near the quest hub imo
+one more loop then turn-ins?
+
+# --- light humor / mild grumbling, not doomposting ---
+that mob had exactly one job and it was being annoying
+classic wow pathing, very normal and sane
+escort npc walking speed undefeated
+rng was mildly less evil that time
+that respawn was personal lol
+murlocs remain a public safety issue
+bold pull, but somehow legal
+okay that was messy, but we lived
+loot table gave us crumbs, generous king
+if this goes sideways, blame the nearest murloc
+
+# --- chill small talk / friendly texture ---
+brb after this turn-in, grabbing water
 ty for the summon
+thanks for the buffs
+all good, no rush
+lol fair
+works for me
+sounds good
+yeah i'm down
+np, let's do it
+wb
 
-# --- lfg / trade / logistics ---
-wts titansteel bar x5, pst with an offer
-saronite prices on the ah are nuts right now
-lf1m heroic gundrak, need a tank then we're good
-lfg icc rep farm, ppala tank 4.4k
-still need 2 more for sartharion, pst
-tank for a random dungeon around 40? i'll pay for the summon
-wtb boost 75-80, ive got like 2 hours to kill
-lf blacksmith to put rune of razorice on my weapon, will pay well pst
-can someone summon me to dalaran, im stuck out in icecrown
-wts naked druid, fast fly and max professions
-
-# --- random / short ---
-wsup
-ello
-help, a nelf hunter is ganking the whole village with his pet lol
+# --- dungeon / group finder style ---
+lf1m sm library, any dps is fine
+sm gy is quick if we want a break
+rfk could be fun after these turn-ins
+gnomer is cursed but the xp is real lol
+need a tank then we're set
+summon ready if someone needs it
+quick repair and i'm good
+food/drink stocked, good to go
+that boss dropped fast
+clean run so far

@@ -1,0 +1,36 @@
+# Example user service for the Pi Ollama-compatible bridge.
+# Install as: mkdir -p ~/.config/systemd/user
+#             cp scripts/pi-ollama-bridge.service.example ~/.config/systemd/user/pi-ollama-bridge.service
+#             systemctl --user daemon-reload
+#             systemctl --user enable --now pi-ollama-bridge
+
+[Unit]
+Description=Pi Ollama-compatible bridge for AzerothCore bot chatter
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/chrisp/Documents/AzerothCore
+ExecStart=/home/chrisp/Documents/AzerothCore/scripts/pi_ollama_bridge.py
+Restart=on-failure
+RestartSec=5
+
+# Bind to LAN-reachable host interface for Docker containers.
+Environment=PI_BRIDGE_HOST=0.0.0.0
+Environment=PI_BRIDGE_PORT=11435
+Environment=PI_BRIDGE_PI_BIN=/etc/profiles/per-user/chrisp/bin/pi
+Environment=PATH=/etc/profiles/per-user/chrisp/bin:/run/current-system/sw/bin:/usr/bin
+
+# Use the cheapest Codex subscription model for testing.
+Environment=PI_BRIDGE_PROVIDER=openai-codex
+Environment=PI_BRIDGE_MODEL=gpt-5.4-mini
+
+# Guardrails so ambient chatter cannot run wild.
+Environment=PI_BRIDGE_MAX_CONCURRENT=1
+Environment=PI_BRIDGE_MAX_PER_MINUTE=6
+Environment=PI_BRIDGE_MAX_PER_HOUR=120
+Environment=PI_BRIDGE_TIMEOUT_SECONDS=75
+Environment=PI_BRIDGE_THINKING=off
+
+[Install]
+WantedBy=default.target

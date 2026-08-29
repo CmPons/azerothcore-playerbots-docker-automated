@@ -154,13 +154,22 @@ fi
 cp "$ROOT/.env" "$AC_DIR/.env"
 
 # Pick the UID/GID the container builds/runs as. The image CREATES this user
-# (addgroup --gid <GID>), so it must NOT be 0 — GID 0 collides with the root group and the
-# build fails with "The GID '0' is already in use". When setup runs as root (common in an
-# LXC), fall back to 1000 and make the bind-mounted dirs writable by it. Override via AC_UID.
-HOST_UID="$(id -u)"; HOST_GID="$(id -g)"
+# (addgroup --gid <GID>), so the chosen GID must not collide with groups already present in the
+# base image. GID 0 always collides with root; NixOS users also commonly have primary GID 100
+# ("users"), which collides in the Ubuntu/Debian base images. In those cases use a private GID
+# matching the UID; host writes still work because ownership is primarily by UID. Override with
+# AC_UID/AC_GID if you need a specific mapping.
+HOST_UID="${AC_UID:-$(id -u)}"; HOST_GID="${AC_GID:-$(id -g)}"
 if [[ "$HOST_UID" -eq 0 ]]; then
-  HOST_UID="${AC_UID:-1000}"; HOST_GID="${AC_GID:-1000}"
-  echo "    Running as root -> container will use UID/GID ${HOST_UID}/${HOST_GID} (GID 0 can't be used)."
+  HOST_UID="${AC_UID:-1000}"
+  echo "    Running as root -> container will use UID ${HOST_UID} (UID 0 can't be used)."
+fi
+if [[ "$HOST_GID" -eq 0 ]]; then
+  HOST_GID="${AC_GID:-1000}"
+  echo "    GID 0 can't be used -> container will use GID ${HOST_GID}."
+elif [[ -z "${AC_GID:-}" && "$HOST_GID" -lt 1000 ]]; then
+  echo "    Host GID ${HOST_GID} may already exist in the build image (common on NixOS); using GID ${HOST_UID}. Override with AC_GID if needed."
+  HOST_GID="$HOST_UID"
 fi
 sed -i "s/^DOCKER_USER_ID=.*/DOCKER_USER_ID=${HOST_UID}/"  "$AC_DIR/.env"
 sed -i "s/^DOCKER_GROUP_ID=.*/DOCKER_GROUP_ID=${HOST_GID}/" "$AC_DIR/.env"
@@ -168,6 +177,17 @@ sed -i "s/^DOCKER_GROUP_ID=.*/DOCKER_GROUP_ID=${HOST_GID}/" "$AC_DIR/.env"
 # The container user (UID above) must be able to write the bind-mounted config/log dirs.
 mkdir -p "$AC_DIR/env/dist/etc" "$AC_DIR/env/dist/logs"
 chown -R "${HOST_UID}:${HOST_GID}" "$AC_DIR/env/dist/etc" "$AC_DIR/env/dist/logs" 2>/dev/null || true
+
+# Rootless Docker user-namespaces map container UID 1000 to a host subuid, not the host's UID
+# 1000. A bind mount owned by the host user can therefore still be unwritable inside the
+# container even though the numeric UID looks identical on the host. These dirs contain only
+# generated configs/logs, so make them broadly writable when rootless Docker is detected.
+DOCKER_ROOTLESS=0
+if docker info --format '{{json .SecurityOptions}}' 2>/dev/null | grep -q 'name=rootless'; then
+  DOCKER_ROOTLESS=1
+  echo "    Rootless Docker detected -> making generated config/log bind mounts world-writable."
+  chmod -R a+rwX "$AC_DIR/env/dist/etc" "$AC_DIR/env/dist/logs" 2>/dev/null || true
+fi
 
 # Load .env now so the generated configs below can read user settings (and so we can talk to the
 # DB later with the right password). The docker-compose override heredoc keeps its ${...} literal
@@ -197,6 +217,10 @@ services:
   ac-worldserver:
     environment:
       TZ: "${SERVER_TZ:-Etc/UTC}"
+    # Let CHATTER_URL=http://host.docker.internal:11434/api/generate reach Ollama on the
+    # Docker host on Linux/NixOS too (Docker Desktop provides this name automatically).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports: !override
       - "${DOCKER_WORLD_EXTERNAL_PORT:-8085}:8085"
     volumes:
@@ -214,6 +238,16 @@ services:
     volumes:
       - ./config/mysql-tuning.cnf:/etc/mysql/conf.d/zz-acore-tuning.cnf:ro
 YAML
+
+if [[ "$DOCKER_ROOTLESS" == "1" ]]; then
+  cat >> "$AC_DIR/docker-compose.override.yml" <<'YAML'
+  # Rootless Docker's default slirp DNS/outbound path can be broken on some NixOS setups even
+  # while container-to-container networking works. This one-shot service only downloads client
+  # data, so host networking is safe and lets it use the host's working network stack.
+  ac-client-data-init:
+    network_mode: host
+YAML
+fi
 
 # MySQL/MariaDB performance tuning, bind-mounted into ac-database above. The official mysql/
 # mariadb images both `!includedir /etc/mysql/conf.d/`, and the `zz-` prefix makes this load
@@ -291,6 +325,17 @@ if [[ ! -f "$ETC/worldserver.conf" ]]; then
   exit 1
 fi
 
+# Rootless Docker creates files in bind mounts as the host subuid/subgid that backs the
+# container user (for example 100999:100999), so the host user running setup.sh may be unable
+# to copy module .conf files or edit generated configs. Fix permissions from inside a helper
+# container after the entrypoints have created the etc/modules tree.
+if [[ "$DOCKER_ROOTLESS" == "1" ]]; then
+  docker run --rm \
+    -v "$AC_DIR/env/dist/etc:/etcdir" \
+    -v "$AC_DIR/env/dist/logs:/logsdir" \
+    alpine sh -c 'chmod -R a+rwX /etcdir /logsdir' >/dev/null 2>&1 || true
+fi
+
 # Module .conf files are NOT auto-created (only worldserver.conf is) and live in the modules/
 # subdir. Create each from its .dist so our overrides sit on top of a COMPLETE config.
 ensure_conf () { [[ -f "$MODETC/$1.conf" ]] || { [[ -f "$MODETC/$1.conf.dist" ]] && cp "$MODETC/$1.conf.dist" "$MODETC/$1.conf"; }; }
@@ -327,6 +372,8 @@ set_conf "Rate.XP.Kill"         "${XP_KILL_RATE:-3}"    "$WS_CONF"
 set_conf "Rate.XP.Quest"        "${XP_QUEST_RATE:-3}"   "$WS_CONF"
 set_conf "Rate.XP.Explore"      "${XP_EXPLORE_RATE:-3}" "$WS_CONF"
 set_conf "Rate.XP.Pet"          "${XP_PET_RATE:-3}"     "$WS_CONF"
+# Era/progression cap: lets you pause the world at 60 for MC/Onyxia before later unlocks.
+set_conf "MaxPlayerLevel"       "${MAX_PLAYER_LEVEL:-80}" "$WS_CONF"
 set_conf "Rate.Drop.Money"      "${MONEY_DROP_RATE:-2}" "$WS_CONF"
 set_conf "Rate.Reputation.Gain" "${REPUTATION_RATE:-5}" "$WS_CONF"
 # Honor gain multiplier (PvP/BG honor points). 5x by default so BG/world-PvP grinding fills
@@ -382,6 +429,10 @@ set_conf "AiPlayerbot.Enabled"            "1"      "$PB_CONF"
 set_conf "AiPlayerbot.RandomBotAutologin" "1"      "$PB_CONF"
 set_conf "AiPlayerbot.MinRandomBots"      "$BOTS"  "$PB_CONF"
 set_conf "AiPlayerbot.MaxRandomBots"      "$BOTS"  "$PB_CONF"
+set_conf "AiPlayerbot.RandomBotMaxLevel"  "${RANDOM_BOT_MAX_LEVEL:-${MAX_PLAYER_LEVEL:-80}}" "$PB_CONF"
+# Loot rolls: let bots Need real upgrades, but keep Greed off to avoid vendor/AH/trash rolls.
+set_conf "AiPlayerbot.LootNeedRollLevel"  "${LOOT_NEED_ROLL_LEVEL:-2}" "$PB_CONF"
+set_conf "AiPlayerbot.LootGreedRollLevel" "${LOOT_GREED_ROLL_LEVEL:-0}" "$PB_CONF"
 # Required by mod-player-bot-level-brackets: bots must keep their random levels.
 set_conf "AiPlayerbot.DisableRandomLevels" "0"   "$PB_CONF"
 # Disable gear/spec persistence: it's incompatible with mod-player-bot-level-brackets.
@@ -401,6 +452,13 @@ set_conf "AiPlayerbot.RandomBotJoinBG" "1" "$PB_CONF"
 # (WS/AB/EY) to avoid the module's documented over-queuing and draining the open world.
 # AV/IC (40v40) are left on-demand-only (count 0) — they still pop when you queue for them.
 set_conf "AiPlayerbot.RandomBotAutoJoinBG"        "1" "$PB_CONF"
+# Auto-fill every level bracket for the BGs that are enabled below. This lets low/mid-level
+# human groups queue WSG/AB instead of waiting on the default level-80-only brackets.
+set_conf "AiPlayerbot.RandomBotAutoJoinWSBrackets" "0,1,2,3,4,5,6,7" "$PB_CONF"
+set_conf "AiPlayerbot.RandomBotAutoJoinABBrackets" "0,1,2,3,4,5,6" "$PB_CONF"
+set_conf "AiPlayerbot.RandomBotAutoJoinAVBrackets" "0,1,2,3" "$PB_CONF"
+set_conf "AiPlayerbot.RandomBotAutoJoinEYBrackets" "0,1,2" "$PB_CONF"
+set_conf "AiPlayerbot.RandomBotAutoJoinICBrackets" "0,1" "$PB_CONF"
 set_conf "AiPlayerbot.RandomBotAutoJoinBGWSCount" "1" "$PB_CONF"  # Warsong Gulch
 set_conf "AiPlayerbot.RandomBotAutoJoinBGABCount" "1" "$PB_CONF"  # Arathi Basin
 set_conf "AiPlayerbot.RandomBotAutoJoinBGEYCount" "1" "$PB_CONF"  # Eye of the Storm
@@ -513,6 +571,7 @@ if [[ -f "$BR_CONF" ]]; then
   set_conf "BotLevelBrackets.Dynamic.UseDynamicDistribution" "1"  "$BR_CONF"
   set_conf "BotLevelBrackets.Dynamic.RealPlayerWeight"       "10" "$BR_CONF"
   set_conf "BotLevelBrackets.Dynamic.SyncFactions"          "1"  "$BR_CONF"
+  set_conf "BotLevelBrackets.ExcludeNames" "${BOT_LEVEL_BRACKET_EXCLUDE_NAMES:-}" "$BR_CONF"
 fi
 
 
@@ -965,6 +1024,8 @@ SQL
   ac-lore:
     build: ./../lore-sidecar
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # Join the base compose network so 'ac-database' resolves and the worldserver
     # can reach this service by name (ac-lore).
     networks:

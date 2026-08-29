@@ -12,6 +12,7 @@
 #include "World.h"
 #include "StringFormat.h"
 #include <algorithm>
+#include <ctime>
 #include <map>
 #include <unordered_map>
 #include <vector>
@@ -41,6 +42,48 @@ namespace
             case RACE_BLOODELF: return "Blood Elf"; case RACE_DRAENEI: return "Draenei";
             default: return "traveler";
         }
+    }
+
+    std::string AreaName(uint32 areaId, char const* fallback)
+    {
+        if (AreaTableEntry const* a = sAreaTableStore.LookupEntry(areaId))
+            if (char const* nm = a->area_name[sWorld->GetDefaultDbcLocale()])
+                if (*nm)
+                    return nm;
+        return fallback;
+    }
+
+    std::string QuestLocation(Quest const* q, uint32 qid)
+    {
+        uint32 questZone = q && q->GetZoneOrSort() > 0 ? uint32(q->GetZoneOrSort()) : 0;
+        if (!questZone)
+            if (QuestPOIVector const* pois = sObjectMgr->GetQuestPOIVector(qid))
+                for (QuestPOI const& poi : *pois)
+                    if (poi.AreaId)
+                    {
+                        questZone = poi.AreaId;
+                        break;
+                    }
+        return questZone ? AreaName(questZone, "another zone") : "an unspecified area";
+    }
+
+    char const* TimeBucket(int hour)
+    {
+        if (hour < 5)  return "late night";
+        if (hour < 12) return "morning";
+        if (hour < 17) return "afternoon";
+        if (hour < 21) return "evening";
+        return "night";
+    }
+
+    std::string TimeContext()
+    {
+        std::time_t now = std::time(nullptr);
+        std::tm local{};
+        localtime_r(&now, &local);
+        char clock[16] = {0};
+        std::strftime(clock, sizeof(clock), "%H:%M", &local);
+        return Acore::StringFormat(" Server/local time is {} ({}). Use this only as background for pacing/time-passing; don't mention the clock unless relevant.", clock, TimeBucket(local.tm_hour));
     }
 }
 
@@ -85,10 +128,6 @@ std::string PBChatterContext::BuildSnapshot(Player* bot)
     else
         activity = "out adventuring";
 
-    uint32 copper = bot->GetMoney();
-    uint32 gold = copper / 10000; copper %= 10000;
-    uint32 silver = copper / 100;  copper %= 100;
-
     // Aggregate inventory: backpack + equipped bags.
     std::unordered_map<uint32, uint32> counts;
     auto addItem = [&](Item* it) { if (it && it->GetTemplate()) counts[it->GetTemplate()->ItemId] += it->GetCount(); };
@@ -124,7 +163,8 @@ std::string PBChatterContext::BuildSnapshot(Player* bot)
     if (bot->GetMaxPower(POWER_MANA) > 0)
         snap += Acore::StringFormat(", mana {}%", (int)bot->GetPowerPct(POWER_MANA));
 
-    snap += Acore::StringFormat(". You've got {}g {}s {}c. In your bags: {}.", gold, silver, copper, bags);
+    snap += Acore::StringFormat(". In your bags: {}.", bags);
+    snap += TimeContext();
     return snap;
 }
 
@@ -136,7 +176,7 @@ std::string PBChatterContext::ActiveQuestLine(Player* bot)
         if (!qid)
             continue;
         if (Quest const* q = sObjectMgr->GetQuestTemplate(qid))
-            return Acore::StringFormat(" You're currently working on the quest '{}'.", q->GetTitle());
+            return Acore::StringFormat(" Quest context, only if relevant: '{}' is around {}.", q->GetTitle(), QuestLocation(q, qid));
     }
     return "";
 }
@@ -159,17 +199,12 @@ std::string PBChatterContext::BuildGroundedBrief(Player* bot)
         if (char const* nm = a->area_name[sWorld->GetDefaultDbcLocale()])
             area = nm;
 
-    std::string brief = Acore::StringFormat("You're a level {} {} in {}.{}",
-        bot->GetLevel(), ClassName(bot->getClass()), area, ActiveQuestLine(bot));
+    std::string brief = Acore::StringFormat("You're a level {} {} in {}.{}{}",
+        bot->GetLevel(), ClassName(bot->getClass()), area, ActiveQuestLine(bot), TimeContext());
 
-    // One real character detail: gold, and the item you're carrying most of.
-    uint32 gold = bot->GetMoney() / 10000;
+    // One real character detail: the item you're carrying most of. Avoid prompting gold/repair riffs.
     std::string item = TopBagItem(bot);
-    if (gold > 0 && !item.empty())
-        brief += Acore::StringFormat(" You've got about {}g on you and a stack of {}.", gold, item);
-    else if (gold > 0)
-        brief += Acore::StringFormat(" You've got about {}g on you.", gold);
-    else if (!item.empty())
+    if (!item.empty())
         brief += Acore::StringFormat(" You're carrying a stack of {}.", item);
 
     // Level-appropriate content the bot could naturally bring up.

@@ -19,3 +19,7 @@
 # the pin(s), run ./update.sh, regenerate any patch that aborts, test, then re-pin at new tips.
 azerothcore-wotlk 190184a04539937a617bf033e39378196c0c63f5
 mod-playerbots ba46fcdecde3d0c6c2f244fcb3ea862430b6ae5b
+# Latest mod-multibot-bridge main expects a newer mod-playerbots API (global IsSelfBot in
+# PlayerbotAI.h). Keep it at the last pre-SelfBot-control merge until the pinned playerbots/core
+# pair is advanced and our patches are revalidated.
+mod-multibot-bridge 5e5ff7594ec8afedf40926605a60848dbc14991e

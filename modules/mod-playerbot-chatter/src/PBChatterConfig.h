@@ -48,6 +48,14 @@ extern uint32_t    g_PBChatAmbientWReact;      // content weight: react to recen
 extern uint32_t    g_PBChatAmbientWFlavor;     // content weight: class/zone/level
 extern uint32_t    g_PBChatAmbientWEvent;      // content weight: event riff
 
+// ── Event-triggered chatter ─────────────────────────────────────────────────
+extern bool        g_PBChatEventEnable;         // event layer: PvP sightings/combat can prompt LLM chat
+extern uint32_t    g_PBChatEventChance;         // percent chance per eligible event
+extern uint32_t    g_PBChatEventCooldown;       // s: min gap between event lines per group
+extern uint32_t    g_PBChatEventPerBotCooldown; // s: min gap between one bot's event lines
+extern uint32_t    g_PBChatEventMaxPerMin;      // global safety ceiling (msgs/min)
+extern uint32_t    g_PBChatEventPvpScanMs;      // ms between visible enemy-player scans
+
 extern std::vector<std::string> g_PBChatCommandKeywords; // lowercased
 
 // ── Few-shot style anchors ───────────────────────────────────────────────────

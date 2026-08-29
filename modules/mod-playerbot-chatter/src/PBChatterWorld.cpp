@@ -3,6 +3,7 @@
 #include "PBChatterMemory.h"
 #include "PBChatterQueue.h"
 #include "PBChatterAmbient.h"
+#include "PBChatterEvents.h"
 #include "PBChatterAreaBackfill.h"
 #include "Playerbots.h"
 #include "Player.h"
@@ -33,6 +34,7 @@ void PBChatterWorld::OnUpdate(uint32 diff)
         return;
 
     PBChatterAmbient::Tick(diff);
+    PBChatterEvents::Tick(diff);
 
     for (PBChatResult const& r : PBChatterQueue::DrainResults())
     {
