@@ -698,6 +698,22 @@ if [[ -f "$PBCHAT_CONF" ]]; then
   set_conf "PlayerbotChatter.AmbientWeightReact" "${CHATTER_AMBIENT_W_REACT:-45}"                 "$PBCHAT_CONF"
   set_conf "PlayerbotChatter.AmbientWeightFlavor" "${CHATTER_AMBIENT_W_FLAVOR:-12}"               "$PBCHAT_CONF"
   set_conf "PlayerbotChatter.AmbientWeightEvent" "${CHATTER_AMBIENT_W_EVENT:-8}"                  "$PBCHAT_CONF"
+  set_conf "PlayerbotChatter.EventEnable" "${CHATTER_EVENT_ENABLE:-$CHATTER_ENABLE}"              "$PBCHAT_CONF"
+  set_conf "PlayerbotChatter.EventChance" "${CHATTER_EVENT_CHANCE:-35}"                           "$PBCHAT_CONF"
+  set_conf "PlayerbotChatter.EventChance.LevelUp" "${CHATTER_EVENT_CHANCE_LEVEL_UP:-80}"          "$PBCHAT_CONF"
+  set_conf "PlayerbotChatter.EventChance.QuestComplete" "${CHATTER_EVENT_CHANCE_QUEST_COMPLETE:-35}" "$PBCHAT_CONF"
+  set_conf "PlayerbotChatter.EventChance.RareLoot" "${CHATTER_EVENT_CHANCE_RARE_LOOT:-60}"        "$PBCHAT_CONF"
+  set_conf "PlayerbotChatter.EventChance.EpicLoot" "${CHATTER_EVENT_CHANCE_EPIC_LOOT:-90}"        "$PBCHAT_CONF"
+  set_conf "PlayerbotChatter.EventChance.BossKill" "${CHATTER_EVENT_CHANCE_BOSS_KILL:-65}"        "$PBCHAT_CONF"
+  set_conf "PlayerbotChatter.EventChance.EliteKill" "${CHATTER_EVENT_CHANCE_ELITE_KILL:-25}"      "$PBCHAT_CONF"
+  set_conf "PlayerbotChatter.EventChance.PvPContact" "${CHATTER_EVENT_CHANCE_PVP_CONTACT:-70}"    "$PBCHAT_CONF"
+  set_conf "PlayerbotChatter.EventChance.PvPSighting" "${CHATTER_EVENT_CHANCE_PVP_SIGHTING:-50}"  "$PBCHAT_CONF"
+  set_conf "PlayerbotChatter.EventCooldown" "${CHATTER_EVENT_COOLDOWN:-35}"                       "$PBCHAT_CONF"
+  set_conf "PlayerbotChatter.EventPerBotCooldown" "${CHATTER_EVENT_PER_BOT_COOLDOWN:-90}"         "$PBCHAT_CONF"
+  set_conf "PlayerbotChatter.EventMaxPerMin" "${CHATTER_EVENT_MAX_PER_MIN:-6}"                    "$PBCHAT_CONF"
+  set_conf "PlayerbotChatter.EventPvpScanMs" "${CHATTER_EVENT_PVP_SCAN_MS:-3000}"                 "$PBCHAT_CONF"
+  set_conf "PlayerbotChatter.EventPvpScanRange" "${CHATTER_EVENT_PVP_SCAN_RANGE:-80}"             "$PBCHAT_CONF"
+  set_conf "PlayerbotChatter.EventPvpScanBattlegrounds" "${CHATTER_EVENT_PVP_SCAN_BATTLEGROUNDS:-0}" "$PBCHAT_CONF"
 
   if [[ "$CHATTER_ENABLE" == "1" ]]; then
     # Hand the ENTIRE self-initiated voice to mod-playerbot-chatter: silence playerbots'

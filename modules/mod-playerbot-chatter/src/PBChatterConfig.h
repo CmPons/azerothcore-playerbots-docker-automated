@@ -50,7 +50,15 @@ extern uint32_t    g_PBChatAmbientWEvent;      // content weight: event riff
 
 // ── Event-triggered chatter ─────────────────────────────────────────────────
 extern bool        g_PBChatEventEnable;         // event layer: PvP sightings/combat can prompt LLM chat
-extern uint32_t    g_PBChatEventChance;         // percent chance per eligible event
+extern uint32_t    g_PBChatEventChance;         // fallback percent chance per eligible event
+extern uint32_t    g_PBChatEventChanceLevelUp;  // percent chance for level-up events
+extern uint32_t    g_PBChatEventChanceQuestComplete; // percent chance for quest completion events
+extern uint32_t    g_PBChatEventChanceRareLoot; // percent chance for rare/blue loot events
+extern uint32_t    g_PBChatEventChanceEpicLoot; // percent chance for epic+ loot events
+extern uint32_t    g_PBChatEventChanceBossKill; // percent chance for dungeon/world boss kills
+extern uint32_t    g_PBChatEventChanceEliteKill;// percent chance for non-boss elite kills
+extern uint32_t    g_PBChatEventChancePvpContact; // percent chance for PvP combat events
+extern uint32_t    g_PBChatEventChancePvpSighting;// percent chance for open-world PvP sighting events
 extern uint32_t    g_PBChatEventCooldown;       // s: min gap between event lines per group
 extern uint32_t    g_PBChatEventPerBotCooldown; // s: min gap between one bot's event lines
 extern uint32_t    g_PBChatEventMaxPerMin;      // global safety ceiling (msgs/min)

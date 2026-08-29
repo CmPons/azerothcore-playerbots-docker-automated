@@ -513,11 +513,13 @@ std::string PBChatterAmbientPrompt::Build(int mode, Player* bot, uint8_t kind,
         case MODE_EVENT:
         {
             return Acore::StringFormat(
-                "{}{}{} You're chatting in {}. Something just happened around you or your party: {}. "
-                "React casually the way a real player would — short, situational, no fanfare, never "
-                "force a catchphrase, and never say \"Ding!\" or \"Quest complete\". If this is a PvP "
-                "sighting/contact, a brief callout like inc horde warrior is fine, but vary it naturally.{}",
-                PBChatterContext::BuildGroundedBrief(bot), groupContext, GroundingRules(), where, eventHint, StyleExamples(2)) + Tail();
+                "{}\n\nPRIMARY EVENT:\n{}\n\nYou're chatting in {}. React naturally to the PRIMARY EVENT in one short party-style line. "
+                "The environmental and party facts below are grounding context, but the event is the main reason you're speaking. "
+                "Do not invent extra outcomes: no deaths, wipes, loot, upgrades, quest credit, level-ups, kills, or PvP results unless explicitly listed. "
+                "For loot, it's safe to say gz/nice drop, but don't claim it's an upgrade unless listed. "
+                "For PvP sightings/contact, a brief callout like inc horde warrior is fine, but don't say they attacked or died unless listed. "
+                "Never force a catchphrase, and never say \"Ding!\" or \"Quest complete\".{}{}{}",
+                PBChatterContext::BuildGroundedBrief(bot), eventHint, where, groupContext, GroundingRules(), StyleExamples(2)) + Tail();
         }
         case MODE_GENERIC:
         default:

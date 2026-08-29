@@ -33,12 +33,26 @@ namespace
 {
     struct Seed { uint32_t ms; std::string hint; };
     struct GroupEvent { uint32_t ms; std::string text; };
+
+    enum class EventKind
+    {
+        LevelUp,
+        QuestComplete,
+        RareLoot,
+        EpicLoot,
+        BossKill,
+        EliteKill,
+        PvPContact,
+        PvPSighting,
+    };
+
     struct EventReaction
     {
         uint32_t ms = 0;
         uint64_t groupGuid = 0;
         uint64_t anchorGuid = 0;   // real player anchor: proves the group matters to a human
         uint64_t speakerGuid = 0;  // optional bot that noticed the event and should speak
+        EventKind kind = EventKind::PvPSighting;
         std::string hint;
     };
 
@@ -54,6 +68,7 @@ namespace
     std::unordered_map<uint64_t, uint32_t> g_groupEventCooldownUntil;
     std::unordered_map<uint64_t, uint32_t> g_botEventCooldownUntil;
     std::unordered_map<uint64_t, uint32_t> g_seenEnemyCooldownUntil;
+    std::unordered_map<uint64_t, uint32_t> g_eventDedupeCooldownUntil;
 
     // The event hooks below fire from Unit kill/level/quest/item handling inside Map::Update,
     // which AzerothCore can run on MapUpdater worker threads. Take()/RecentForGroup() run on
@@ -132,6 +147,43 @@ namespace
     uint64_t PairKey(uint64_t a, uint64_t b)
     {
         return (a * 11400714819323198485ull) ^ (b + 0x9e3779b97f4a7c15ull + (a << 6) + (a >> 2));
+    }
+
+    uint32_t ChanceFor(EventKind kind)
+    {
+        switch (kind)
+        {
+            case EventKind::LevelUp:       return g_PBChatEventChanceLevelUp;
+            case EventKind::QuestComplete: return g_PBChatEventChanceQuestComplete;
+            case EventKind::RareLoot:      return g_PBChatEventChanceRareLoot;
+            case EventKind::EpicLoot:      return g_PBChatEventChanceEpicLoot;
+            case EventKind::BossKill:      return g_PBChatEventChanceBossKill;
+            case EventKind::EliteKill:     return g_PBChatEventChanceEliteKill;
+            case EventKind::PvPContact:    return g_PBChatEventChancePvpContact;
+            case EventKind::PvPSighting:   return g_PBChatEventChancePvpSighting;
+        }
+        return g_PBChatEventChance;
+    }
+
+    bool RollEventChance(EventKind kind)
+    {
+        uint32_t chance = ChanceFor(kind);
+        if (chance >= 100)
+            return true;
+        return roll_chance_i(static_cast<int>(chance));
+    }
+
+    char const* QualityName(uint32 quality)
+    {
+        switch (quality)
+        {
+            case ITEM_QUALITY_RARE:      return "rare";
+            case ITEM_QUALITY_EPIC:      return "epic";
+            case ITEM_QUALITY_LEGENDARY: return "legendary";
+            case ITEM_QUALITY_ARTIFACT:  return "artifact";
+            case ITEM_QUALITY_HEIRLOOM:  return "heirloom";
+            default:                     return "notable";
+        }
     }
 
     std::string AreaName(uint32 areaId)
@@ -218,7 +270,9 @@ namespace
         return nullptr;
     }
 
-    void QueueEventReaction(Player* contextPlayer, std::string hint, Player* preferredSpeaker = nullptr)
+    void QueueEventReaction(Player* contextPlayer, EventKind kind, std::string hint,
+                            Player* preferredSpeaker = nullptr, uint64_t dedupeKey = 0,
+                            uint32_t dedupeMs = 30000)
     {
         if (!g_PBChatEnable || !g_PBChatEventEnable || hint.empty())
             return;
@@ -232,13 +286,22 @@ namespace
             return; // never spend model calls for bot-only groups
 
         uint32_t now = PBChatterAmbient::NowMs();
+        uint64_t groupGuid = group->GetGUID().GetRawValue();
         uint64_t speakerGuid = (preferredSpeaker && preferredSpeaker->GetGroup() == group && IsBot(preferredSpeaker))
             ? preferredSpeaker->GetGUID().GetCounter()
             : 0;
 
         std::lock_guard<std::mutex> lock(g_eventsMutex);
-        g_eventReactions.push_back(EventReaction{ now, group->GetGUID().GetRawValue(),
-                                                  anchor->GetGUID().GetCounter(), speakerGuid, std::move(hint) });
+        if (dedupeKey)
+        {
+            uint32_t& until = g_eventDedupeCooldownUntil[PairKey(groupGuid, dedupeKey)];
+            if (now < until)
+                return;
+            until = now + dedupeMs;
+        }
+
+        g_eventReactions.push_back(EventReaction{ now, groupGuid,
+                                                  anchor->GetGUID().GetCounter(), speakerGuid, kind, std::move(hint) });
         while (g_eventReactions.size() > 24)
             g_eventReactions.pop_front();
     }
@@ -254,15 +317,26 @@ namespace
         if (name.empty())
             return;
 
-        bool const notable = killed->isElite() || killed->isWorldBoss();
+        bool const boss = killed->isWorldBoss() || killed->IsDungeonBoss();
+        bool const elite = !boss && killed->isElite();
+        bool const notable = boss || elite;
         AppendGroupEvent(killer, notable ? ("the party took down " + name)
                                          : ("the party killed " + name));
 
         // Self-initiated ambient event lines stay reserved for notable kills; normal trash kills
         // are still available as recent party context in other prompts.
         if (notable)
+        {
             Stamp(killer, pet ? ("your pet helped take down " + name)
                               : ("you just took down " + name));
+
+            EventKind const kind = boss ? EventKind::BossKill : EventKind::EliteKill;
+            std::string hint = boss
+                ? Acore::StringFormat("The party just killed boss {} in {}.", name, AreaName(killer->GetAreaId()))
+                : Acore::StringFormat("The party just killed elite {} in {}.", name, AreaName(killer->GetAreaId()));
+            QueueEventReaction(killer, kind, hint, nullptr,
+                PairKey(static_cast<uint64_t>(killed->GetEntry()), killed->GetGUID().GetCounter()), 45000);
+        }
     }
 
     void RecordStoredItem(Player* player, Item* item, uint32 count, char const* verb)
@@ -286,6 +360,15 @@ namespace
             return;
         std::string qty = count > 1 ? (" x" + std::to_string(count)) : "";
         AppendGroupEvent(player, std::string(player->GetName()) + " " + verb + " " + label + qty);
+
+        if (proto->Quality >= ITEM_QUALITY_RARE)
+        {
+            EventKind const kind = proto->Quality >= ITEM_QUALITY_EPIC ? EventKind::EpicLoot : EventKind::RareLoot;
+            std::string hint = Acore::StringFormat("{} just {} {} item {}{}.", player->GetName(), verb,
+                QualityName(proto->Quality), label, qty);
+            QueueEventReaction(player, kind, hint, IsBot(player) ? player : nullptr,
+                PairKey(player->GetGUID().GetCounter(), static_cast<uint64_t>(proto->ItemId)), 45000);
+        }
     }
 
     void RecordPvPCombat(Player* player, Unit* enemy)
@@ -300,7 +383,8 @@ namespace
             player->GetName(), FactionWord(enemyPlayer), RaceName(enemyPlayer->getRace()),
             ClassName(enemyPlayer->getClass()), enemyPlayer->GetName());
         AppendGroupEvent(player, hint);
-        QueueEventReaction(player, hint, IsBot(player) ? player : nullptr);
+        QueueEventReaction(player, EventKind::PvPContact, hint, IsBot(player) ? player : nullptr,
+            PairKey(player->GetGUID().GetCounter(), enemyPlayer->GetGUID().GetCounter()), 30000);
     }
 
     PBChatChannel ChannelForGroup(Group* group)
@@ -338,7 +422,7 @@ namespace
                 continue; // too stale for an organic event reaction
             if (g_eventNowMs < g_groupEventCooldownUntil[ev.groupGuid])
                 continue;
-            if (!roll_chance_i(static_cast<int>(g_PBChatEventChance)))
+            if (!RollEventChance(ev.kind))
                 continue;
 
             Player* anchor = FindByCounter(ev.anchorGuid);
@@ -450,7 +534,7 @@ namespace
             spotter->GetName(), FactionWord(enemy), RaceName(enemy->getRace()), ClassName(enemy->getClass()),
             enemy->GetName(), g_PBChatEventPvpScanRange, AreaName(spotter->GetAreaId()));
         AppendGroupEvent(realAnchor, hint);
-        QueueEventReaction(realAnchor, hint, spotter);
+        QueueEventReaction(realAnchor, EventKind::PvPSighting, hint, spotter);
         return true;
     }
 
@@ -600,6 +684,10 @@ namespace
                 return;
             AppendGroupEvent(player, std::string(player->GetName()) + " hit level " + std::to_string(player->GetLevel()));
             Stamp(player, "you just dinged level " + std::to_string(player->GetLevel()));
+            QueueEventReaction(player, EventKind::LevelUp,
+                Acore::StringFormat("{} just hit level {}.", player->GetName(), player->GetLevel()),
+                IsBot(player) ? player : nullptr,
+                PairKey(player->GetGUID().GetCounter(), static_cast<uint64_t>(player->GetLevel())), 60000);
         }
 
         void OnPlayerCompleteQuest(Player* player, Quest const* quest) override
@@ -613,6 +701,11 @@ namespace
                                                   : (std::string(player->GetName()) + " finished " + title));
             Stamp(player, title.empty() ? "you just finished a quest"
                                         : ("you just finished the quest \"" + title + "\""));
+            QueueEventReaction(player, EventKind::QuestComplete,
+                title.empty() ? Acore::StringFormat("{} just completed a quest.", player->GetName())
+                              : Acore::StringFormat("{} just completed quest {}.", player->GetName(), title),
+                IsBot(player) ? player : nullptr,
+                PairKey(player->GetGUID().GetCounter(), static_cast<uint64_t>(quest ? quest->GetQuestId() : 0)), 60000);
         }
 
         void OnPlayerCreatureKill(Player* killer, Creature* killed) override

@@ -64,6 +64,14 @@ uint32_t    g_PBChatAmbientWEvent        = 8;
 
 bool        g_PBChatEventEnable          = true;
 uint32_t    g_PBChatEventChance          = 35;
+uint32_t    g_PBChatEventChanceLevelUp   = 80;
+uint32_t    g_PBChatEventChanceQuestComplete = 35;
+uint32_t    g_PBChatEventChanceRareLoot  = 60;
+uint32_t    g_PBChatEventChanceEpicLoot  = 90;
+uint32_t    g_PBChatEventChanceBossKill  = 65;
+uint32_t    g_PBChatEventChanceEliteKill = 25;
+uint32_t    g_PBChatEventChancePvpContact = 70;
+uint32_t    g_PBChatEventChancePvpSighting = 50;
 uint32_t    g_PBChatEventCooldown        = 35;
 uint32_t    g_PBChatEventPerBotCooldown  = 90;
 uint32_t    g_PBChatEventMaxPerMin       = 6;
@@ -174,6 +182,14 @@ void PBChatterLoadConfig()
 
     g_PBChatEventEnable          = sConfigMgr->GetOption<bool>("PlayerbotChatter.EventEnable", true);
     g_PBChatEventChance          = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventChance", 35);
+    g_PBChatEventChanceLevelUp   = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventChance.LevelUp", 80);
+    g_PBChatEventChanceQuestComplete = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventChance.QuestComplete", 35);
+    g_PBChatEventChanceRareLoot  = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventChance.RareLoot", 60);
+    g_PBChatEventChanceEpicLoot  = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventChance.EpicLoot", 90);
+    g_PBChatEventChanceBossKill  = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventChance.BossKill", 65);
+    g_PBChatEventChanceEliteKill = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventChance.EliteKill", 25);
+    g_PBChatEventChancePvpContact = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventChance.PvPContact", 70);
+    g_PBChatEventChancePvpSighting = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventChance.PvPSighting", 50);
     g_PBChatEventCooldown        = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventCooldown", 35);
     g_PBChatEventPerBotCooldown  = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventPerBotCooldown", 90);
     g_PBChatEventMaxPerMin       = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventMaxPerMin", 6);

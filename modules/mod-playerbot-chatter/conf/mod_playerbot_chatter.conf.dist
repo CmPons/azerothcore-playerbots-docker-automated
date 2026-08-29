@@ -110,9 +110,21 @@ PlayerbotChatter.AmbientWeightEvent = 10
 
 # Lightweight event layer on top of ambient chatter. Eligible events are added to
 # recent party facts and may also prompt one grouped bot to speak through the LLM.
-# This is intended for organic, non-deterministic callouts such as PvP sightings.
+# This is intended for organic, non-deterministic callouts such as PvP sightings,
+# level-ups, blue/epic loot, quest completions, and boss/elite kills.
 PlayerbotChatter.EventEnable = 1
+
+# Fallback chance, then per-kind speech opportunity chances.
 PlayerbotChatter.EventChance = 35
+PlayerbotChatter.EventChance.LevelUp = 80
+PlayerbotChatter.EventChance.QuestComplete = 35
+PlayerbotChatter.EventChance.RareLoot = 60
+PlayerbotChatter.EventChance.EpicLoot = 90
+PlayerbotChatter.EventChance.BossKill = 65
+PlayerbotChatter.EventChance.EliteKill = 25
+PlayerbotChatter.EventChance.PvPContact = 70
+PlayerbotChatter.EventChance.PvPSighting = 50
+
 PlayerbotChatter.EventCooldown = 35
 PlayerbotChatter.EventPerBotCooldown = 90
 PlayerbotChatter.EventMaxPerMin = 6
