@@ -3,6 +3,9 @@
 #include "PBChatterAmbientPrompt.h"
 #include "PBChatterConfig.h"
 #include "PBChatterQueue.h"
+#include "CellImpl.h"
+#include "GridNotifiers.h"
+#include "GridNotifiersImpl.h"
 #include "ScriptMgr.h"
 #include "Player.h"
 #include "Creature.h"
@@ -14,10 +17,12 @@
 #include "DBCStores.h"
 #include "SharedDefines.h"
 #include "World.h"
+#include "WorldSessionMgr.h"
 #include "ObjectAccessor.h"
 #include "ObjectGuid.h"
 #include "Random.h"
 #include <deque>
+#include <list>
 #include <mutex>
 #include <string>
 #include <unordered_map>
@@ -32,7 +37,8 @@ namespace
     {
         uint32_t ms = 0;
         uint64_t groupGuid = 0;
-        uint64_t anchorGuid = 0;
+        uint64_t anchorGuid = 0;   // real player anchor: proves the group matters to a human
+        uint64_t speakerGuid = 0;  // optional bot that noticed the event and should speak
         std::string hint;
     };
 
@@ -91,6 +97,24 @@ namespace
             case CLASS_MAGE: return "mage";
             case CLASS_WARLOCK: return "warlock";
             case CLASS_DRUID: return "druid";
+            default: return "player";
+        }
+    }
+
+    char const* RaceName(uint8 r)
+    {
+        switch (r)
+        {
+            case RACE_HUMAN: return "human";
+            case RACE_ORC: return "orc";
+            case RACE_DWARF: return "dwarf";
+            case RACE_NIGHTELF: return "night elf";
+            case RACE_UNDEAD_PLAYER: return "undead";
+            case RACE_TAUREN: return "tauren";
+            case RACE_GNOME: return "gnome";
+            case RACE_TROLL: return "troll";
+            case RACE_BLOODELF: return "blood elf";
+            case RACE_DRAENEI: return "draenei";
             default: return "player";
         }
     }
@@ -194,7 +218,7 @@ namespace
         return nullptr;
     }
 
-    void QueueEventReaction(Player* contextPlayer, std::string hint)
+    void QueueEventReaction(Player* contextPlayer, std::string hint, Player* preferredSpeaker = nullptr)
     {
         if (!g_PBChatEnable || !g_PBChatEventEnable || hint.empty())
             return;
@@ -208,9 +232,13 @@ namespace
             return; // never spend model calls for bot-only groups
 
         uint32_t now = PBChatterAmbient::NowMs();
+        uint64_t speakerGuid = (preferredSpeaker && preferredSpeaker->GetGroup() == group && IsBot(preferredSpeaker))
+            ? preferredSpeaker->GetGUID().GetCounter()
+            : 0;
+
         std::lock_guard<std::mutex> lock(g_eventsMutex);
         g_eventReactions.push_back(EventReaction{ now, group->GetGUID().GetRawValue(),
-                                                  anchor->GetGUID().GetCounter(), std::move(hint) });
+                                                  anchor->GetGUID().GetCounter(), speakerGuid, std::move(hint) });
         while (g_eventReactions.size() > 24)
             g_eventReactions.pop_front();
     }
@@ -268,10 +296,11 @@ namespace
         if (!enemyPlayer || !OpposingFaction(player, enemyPlayer))
             return;
 
-        std::string hint = Acore::StringFormat("PvP contact: {} is fighting a {} {} named {} nearby",
-            player->GetName(), FactionWord(enemyPlayer), ClassName(enemyPlayer->getClass()), enemyPlayer->GetName());
+        std::string hint = Acore::StringFormat("PvP contact: {} is fighting a {} {} {} named {} nearby",
+            player->GetName(), FactionWord(enemyPlayer), RaceName(enemyPlayer->getRace()),
+            ClassName(enemyPlayer->getClass()), enemyPlayer->GetName());
         AppendGroupEvent(player, hint);
-        QueueEventReaction(player, hint);
+        QueueEventReaction(player, hint, IsBot(player) ? player : nullptr);
     }
 
     PBChatChannel ChannelForGroup(Group* group)
@@ -321,18 +350,36 @@ namespace
 
             std::vector<Player*> bots;
             CollectGroupBots(group, bots);
-            std::vector<Player*> pool;
-            for (Player* bot : bots)
-            {
-                uint64_t counter = bot->GetGUID().GetCounter();
-                if (g_eventNowMs < g_botEventCooldownUntil[counter])
-                    continue;
-                pool.push_back(bot);
-            }
-            if (pool.empty())
-                continue;
 
-            Player* bot = pool[urand(0, pool.size() - 1)];
+            Player* bot = nullptr;
+            if (ev.speakerGuid)
+            {
+                for (Player* candidate : bots)
+                {
+                    uint64_t counter = candidate->GetGUID().GetCounter();
+                    if (counter == ev.speakerGuid && g_eventNowMs >= g_botEventCooldownUntil[counter])
+                    {
+                        bot = candidate;
+                        break;
+                    }
+                }
+                if (!bot)
+                    continue; // a sentry event should be spoken by the bot that noticed it
+            }
+            else
+            {
+                std::vector<Player*> pool;
+                for (Player* candidate : bots)
+                {
+                    uint64_t counter = candidate->GetGUID().GetCounter();
+                    if (g_eventNowMs < g_botEventCooldownUntil[counter])
+                        continue;
+                    pool.push_back(candidate);
+                }
+                if (pool.empty())
+                    continue;
+                bot = pool[urand(0, pool.size() - 1)];
+            }
             PBChatJob job;
             job.botGuid          = bot->GetGUID().GetCounter();
             job.playerGuid       = anchor->GetGUID().GetCounter();
@@ -354,60 +401,111 @@ namespace
         }
     }
 
-    bool RecordVisibleEnemy(Player* anchor, Player* enemy)
+    class NearbyOpposingPlayerCheck
     {
-        if (!anchor || !enemy || !anchor->GetGroup() || !OpposingFaction(anchor, enemy))
+    public:
+        NearbyOpposingPlayerCheck(Player* spotter, Player* anchor, float range)
+            : _spotter(spotter), _anchor(anchor), _range(range) { }
+
+        bool operator()(Player* candidate)
+        {
+            if (!candidate || candidate == _spotter || !candidate->IsInWorld() || !candidate->IsAlive())
+                return false;
+            if (!OpposingFaction(_anchor, candidate))
+                return false;
+            if (candidate->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NON_ATTACKABLE_2))
+                return false;
+            if (!_spotter->IsWithinDistInMap(candidate, _range))
+                return false;
+            // Keep the callout honest: don't report stealthed/phased/out-of-sight players the bot could not perceive.
+            if (!_spotter->CanSeeOrDetect(candidate, false, true))
+                return false;
+            return true;
+        }
+
+    private:
+        Player* _spotter;
+        Player* _anchor;
+        float _range;
+    };
+
+    bool RecordVisibleEnemy(Player* realAnchor, Player* spotter, Player* enemy)
+    {
+        if (!realAnchor || !spotter || !enemy || !realAnchor->GetGroup() || realAnchor->GetGroup() != spotter->GetGroup())
+            return false;
+        if (!IsRealPlayer(realAnchor) || !IsBot(spotter) || !OpposingFaction(realAnchor, enemy))
             return false;
         if (!enemy->IsAlive() || !enemy->IsInWorld())
             return false;
         if (enemy->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NON_ATTACKABLE_2))
             return false;
 
-        uint64_t groupGuid = anchor->GetGroup()->GetGUID().GetRawValue();
+        uint64_t groupGuid = realAnchor->GetGroup()->GetGUID().GetRawValue();
         uint64_t seenKey = PairKey(groupGuid, enemy->GetGUID().GetCounter());
         if (g_eventNowMs < g_seenEnemyCooldownUntil[seenKey])
             return false;
         g_seenEnemyCooldownUntil[seenKey] = g_eventNowMs + 90000u;
 
-        std::string hint = Acore::StringFormat("PvP sighting: a {} {} named {} came into view near the party in {}",
-            FactionWord(enemy), ClassName(enemy->getClass()), enemy->GetName(), AreaName(anchor->GetAreaId()));
-        AppendGroupEvent(anchor, hint);
-        QueueEventReaction(anchor, hint);
+        std::string hint = Acore::StringFormat("PvP sighting: {} spotted a {} {} {} named {} within {:.0f} yards near the party in {}",
+            spotter->GetName(), FactionWord(enemy), RaceName(enemy->getRace()), ClassName(enemy->getClass()),
+            enemy->GetName(), g_PBChatEventPvpScanRange, AreaName(spotter->GetAreaId()));
+        AppendGroupEvent(realAnchor, hint);
+        QueueEventReaction(realAnchor, hint, spotter);
         return true;
+    }
+
+    bool ScanGroupedBotForPvPContact(Player* realAnchor, Player* spotter)
+    {
+        if (!realAnchor || !spotter || !IsBot(spotter) || !spotter->IsInWorld() || !spotter->IsAlive())
+            return false;
+        if (realAnchor->GetGroup() != spotter->GetGroup())
+            return false;
+        if (!g_PBChatEventPvpScanBattlegrounds && (spotter->InBattleground() || spotter->InArena()))
+            return false;
+
+        std::list<Player*> enemies;
+        NearbyOpposingPlayerCheck check(spotter, realAnchor, g_PBChatEventPvpScanRange);
+        Acore::PlayerListSearcher<NearbyOpposingPlayerCheck> searcher(spotter, enemies, check);
+        Cell::VisitObjects(spotter, searcher, g_PBChatEventPvpScanRange);
+
+        for (Player* enemy : enemies)
+            if (RecordVisibleEnemy(realAnchor, spotter, enemy))
+                return true;
+
+        return false;
     }
 
     void ScanPvPContacts()
     {
-        if (!g_PBChatEnable || !g_PBChatEventEnable || !g_PBChatAmbientGroup)
+        if (!g_PBChatEnable || !g_PBChatEventEnable || !g_PBChatAmbientGroup || !g_PBChatEventPvpScanMs || g_PBChatEventPvpScanRange <= 0.0f)
             return;
 
-        std::unordered_set<uint64_t> reportedGroups;
-        for (auto const& pair : ObjectAccessor::GetPlayers())
+        // Start from real online players/sessions, not ObjectAccessor::GetPlayers(), so random
+        // world bots never become scan anchors and bot-only groups never spend CPU/model budget.
+        std::unordered_map<uint64_t, Player*> realAnchorsByGroup;
+        sWorldSessionMgr->DoForAllOnlinePlayers([&](Player* player)
         {
-            Player* anchor = pair.second;
-            if (!anchor || !anchor->IsInWorld() || !IsRealPlayer(anchor))
-                continue;
-            Group* group = anchor->GetGroup();
+            if (!player || !player->IsInWorld() || !IsRealPlayer(player))
+                return;
+            Group* group = player->GetGroup();
+            if (!group)
+                return;
+            if (!g_PBChatEventPvpScanBattlegrounds && (player->InBattleground() || player->InArena()))
+                return;
+            realAnchorsByGroup.emplace(group->GetGUID().GetRawValue(), player);
+        });
+
+        for (auto const& pair : realAnchorsByGroup)
+        {
+            Player* realAnchor = pair.second;
+            Group* group = realAnchor ? realAnchor->GetGroup() : nullptr;
             if (!group)
                 continue;
-            uint64_t groupGuid = group->GetGUID().GetRawValue();
-            if (reportedGroups.find(groupGuid) != reportedGroups.end())
-                continue;
 
-            bool reported = false;
-            anchor->DoForAllVisibleWorldObjects([&](WorldObject* worldObject)
-            {
-                if (reported || !worldObject || !worldObject->IsPlayer())
-                    return;
-                Player* enemy = worldObject->ToPlayer();
-                if (!enemy || !OpposingFaction(anchor, enemy))
-                    return;
-                if (RecordVisibleEnemy(anchor, enemy))
-                    reported = true;
-            });
-
-            if (reported)
-                reportedGroups.insert(groupGuid);
+            std::vector<Player*> bots;
+            CollectGroupBots(group, bots);
+            for (Player* bot : bots)
+                ScanGroupedBotForPvPContact(realAnchor, bot);
         }
     }
 }
@@ -425,11 +523,14 @@ void PBChatterEvents::Tick(uint32_t diff)
         g_eventRateCount = 0;
     }
 
-    g_pvpScanTimerMs += diff;
-    if (g_pvpScanTimerMs >= g_PBChatEventPvpScanMs)
+    if (g_PBChatEventPvpScanMs)
     {
-        g_pvpScanTimerMs = 0;
-        ScanPvPContacts();
+        g_pvpScanTimerMs += diff;
+        if (g_pvpScanTimerMs >= g_PBChatEventPvpScanMs)
+        {
+            g_pvpScanTimerMs = 0;
+            ScanPvPContacts();
+        }
     }
 
     ProcessEventReactions();

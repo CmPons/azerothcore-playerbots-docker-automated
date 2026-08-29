@@ -68,6 +68,8 @@ uint32_t    g_PBChatEventCooldown        = 35;
 uint32_t    g_PBChatEventPerBotCooldown  = 90;
 uint32_t    g_PBChatEventMaxPerMin       = 6;
 uint32_t    g_PBChatEventPvpScanMs       = 3000;
+float       g_PBChatEventPvpScanRange    = 80.0f;
+bool        g_PBChatEventPvpScanBattlegrounds = false;
 
 std::vector<std::string> g_PBChatCommandKeywords;
 
@@ -176,6 +178,8 @@ void PBChatterLoadConfig()
     g_PBChatEventPerBotCooldown  = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventPerBotCooldown", 90);
     g_PBChatEventMaxPerMin       = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventMaxPerMin", 6);
     g_PBChatEventPvpScanMs       = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventPvpScanMs", 3000);
+    g_PBChatEventPvpScanRange    = sConfigMgr->GetOption<float>("PlayerbotChatter.EventPvpScanRange", 80.0f);
+    g_PBChatEventPvpScanBattlegrounds = sConfigMgr->GetOption<bool>("PlayerbotChatter.EventPvpScanBattlegrounds", false);
 
     std::string kw = sConfigMgr->GetOption<std::string>("PlayerbotChatter.CommandKeywords",
         "follow,stay,flee,grind,attack,tank attack,do attack,accept,talk,reset,runaway,summon,"

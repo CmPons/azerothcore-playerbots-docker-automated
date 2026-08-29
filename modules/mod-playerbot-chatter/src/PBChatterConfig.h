@@ -54,7 +54,9 @@ extern uint32_t    g_PBChatEventChance;         // percent chance per eligible e
 extern uint32_t    g_PBChatEventCooldown;       // s: min gap between event lines per group
 extern uint32_t    g_PBChatEventPerBotCooldown; // s: min gap between one bot's event lines
 extern uint32_t    g_PBChatEventMaxPerMin;      // global safety ceiling (msgs/min)
-extern uint32_t    g_PBChatEventPvpScanMs;      // ms between visible enemy-player scans
+extern uint32_t    g_PBChatEventPvpScanMs;      // ms between grouped-bot enemy-player scans; 0 disables polling
+extern float       g_PBChatEventPvpScanRange;   // yards around each grouped bot to check for enemy players
+extern bool        g_PBChatEventPvpScanBattlegrounds; // false -> BG/arena uses combat hooks only
 
 extern std::vector<std::string> g_PBChatCommandKeywords; // lowercased
 

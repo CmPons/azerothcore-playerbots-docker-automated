@@ -116,7 +116,14 @@ PlayerbotChatter.EventChance = 35
 PlayerbotChatter.EventCooldown = 35
 PlayerbotChatter.EventPerBotCooldown = 90
 PlayerbotChatter.EventMaxPerMin = 6
+
+# Open-world PvP sentry scan. This only scans playerbots in groups that contain
+# a real player, and it searches the server cell grid near each grouped bot.
+# Random world bots do not scan or speak from this path. BG/arena polling is off
+# by default; BG/arena PvP chatter should come from combat hooks instead.
 PlayerbotChatter.EventPvpScanMs = 3000
+PlayerbotChatter.EventPvpScanRange = 80
+PlayerbotChatter.EventPvpScanBattlegrounds = 0
 
 ########################################
 # Lore sidecar — factual Q&A (Tier-2)
