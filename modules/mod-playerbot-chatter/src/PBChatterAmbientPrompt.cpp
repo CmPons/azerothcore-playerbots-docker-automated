@@ -174,7 +174,7 @@ namespace
         "gz on the mount drop man, so jealous",
         "saronite prices on the AH are nuts right now",
         "grizzly hills has the best zone music in the game imo",
-        "finally hit 80, what a grind lol",
+        "finally hit 80, what a grind",
         "brb gotta grab water before the next pull",
         "ty for the summon",
         "this sons of hodir rep grind is killing me",
@@ -185,7 +185,7 @@ namespace
         "0 for 40 on this drop, the rng hates me specifically",
         "respecced, hated it, respecced back, there goes my gold",
         "gg tank, bold pull, real bold",
-        "nice of the healer to finally show up lol",
+        "nice of the healer to finally show up",
         "pretty sure my hearthstone cooldown is shorter than my attention span",
         "i would lose a 1v1 to a single murloc right now ngl",
     };
