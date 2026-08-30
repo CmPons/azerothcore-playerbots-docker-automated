@@ -187,8 +187,8 @@ std::string PBChatterContext::BuildBrief(Player* bot)
     if (AreaTableEntry const* a = sAreaTableStore.LookupEntry(bot->GetAreaId()))
         if (char const* nm = a->area_name[sWorld->GetDefaultDbcLocale()])
             area = nm;
-    return Acore::StringFormat("You're a level {} {} in {}.{}",
-                               bot->GetLevel(), ClassName(bot->getClass()), area,
+    return Acore::StringFormat("You're {}, a level {} {} in {}.{}",
+                               bot->GetName(), bot->GetLevel(), ClassName(bot->getClass()), area,
                                ActiveQuestLine(bot));
 }
 
@@ -199,8 +199,8 @@ std::string PBChatterContext::BuildGroundedBrief(Player* bot)
         if (char const* nm = a->area_name[sWorld->GetDefaultDbcLocale()])
             area = nm;
 
-    std::string brief = Acore::StringFormat("You're a level {} {} in {}.{}{}",
-        bot->GetLevel(), ClassName(bot->getClass()), area, ActiveQuestLine(bot), TimeContext());
+    std::string brief = Acore::StringFormat("You're {}, a level {} {} in {}.{}{}",
+        bot->GetName(), bot->GetLevel(), ClassName(bot->getClass()), area, ActiveQuestLine(bot), TimeContext());
 
     // One real character detail: the item you're carrying most of. Avoid prompting gold/repair riffs.
     std::string item = TopBagItem(bot);

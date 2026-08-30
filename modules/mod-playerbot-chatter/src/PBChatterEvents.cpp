@@ -682,11 +682,13 @@ namespace
                 return;
             if (!player)
                 return;
+            bool const actorIsBot = IsBot(player);
             AppendGroupEvent(player, std::string(player->GetName()) + " hit level " + std::to_string(player->GetLevel()));
             Stamp(player, "you just dinged level " + std::to_string(player->GetLevel()));
             QueueEventReaction(player, EventKind::LevelUp,
-                Acore::StringFormat("{} just hit level {}.", player->GetName(), player->GetLevel()),
-                IsBot(player) ? player : nullptr,
+                actorIsBot ? Acore::StringFormat("You just hit level {}.", player->GetLevel())
+                           : Acore::StringFormat("{} just hit level {}.", player->GetName(), player->GetLevel()),
+                actorIsBot ? player : nullptr,
                 PairKey(player->GetGUID().GetCounter(), static_cast<uint64_t>(player->GetLevel())), 60000);
         }
 
@@ -697,14 +699,17 @@ namespace
             if (!player)
                 return;
             std::string title = quest ? quest->GetTitle() : "";
+            bool const actorIsBot = IsBot(player);
             AppendGroupEvent(player, title.empty() ? (std::string(player->GetName()) + " finished a quest")
                                                   : (std::string(player->GetName()) + " finished " + title));
             Stamp(player, title.empty() ? "you just finished a quest"
                                         : ("you just finished the quest \"" + title + "\""));
             QueueEventReaction(player, EventKind::QuestComplete,
-                title.empty() ? Acore::StringFormat("{} just completed a quest.", player->GetName())
-                              : Acore::StringFormat("{} just completed quest {}.", player->GetName(), title),
-                IsBot(player) ? player : nullptr,
+                title.empty() ? (actorIsBot ? "You just completed a quest."
+                                            : Acore::StringFormat("{} just completed a quest.", player->GetName()))
+                              : (actorIsBot ? Acore::StringFormat("You just completed quest {}.", title)
+                                            : Acore::StringFormat("{} just completed quest {}.", player->GetName(), title)),
+                actorIsBot ? player : nullptr,
                 PairKey(player->GetGUID().GetCounter(), static_cast<uint64_t>(quest ? quest->GetQuestId() : 0)), 60000);
         }
 
