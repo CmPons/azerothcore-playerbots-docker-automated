@@ -24,3 +24,10 @@ if(TARGET modules)
   find_package(Threads REQUIRED)
   target_link_libraries(modules PRIVATE Threads::Threads)
 endif()
+
+if(BUILD_TESTING)
+  set_property(GLOBAL APPEND PROPERTY ACORE_MODULE_TEST_SOURCES
+    "${CMAKE_CURRENT_LIST_DIR}/tests/PBChatterClassifierTest.cpp")
+  set_property(GLOBAL APPEND PROPERTY ACORE_MODULE_TEST_INCLUDES
+    "${CMAKE_CURRENT_LIST_DIR}/src")
+endif()

@@ -1,6 +1,7 @@
 #include "RaidRosterCommand.h"
 #include "RaidRosterConfig.h"
 #include "RaidRosterComp.h"
+#include "RaidRosterPlanner.h"
 #include "RaidRosterStore.h"
 #include "RaidRosterGear.h"
 #include "Chat.h"
@@ -210,37 +211,15 @@ bool RaidRosterCommand::HandleLogin(ChatHandler* handler, Optional<uint32> sizeA
     else
         countFixedMember(master);
 
-    uint32 slotsForRoster = size > fixedCount ? size - fixedCount : 0;
+    RaidRosterFillPlan fillPlan = PlanRaidRosterFill(
+        size,
+        RaidRosterDesiredTotal(sc->tanks, sc->heals, sc->dps),
+        RaidRosterRoleCounts{ fixedT, fixedH, fixedD },
+        RaidRosterRoleCounts{ availT, availH, availD });
 
-    // Desired total composition includes the human/fixed members. The subcomp dps value
-    // is the old "bots when the player is DPS" value, so add one DPS slot to get the
-    // target whole-raid composition: 5 => 1/1/3, 10 => 2/2/6, 25 => 2/6/17, 40 => 4/8/28.
-    uint32 desiredT = sc->tanks, desiredH = sc->heals, desiredD = sc->dps + 1;
-    uint32 needT = fixedT >= desiredT ? 0 : desiredT - fixedT;
-    uint32 needH = fixedH >= desiredH ? 0 : desiredH - fixedH;
-    uint32 needD = fixedD >= desiredD ? 0 : desiredD - fixedD;
-
-    auto totalNeed = [&]() { return needT + needH + needD; };
-
-    // If the current fixed group already overfills one role, trim desired roster needs down
-    // to the remaining slots. Prefer preserving tank/heal quotas, reducing DPS first.
-    while (totalNeed() > slotsForRoster)
-    {
-        if (needD) --needD;
-        else if (needH) --needH;
-        else if (needT) --needT;
-        else break;
-    }
-
-    // Cap impossible role requests to the roster pool, then fill leftover slots with
-    // available roster bots, preferring DPS, then heals, then tanks.
-    if (needT > availT) needT = availT;
-    if (needH > availH) needH = availH;
-    if (needD > availD) needD = availD;
-    while (totalNeed() < slotsForRoster && needD < availD) ++needD;
-    while (totalNeed() < slotsForRoster && needH < availH) ++needH;
-    while (totalNeed() < slotsForRoster && needT < availT) ++needT;
-
+    uint32 needT = fillPlan.bots.tanks;
+    uint32 needH = fillPlan.bots.heals;
+    uint32 needD = fillPlan.bots.dps;
     uint32 const botT = needT, botH = needH, botD = needD;   // final line-up, for the report
 
     PlayerbotMgr* mgr = GET_PLAYERBOT_MGR(master);
