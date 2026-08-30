@@ -651,9 +651,9 @@ done
 set_conf "AiPlayerbot.RandomBotTalk"           "$PB_TALK"      "$PB_CONF"
 set_conf "AiPlayerbot.RandomBotSuggestDungeons" "$PB_SUGGEST"  "$PB_CONF"
 set_conf "AiPlayerbot.GuildRepliesRate"        "$PB_GUILDRATE" "$PB_CONF"
-# Local preference: do quests together instead of auto-completing bot quests on player turn-in.
-# Override with PB_SYNC_QUEST_WITH_PLAYER=1 if desired.
-set_conf "AiPlayerbot.SyncQuestWithPlayer"     "${PB_SYNC_QUEST_WITH_PLAYER:-0}" "$PB_CONF"
+# Local preference: sync bot quest completion on player turn-in because some quest mechanics are hard for bots.
+# Override with PB_SYNC_QUEST_WITH_PLAYER=0 if desired.
+set_conf "AiPlayerbot.SyncQuestWithPlayer"     "${PB_SYNC_QUEST_WITH_PLAYER:-1}" "$PB_CONF"
 echo "    Bot chatter: ${CHATTER_MSG}"
 
 # ── AI bot chat (mod-playerbot-chatter) ───────────────────────────────────────
