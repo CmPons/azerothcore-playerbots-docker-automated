@@ -325,5 +325,12 @@ void PBChatterAmbient::OnBotLineDispatched(uint8_t kind, uint64_t ident, uint64_
     {
         c.cooldownUntilMs = g_nowMs + g_PBChatAmbientCooldown * 1000u;
         c.botStreak = 0;
+        return;
     }
+
+    // Let ambient bot lines turn into short back-and-forth conversations instead of
+    // isolated comments. The bot-streak cap/cooldown above still prevents runaway loops.
+    uint32_t follow = g_nowMs + RandSecMs(g_PBChatAmbientFollowMin, g_PBChatAmbientFollowMax);
+    if (c.nextEmitMs > follow)
+        c.nextEmitMs = follow;
 }

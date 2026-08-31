@@ -491,8 +491,10 @@ std::string PBChatterAmbientPrompt::Build(int mode, Player* bot, uint8_t kind,
                 PBChatterContext::BuildGroundedBrief(bot), groupContext, GroundingRules(), where);
             for (auto const& [speaker, text] : recent)
                 p += Acore::StringFormat("{}: {}\n", speaker, text);
-            p += "Reply directly to the last message like you're part of the conversation — agree, "
-                 "joke, answer the question, or add your own take. If there's recent party event "
+            p += "Continue the conversation naturally by responding to the last line, not by starting a new unrelated topic. "
+                 "The speakers may be real players or other bots; if another bot spoke last, treat them like a party/guildmate: "
+                 "answer them, riff on their comment, ask a tiny follow-up, disagree lightly, or joke back. "
+                 "Don't just agree by default, and don't start most replies with yeah/yea/yep. If there's recent party event "
                  "context, you may reference it casually. Stay true to your own level: if they're "
                  "talking about content you're not high enough for yet, react like a player who "
                  "isn't there yet (curious, or looking forward to it), don't pretend you're doing "
