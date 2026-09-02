@@ -32,22 +32,6 @@ namespace
         }
     }
 
-    bool IsSquishyOrCaster(uint8 c)
-    {
-        switch (c)
-        {
-            case CLASS_MAGE:
-            case CLASS_PRIEST:
-            case CLASS_WARLOCK:
-            case CLASS_DRUID:
-            case CLASS_SHAMAN:
-            case CLASS_HUNTER:
-                return true;
-            default:
-                return false;
-        }
-    }
-
     char const* RoleName(Player* player)
     {
         if (!player)
@@ -59,32 +43,6 @@ namespace
         return "DPS";
     }
 
-    std::string RoleGuidance(Player* bot)
-    {
-        char const* role = RoleName(bot);
-        if (std::string(role) == "Tank")
-            return " As the party Tank, only talk about threat, loose mobs, healer mana, heals, or cooldowns when the current facts show that problem.";
-        if (std::string(role) == "Healer")
-            return " As the party Healer, only call for mana breaks, drinking, or mobs-on-healer when the current facts show it.";
-        return " As party DPS, only call for peels, heals, or OOM pauses when the current facts show you need them.";
-    }
-
-    std::string GroundingRules()
-    {
-        return " Grounding rules: Base the line only on current world/party facts, recent conversation, and recent party events listed here. "
-               "Do NOT mention wipes, deaths, boss kills, loot, level-ups, quest progress, mana/OOM, repairs, summons, or dungeon mechanics unless those facts are explicitly listed. "
-               "Prefer recent events and the current fight/location over generic WoW small talk. If nothing notable is listed, make one small comment about the current visible situation.";
-    }
-
-    std::string UnitLabel(Unit* unit)
-    {
-        if (!unit)
-            return "nothing";
-        if (unit->IsAlive())
-            return Acore::StringFormat("{} ({}% hp)", unit->GetName(), (int)unit->GetHealthPct());
-        return Acore::StringFormat("{} (dead)", unit->GetName());
-    }
-
     Unit* FirstAttacker(Player* player)
     {
         if (!player)
@@ -93,70 +51,6 @@ namespace
             if (attacker && attacker->IsAlive())
                 return attacker;
         return nullptr;
-    }
-
-    std::string MemberFact(Player* bot, Player* member)
-    {
-        char const* who = (member == bot) ? "you" : (PBChatterClassifier::IsRealPlayerSender(member) ? "real player teammate" : "bot teammate");
-        std::string line = Acore::StringFormat("{} ({}; role {}; level {} {}", member->GetName(), who, RoleName(member), member->GetLevel(), ClassName(member->getClass()));
-
-        if (!member->IsAlive())
-            return line + "; dead)";
-
-        line += Acore::StringFormat("; {}% hp", (int)member->GetHealthPct());
-        if (member->GetMaxPower(POWER_MANA) > 0)
-            line += Acore::StringFormat("; {}% mana", (int)member->GetPowerPct(POWER_MANA));
-
-        line += member->IsInCombat() ? "; in combat" : "; out of combat";
-        if (Unit* victim = member->GetVictim())
-            line += Acore::StringFormat("; fighting {}", UnitLabel(victim));
-        else if (Unit* selected = member->GetSelectedUnit())
-            if (selected->IsAlive())
-                line += Acore::StringFormat("; selected {}", UnitLabel(selected));
-
-        if (Unit* attacker = FirstAttacker(member))
-            if (attacker != member->GetVictim())
-                line += Acore::StringFormat("; being attacked by {}", UnitLabel(attacker));
-
-        line += ")";
-        return line;
-    }
-
-    std::string TacticalNeeds(Player* bot)
-    {
-        if (!bot)
-            return "";
-
-        std::string out;
-        int hp = (int)bot->GetHealthPct();
-        bool inCombat = bot->IsInCombat();
-        bool casterish = IsSquishyOrCaster(bot->getClass());
-
-        if (inCombat && hp <= 45)
-        {
-            if (Unit* v = bot->GetVictim())
-                out += Acore::StringFormat(" Immediate party need: you're hurt ({}% hp) and fighting {}. It's natural to ask for heals, a peel, or say something like 'get this off me' if it fits.", hp, v->GetName());
-            else
-                out += Acore::StringFormat(" Immediate party need: you're hurt ({}% hp) in combat. It's natural to ask for heals or help getting mobs off you if it fits.", hp);
-        }
-        else if (!inCombat && hp <= 35)
-            out += Acore::StringFormat(" Party need: you're badly hurt ({}% hp). It's natural to ask for a quick heal, food, or a short pause before the next pull.", hp);
-
-        if (casterish && inCombat && hp <= 55)
-            out += " As a caster/ranged type under pressure, it's especially natural to call for someone to peel mobs off you.";
-
-        if (bot->GetMaxPower(POWER_MANA) > 0)
-        {
-            int mana = (int)bot->GetPowerPct(POWER_MANA);
-            if (mana <= 20)
-                out += Acore::StringFormat(" Immediate party need: you're nearly OOM ({}% mana). It's natural to ask the party to wait, say you need to drink, or ask for a mana break before another pull.", mana);
-            else if (!inCombat && mana <= 35)
-                out += Acore::StringFormat(" Party need: your mana is low ({}%). If the party is moving fast, it's natural to ask them to wait a sec while you drink.", mana);
-        }
-
-        if (!out.empty())
-            out += " Prefer these urgent party needs over quest chatter when they apply.";
-        return out;
     }
 
     // Built-in FALLBACK few-shot STYLE anchors, used only when no external file is loaded
@@ -306,6 +200,19 @@ namespace
         }
     }
 
+    char const* RaceName(uint8 r)
+    {
+        switch (r)
+        {
+            case RACE_HUMAN: return "human";       case RACE_ORC: return "orc";
+            case RACE_DWARF: return "dwarf";       case RACE_NIGHTELF: return "night elf";
+            case RACE_UNDEAD_PLAYER: return "undead"; case RACE_TAUREN: return "tauren";
+            case RACE_GNOME: return "gnome";       case RACE_TROLL: return "troll";
+            case RACE_BLOODELF: return "blood elf"; case RACE_DRAENEI: return "draenei";
+            default: return "traveler";
+        }
+    }
+
     std::string AreaName(uint32 areaId, char const* fallback);
     std::string MapName(uint32 mapId);
 
@@ -384,73 +291,199 @@ namespace
         return "the world";
     }
 
-    std::string PlaceContext(Player* bot)
+    std::string TomlQuote(std::string const& in)
+    {
+        std::string out = "\"";
+        for (char c : in)
+        {
+            switch (c)
+            {
+                case '\\': out += "\\\\"; break;
+                case '\"': out += "\\\""; break;
+                case '\n': out += "\\n"; break;
+                case '\r': out += "\\r"; break;
+                case '\t': out += "\\t"; break;
+                default: out += c; break;
+            }
+        }
+        out += "\"";
+        return out;
+    }
+
+    char const* TomlBool(bool v) { return v ? "true" : "false"; }
+
+    std::string TaxiNodeName(uint32 node)
+    {
+        if (!node)
+            return "";
+        if (TaxiNodesEntry const* t = sTaxiNodesStore.LookupEntry(node))
+            if (char const* nm = t->name[sWorld->GetDefaultDbcLocale()])
+                if (*nm)
+                    return nm;
+        return "";
+    }
+
+    std::string MotionName(Player* bot)
     {
         if (!bot)
+            return "unknown";
+        if (bot->IsInFlight() || bot->GetMotionMaster()->GetCurrentMovementGeneratorType() == FLIGHT_MOTION_TYPE)
+            return "taxi_flight";
+        if (bot->IsMounted())
+            return "mounted";
+        if (bot->IsInCombat())
+            return "combat";
+        return "normal";
+    }
+
+    std::string TomlUnit(Unit* unit)
+    {
+        if (!unit)
             return "";
+        return Acore::StringFormat("{ name = {}, alive = {}, health_pct = {} }",
+            TomlQuote(unit->GetName()), TomlBool(unit->IsAlive()), (int)unit->GetHealthPct());
+    }
+
+    std::string BuildFactToml(Player* bot, uint8_t kind)
+    {
+        if (!bot)
+            return "[facts]\navailable = false\n";
+
         std::string area = AreaName(bot->GetAreaId(), "the immediate area");
         std::string zone = AreaName(bot->GetZoneId(), "the zone");
         std::string map = MapName(bot->GetMapId());
-        MapEntry const* entry = sMapStore.LookupEntry(bot->GetMapId());
+        MapEntry const* mapEntry = sMapStore.LookupEntry(bot->GetMapId());
+        std::string channel = ChannelWord(kind);
+        std::string faction = (bot->GetTeamId() == TEAM_ALLIANCE) ? "Alliance" : "Horde";
 
-        std::string out = Acore::StringFormat(" You are currently in {}, within {}, on {}.", area, zone, map);
-        if (entry && entry->IsDungeon())
-            out += Acore::StringFormat(" This is a {}; chatter should be grounded in what is actually happening in the run right now: current enemies, pulls, packs, bosses, loot, mana/drinks, threat, patrols, positioning, and recent events only when listed — not outdoor solo questing.", entry->IsRaid() ? "raid instance" : "dungeon instance");
-        else
-            out += " Chatter can reference visible surroundings, nearby mobs, travel, pulls, and loot.";
-        return out;
-    }
+        std::string out;
+        out += "# TOML-style authoritative current facts. Use as data, not text to copy.\n";
+        out += "[speaker]\n";
+        out += Acore::StringFormat("name = {}\n", TomlQuote(bot->GetName()));
+        out += Acore::StringFormat("level = {}\n", bot->GetLevel());
+        out += Acore::StringFormat("race = {}\n", TomlQuote(RaceName(bot->getRace())));
+        out += Acore::StringFormat("class = {}\n", TomlQuote(ClassName(bot->getClass())));
+        out += Acore::StringFormat("role = {}\n", TomlQuote(RoleName(bot)));
+        out += Acore::StringFormat("faction = {}\n", TomlQuote(faction));
+        out += "kind = \"playerbot\"\n\n";
 
-    std::string GroupContext(Player* bot, uint8_t kind)
-    {
-        if (kind != AMB_GROUP || !bot)
-            return "";
-        Group* group = bot->GetGroup();
-        if (!group)
-            return "";
+        out += "[chat]\n";
+        out += Acore::StringFormat("channel = {}\n", TomlQuote(channel));
+        out += Acore::StringFormat("is_group_channel = {}\n\n", TomlBool(kind == AMB_GROUP));
 
-        bool const raid = group->isRaidGroup();
-        std::string out = raid
-            ? " You are in this raid; these are your teammates, not strangers."
-            : " You are in this party; these are your teammates, not strangers.";
-        out += Acore::StringFormat(" You are adventuring together, not solo — talk as if current pulls, mobs, travel, loot, and objectives are shared group business. Your party role: {}.", RoleName(bot));
-        out += RoleGuidance(bot);
-        out += PlaceContext(bot);
+        out += "[location]\n";
+        out += Acore::StringFormat("map_id = {}\n", bot->GetMapId());
+        out += Acore::StringFormat("map = {}\n", TomlQuote(map));
+        out += Acore::StringFormat("zone_id = {}\n", bot->GetZoneId());
+        out += Acore::StringFormat("zone = {}\n", TomlQuote(zone));
+        out += Acore::StringFormat("area_id = {}\n", bot->GetAreaId());
+        out += Acore::StringFormat("area = {}\n", TomlQuote(area));
+        out += Acore::StringFormat("is_dungeon = {}\n", TomlBool(mapEntry && mapEntry->IsDungeon()));
+        out += Acore::StringFormat("is_raid = {}\n\n", TomlBool(mapEntry && mapEntry->IsRaid()));
 
-        out += raid ? " Current raid facts (authoritative current state — don't recite it):" : " Current party facts (authoritative current state — don't recite it):";
-        uint32 shown = 0;
-        for (GroupReference* r = group->GetFirstMember(); r; r = r->next())
+        out += "[movement]\n";
+        out += Acore::StringFormat("state = {}\n", TomlQuote(MotionName(bot)));
+        out += Acore::StringFormat("in_flight = {}\n", TomlBool(bot->IsInFlight()));
+        out += Acore::StringFormat("mounted = {}\n", TomlBool(bot->IsMounted()));
+        uint32 source = bot->m_taxi.GetTaxiSource();
+        uint32 dest = bot->m_taxi.GetTaxiDestination();
+        out += Acore::StringFormat("taxi_source_node = {}\n", source);
+        out += Acore::StringFormat("taxi_source = {}\n", TomlQuote(TaxiNodeName(source)));
+        out += Acore::StringFormat("taxi_destination_node = {}\n", dest);
+        out += Acore::StringFormat("taxi_destination = {}\n", TomlQuote(TaxiNodeName(dest)));
+        out += "taxi_path_nodes = [";
+        uint32 shownTaxi = 0;
+        for (uint32 node : bot->m_taxi.GetPath())
         {
-            Player* member = r->GetSource();
-            if (!member)
-                continue;
-            out += Acore::StringFormat(" {}{}", shown ? "," : "", MemberFact(bot, member));
-            if (++shown >= 10)
-            {
-                out += ", ...";
+            if (shownTaxi++)
+                out += ", ";
+            out += std::to_string(node);
+            if (shownTaxi >= 8)
                 break;
-            }
         }
+        out += "]\n\n";
 
-        out += TacticalNeeds(bot);
-
-        auto events = PBChatterEvents::RecentForGroup(group, PBChatterAmbient::NowMs(), 8);
-        if (!events.empty())
-        {
-            out += " Recent party events in the last few minutes (background only — mention one naturally if it fits; don't list them):";
-            for (std::string const& e : events)
-                out += Acore::StringFormat(" {}{}", (&e == &events.front()) ? "" : "; ", e);
-        }
-
-        out += " Don't steer every idle line back to quests. Mention quests only when the recent chat/event makes it relevant. Avoid repair-bill jokes unless there was a wipe/death or someone mentioned repairs.";
+        out += "[combat]\n";
+        out += Acore::StringFormat("in_combat = {}\n", TomlBool(bot->IsInCombat()));
+        out += Acore::StringFormat("alive = {}\n", TomlBool(bot->IsAlive()));
+        out += Acore::StringFormat("health_pct = {}\n", (int)bot->GetHealthPct());
+        out += Acore::StringFormat("has_mana = {}\n", TomlBool(bot->GetMaxPower(POWER_MANA) > 0));
+        out += Acore::StringFormat("mana_pct = {}\n", bot->GetMaxPower(POWER_MANA) > 0 ? (int)bot->GetPowerPct(POWER_MANA) : -1);
+        out += Acore::StringFormat("victim = {}\n", TomlQuote(TomlUnit(bot->GetVictim())));
+        out += Acore::StringFormat("first_attacker = {}\n\n", TomlQuote(TomlUnit(FirstAttacker(bot))));
 
         QuestContext quest = ActiveQuest(bot);
-        if (!quest.title.empty())
-            out += Acore::StringFormat(" Your current quest is '{}' around {} if quest context matters. {}",
-                quest.title, quest.location,
-                quest.nearby ? "It may fit the current area." : "It is not where you are right now, so don't bring it up unless asked.");
+        out += "[quest]\n";
+        out += Acore::StringFormat("active_title = {}\n", TomlQuote(quest.title));
+        out += Acore::StringFormat("location = {}\n", TomlQuote(quest.location));
+        out += Acore::StringFormat("nearby = {}\n\n", TomlBool(quest.nearby));
+
+        if (Group* group = bot->GetGroup())
+        {
+            out += "[group]\n";
+            out += "in_group = true\n";
+            out += Acore::StringFormat("is_raid = {}\n", TomlBool(group->isRaidGroup()));
+            out += Acore::StringFormat("speaker_role = {}\n\n", TomlQuote(RoleName(bot)));
+
+            uint32 shown = 0;
+            for (GroupReference* r = group->GetFirstMember(); r; r = r->next())
+            {
+                Player* member = r->GetSource();
+                if (!member)
+                    continue;
+                out += "[[group.members]]\n";
+                out += Acore::StringFormat("name = {}\n", TomlQuote(member->GetName()));
+                out += Acore::StringFormat("kind = {}\n", TomlQuote(member == bot ? "speaker" : (PBChatterClassifier::IsRealPlayerSender(member) ? "real_player" : "playerbot")));
+                out += Acore::StringFormat("level = {}\n", member->GetLevel());
+                out += Acore::StringFormat("class = {}\n", TomlQuote(ClassName(member->getClass())));
+                out += Acore::StringFormat("role = {}\n", TomlQuote(RoleName(member)));
+                out += Acore::StringFormat("alive = {}\n", TomlBool(member->IsAlive()));
+                out += Acore::StringFormat("health_pct = {}\n", (int)member->GetHealthPct());
+                out += Acore::StringFormat("has_mana = {}\n", TomlBool(member->GetMaxPower(POWER_MANA) > 0));
+                out += Acore::StringFormat("mana_pct = {}\n", member->GetMaxPower(POWER_MANA) > 0 ? (int)member->GetPowerPct(POWER_MANA) : -1);
+                out += Acore::StringFormat("in_combat = {}\n", TomlBool(member->IsInCombat()));
+                out += Acore::StringFormat("victim = {}\n", TomlQuote(TomlUnit(member->GetVictim())));
+                out += Acore::StringFormat("first_attacker = {}\n\n", TomlQuote(TomlUnit(FirstAttacker(member))));
+                if (++shown >= 10)
+                    break;
+            }
+
+            auto events = PBChatterEvents::RecentForGroup(group, PBChatterAmbient::NowMs(), 8);
+            if (!events.empty())
+            {
+                out += "[recent_events]\n";
+                out += "items = [";
+                for (size_t i = 0; i < events.size(); ++i)
+                {
+                    if (i)
+                        out += ", ";
+                    out += TomlQuote(events[i]);
+                }
+                out += "]\n\n";
+            }
+        }
+        else
+        {
+            out += "[group]\nin_group = false\n\n";
+        }
+
+        std::string item = PBChatterContext::TopBagItem(bot);
+        if (!item.empty())
+        {
+            out += "[inventory]\n";
+            out += Acore::StringFormat("notable_stack_item = {}\n\n", TomlQuote(item));
+        }
+
         return out;
     }
+
+    std::string PromptPreamble()
+    {
+        return "Use the TOML-style fact block as authoritative current game state. "
+               "Do not recite the facts. Do not invent unlisted wipes, deaths, loot, level-ups, quest progress, mana problems, summons, or dungeon mechanics. "
+               "Write like the player behind this character typing in WoW chat, not like an NPC.\n\n";
+    }
+
 }
 
 // A few example lines as a style block. Picks a random run so it varies call to call.
@@ -480,61 +513,47 @@ std::string PBChatterAmbientPrompt::Build(int mode, Player* bot, uint8_t kind,
                                           std::string const& eventHint)
 {
     char const* where = ChannelWord(kind);
-    std::string groupContext = GroupContext(bot, kind);
+    std::string facts = BuildFactToml(bot, kind);
 
     switch (mode)
     {
         case MODE_REACT:
         {
-            std::string p = Acore::StringFormat(
-                "{}{}{} You're chatting in {}. Here's the recent conversation (oldest first):\n",
-                PBChatterContext::BuildGroundedBrief(bot), groupContext, GroundingRules(), where);
+            std::string p = PromptPreamble();
+            p += facts;
+            p += Acore::StringFormat("\n[task]\nmode = \"react\"\nchat_channel = {}\ninstructions = {}\n\n",
+                TomlQuote(where),
+                TomlQuote("Continue the conversation naturally by responding to the last line, not by starting a new unrelated topic. Treat bot speakers as real party/guildmates. Answer, riff, ask a tiny follow-up, disagree lightly, or joke back. Don't just agree by default and don't start most replies with yeah/yea/yep. Stay true to the speaker's level and current facts."));
+            p += "[recent_conversation]\n# oldest first\n";
             for (auto const& [speaker, text] : recent)
-                p += Acore::StringFormat("{}: {}\n", speaker, text);
-            p += "Continue the conversation naturally by responding to the last line, not by starting a new unrelated topic. "
-                 "The speakers may be real players or other bots; if another bot spoke last, treat them like a party/guildmate: "
-                 "answer them, riff on their comment, ask a tiny follow-up, disagree lightly, or joke back. "
-                 "Don't just agree by default, and don't start most replies with yeah/yea/yep. If there's recent party event "
-                 "context, you may reference it casually. Stay true to your own level: if they're "
-                 "talking about content you're not high enough for yet, react like a player who "
-                 "isn't there yet (curious, or looking forward to it), don't pretend you're doing "
-                 "it. Keep it short and natural, don't repeat what they said, and don't start with "
-                 "\"anyone\".";
+                p += Acore::StringFormat("line = {}\n", TomlQuote(speaker + ": " + text));
             return p + StyleExamples(2) + Tail();
         }
         case MODE_FLAVOR:
         {
-            std::string snap = PBChatterContext::BuildSnapshot(bot);
-            return Acore::StringFormat(
-                "{}{}{}\n\nYou're chatting in {}. Make a short, casual remark about what you're doing, "
-                "what the party just killed/looted, or where you are right now, like a player "
-                "thinking out loud. Keep it appropriate to your level. Don't list your stats or "
-                "inventory, don't force quest talk, and don't make it sound like a game announcement.{}",
-                snap, groupContext, GroundingRules(), where, StyleExamples(2)) + Tail();
+            return PromptPreamble() + facts + Acore::StringFormat(
+                "\n[task]\nmode = \"flavor\"\nchat_channel = {}\ninstructions = {}\n{}",
+                TomlQuote(where),
+                TomlQuote("Make a short, casual remark about what the speaker is doing, what the party just killed/looted, travel state, or where they are right now. Keep it appropriate to their level. Don't list stats or inventory; use them only as background. Don't force quest talk or sound like a game announcement."),
+                StyleExamples(2)) + Tail();
         }
         case MODE_EVENT:
         {
-            return Acore::StringFormat(
-                "{}\n\nPRIMARY EVENT:\n{}\n\nYou're chatting in {} as {}. React naturally to the PRIMARY EVENT in one short party-style line. "
-                "The environmental and party facts below are grounding context, but the event is the main reason you're speaking. "
-                "If the event is about you, speak in first person and don't congratulate yourself; a simple \"yay, ding {}\" style line is okay for your own level-up. "
-                "Do not invent extra outcomes: no deaths, wipes, loot, upgrades, quest credit, level-ups, kills, or PvP results unless explicitly listed. "
-                "For loot, it's safe to say gz/nice drop, but don't claim it's an upgrade unless listed. "
-                "For PvP sightings/contact, a brief callout like inc horde warrior is fine, but don't say they attacked or died unless listed. "
-                "Never force a catchphrase, and never say \"Quest complete\".{}{}{}",
-                PBChatterContext::BuildGroundedBrief(bot), eventHint, where, bot->GetName(), bot->GetLevel(), groupContext, GroundingRules(), StyleExamples(2)) + Tail();
+            return PromptPreamble() + facts + Acore::StringFormat(
+                "\n[primary_event]\nhint = {}\n\n[task]\nmode = \"event\"\nchat_channel = {}\nspeaker_name = {}\ninstructions = {}\n{}",
+                TomlQuote(eventHint), TomlQuote(where), TomlQuote(bot ? bot->GetName() : "the bot"),
+                TomlQuote("React naturally to the primary event in one short party-style line. If the event is about the speaker, use first person and don't congratulate yourself. Do not invent extra outcomes: no deaths, wipes, loot, upgrades, quest credit, level-ups, kills, or PvP results unless explicitly listed. For loot, gz/nice drop is fine, but don't claim it's an upgrade unless listed. For PvP sightings/contact, a brief callout is fine, but don't say they attacked or died unless listed. Never force a catchphrase, and never say Quest complete."),
+                StyleExamples(2)) + Tail();
         }
         case MODE_GENERIC:
         default:
         {
-            return Acore::StringFormat(
-                "{}{}{} You're hanging out and chatting in {}. Bring up this: {}. Say something short "
-                "and casual about it, like a real player typing in chat. Stay true to your "
-                "character — you're only that level, so don't talk about raids, zones, or content "
-                "above your level. Make it a natural comment or statement, NOT a poll to the whole "
-                "channel, don't force quest talk, and don't start with \"anyone\".{}",
-                PBChatterContext::BuildGroundedBrief(bot), groupContext, GroundingRules(), where,
-                (kind == AMB_GROUP) ? PickGroupTopic(bot) : PickTopic(bot->GetLevel()), StyleExamples(3)) + Tail();
+            return PromptPreamble() + facts + Acore::StringFormat(
+                "\n[task]\nmode = \"generic\"\nchat_channel = {}\ntopic = {}\ninstructions = {}\n{}",
+                TomlQuote(where),
+                TomlQuote((kind == AMB_GROUP) ? PickGroupTopic(bot) : PickTopic(bot->GetLevel())),
+                TomlQuote("Say something short and casual about the topic, like a real player typing in chat. Stay true to the speaker's level and current facts. Make it a natural comment or statement, not a poll to the whole channel. Don't force quest talk and don't start with anyone."),
+                StyleExamples(3)) + Tail();
         }
     }
 }
