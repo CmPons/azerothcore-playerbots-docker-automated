@@ -57,6 +57,7 @@ extern uint32_t    g_PBChatEventChanceRareLoot; // percent chance for rare/blue 
 extern uint32_t    g_PBChatEventChanceEpicLoot; // percent chance for epic+ loot events
 extern uint32_t    g_PBChatEventChanceBossKill; // percent chance for dungeon/world boss kills
 extern uint32_t    g_PBChatEventChanceEliteKill;// percent chance for non-boss elite kills
+extern uint32_t    g_PBChatEventChancePartyDeath;// percent chance for party-member death events
 extern uint32_t    g_PBChatEventChancePvpContact; // percent chance for PvP combat events
 extern uint32_t    g_PBChatEventChancePvpSighting;// percent chance for open-world PvP sighting events
 extern uint32_t    g_PBChatEventCooldown;       // s: min gap between event lines per group

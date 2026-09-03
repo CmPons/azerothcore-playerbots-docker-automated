@@ -58,6 +58,7 @@ uint32_t    g_PBChatEventChanceRareLoot  = 60;
 uint32_t    g_PBChatEventChanceEpicLoot  = 90;
 uint32_t    g_PBChatEventChanceBossKill  = 65;
 uint32_t    g_PBChatEventChanceEliteKill = 25;
+uint32_t    g_PBChatEventChancePartyDeath = 75;
 uint32_t    g_PBChatEventChancePvpContact = 70;
 uint32_t    g_PBChatEventChancePvpSighting = 50;
 uint32_t    g_PBChatEventCooldown        = 35;
@@ -176,6 +177,7 @@ void PBChatterLoadConfig()
     g_PBChatEventChanceEpicLoot  = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventChance.EpicLoot", 90);
     g_PBChatEventChanceBossKill  = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventChance.BossKill", 65);
     g_PBChatEventChanceEliteKill = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventChance.EliteKill", 25);
+    g_PBChatEventChancePartyDeath = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventChance.PartyDeath", 75);
     g_PBChatEventChancePvpContact = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventChance.PvPContact", 70);
     g_PBChatEventChancePvpSighting = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventChance.PvPSighting", 50);
     g_PBChatEventCooldown        = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.EventCooldown", 35);

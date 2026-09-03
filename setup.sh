@@ -709,6 +709,7 @@ if [[ -f "$PBCHAT_CONF" ]]; then
   set_conf "PlayerbotChatter.EventChance.EpicLoot" "${CHATTER_EVENT_CHANCE_EPIC_LOOT:-90}"        "$PBCHAT_CONF"
   set_conf "PlayerbotChatter.EventChance.BossKill" "${CHATTER_EVENT_CHANCE_BOSS_KILL:-65}"        "$PBCHAT_CONF"
   set_conf "PlayerbotChatter.EventChance.EliteKill" "${CHATTER_EVENT_CHANCE_ELITE_KILL:-25}"      "$PBCHAT_CONF"
+  set_conf "PlayerbotChatter.EventChance.PartyDeath" "${CHATTER_EVENT_CHANCE_PARTY_DEATH:-75}"    "$PBCHAT_CONF"
   set_conf "PlayerbotChatter.EventChance.PvPContact" "${CHATTER_EVENT_CHANCE_PVP_CONTACT:-70}"    "$PBCHAT_CONF"
   set_conf "PlayerbotChatter.EventChance.PvPSighting" "${CHATTER_EVENT_CHANCE_PVP_SIGHTING:-50}"  "$PBCHAT_CONF"
   set_conf "PlayerbotChatter.EventCooldown" "${CHATTER_EVENT_COOLDOWN:-35}"                       "$PBCHAT_CONF"

@@ -542,7 +542,7 @@ std::string PBChatterAmbientPrompt::Build(int mode, Player* bot, uint8_t kind,
             return PromptPreamble() + facts + Acore::StringFormat(
                 "\n[primary_event]\nhint = {}\n\n[task]\nmode = \"event\"\nchat_channel = {}\nspeaker_name = {}\ninstructions = {}\n{}",
                 TomlQuote(eventHint), TomlQuote(where), TomlQuote(bot ? bot->GetName() : "the bot"),
-                TomlQuote("React naturally to the primary event in one short party-style line. If the event is about the speaker, use first person and don't congratulate yourself. Do not invent extra outcomes: no deaths, wipes, loot, upgrades, quest credit, level-ups, kills, or PvP results unless explicitly listed. For loot, gz/nice drop is fine, but don't claim it's an upgrade unless listed. For PvP sightings/contact, a brief callout is fine, but don't say they attacked or died unless listed. Never force a catchphrase, and never say Quest complete."),
+                TomlQuote("React naturally to the primary event in one short party-style line. If the event is about the speaker, use first person and don't congratulate yourself. Do not invent extra outcomes: no deaths, wipes, loot, upgrades, quest credit, level-ups, kills, or PvP results unless explicitly listed. For loot, gz/nice drop is fine, but don't claim it's an upgrade unless listed. For deaths, sound like a surviving party member reacting briefly; don't claim a wipe, rez, blame, or cause unless listed. For PvP sightings/contact, a brief callout is fine, but don't say they attacked or died unless listed. Never force a catchphrase, and never say Quest complete."),
                 StyleExamples(2)) + Tail();
         }
         case MODE_GENERIC:

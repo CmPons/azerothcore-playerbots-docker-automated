@@ -122,6 +122,7 @@ PlayerbotChatter.EventChance.RareLoot = 60
 PlayerbotChatter.EventChance.EpicLoot = 90
 PlayerbotChatter.EventChance.BossKill = 65
 PlayerbotChatter.EventChance.EliteKill = 25
+PlayerbotChatter.EventChance.PartyDeath = 75
 PlayerbotChatter.EventChance.PvPContact = 70
 PlayerbotChatter.EventChance.PvPSighting = 50
 

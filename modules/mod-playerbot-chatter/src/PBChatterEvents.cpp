@@ -42,6 +42,7 @@ namespace
         EpicLoot,
         BossKill,
         EliteKill,
+        PartyDeath,
         PvPContact,
         PvPSighting,
     };
@@ -159,6 +160,7 @@ namespace
             case EventKind::EpicLoot:      return g_PBChatEventChanceEpicLoot;
             case EventKind::BossKill:      return g_PBChatEventChanceBossKill;
             case EventKind::EliteKill:     return g_PBChatEventChanceEliteKill;
+            case EventKind::PartyDeath:    return g_PBChatEventChancePartyDeath;
             case EventKind::PvPContact:    return g_PBChatEventChancePvpContact;
             case EventKind::PvPSighting:   return g_PBChatEventChancePvpSighting;
         }
@@ -369,6 +371,24 @@ namespace
             QueueEventReaction(player, kind, hint, IsBot(player) ? player : nullptr,
                 PairKey(player->GetGUID().GetCounter(), static_cast<uint64_t>(proto->ItemId)), 45000);
         }
+    }
+
+    void RecordPlayerDeath(Player* player)
+    {
+        if (!g_PBChatEnable)
+            return;
+        if (!player || !player->GetGroup())
+            return;
+
+        std::string const area = AreaName(player->GetAreaId());
+        std::string const text = Acore::StringFormat("{} died in {}", player->GetName(), area);
+        AppendGroupEvent(player, text);
+
+        QueueEventReaction(player, EventKind::PartyDeath,
+            Acore::StringFormat("Party member {} just died in {}. A surviving party member should react; don't speak as the dead player.",
+                player->GetName(), area),
+            nullptr,
+            PairKey(player->GetGUID().GetCounter(), static_cast<uint64_t>(EventKind::PartyDeath)), 60000);
     }
 
     void RecordPvPCombat(Player* player, Unit* enemy)
@@ -672,10 +692,16 @@ namespace
             PLAYERHOOK_ON_GROUP_ROLL_REWARD_ITEM,
             PLAYERHOOK_ON_UPDATE_AREA,
             PLAYERHOOK_ON_PLAYER_ENTER_COMBAT,
+            PLAYERHOOK_ON_PLAYER_JUST_DIED,
         }) {}
 
         // Each hook bails on the enable flags BEFORE touching any game object, so a disabled
         // module does zero work (and never dereferences a hook argument).
+        void OnPlayerJustDied(Player* player) override
+        {
+            RecordPlayerDeath(player);
+        }
+
         void OnPlayerLevelChanged(Player* player, uint8 /*oldLevel*/) override
         {
             if (!g_PBChatEnable)
