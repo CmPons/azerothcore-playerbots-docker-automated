@@ -379,6 +379,8 @@ set_conf "Rate.Reputation.Gain" "${REPUTATION_RATE:-5}" "$WS_CONF"
 # Honor gain multiplier (PvP/BG honor points). 5x by default so BG/world-PvP grinding fills
 # out PvP gear fast on a LAN/bot server.
 set_conf "Rate.Honor"           "${HONOR_RATE:-5}"      "$WS_CONF"
+# Global raid/heroic reset period multiplier. MC's base 7-day reset becomes 24h at 1/7.
+set_conf "Rate.InstanceResetTime" "${INSTANCE_RESET_RATE:-1}" "$WS_CONF"
 # Rested-XP pool fill rate (the blue "rested" bonus that doubles kill XP until spent).
 # InGame = while logged in resting in an inn/city; Offline = while logged off (tavern/city
 # vs wilderness). 3x so the pool refills fast and more of your killing is doubled. MaxBonus
