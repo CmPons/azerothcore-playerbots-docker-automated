@@ -60,9 +60,10 @@ static_assert(RAID_COMP.size() <= 255, "slot_index is TINYINT UNSIGNED; comp mus
 // `size` is the TOTAL raid size including the player; the mod fields `size-1` bots
 // (WotLK MAXRAIDSIZE=40 is a hard cap, so `login 40` = you + 39 bots).
 struct SubComp { uint32 size; uint8 tanks; uint8 heals; uint8 dps; };
-static constexpr std::array<SubComp, 4> RAID_SUBCOMPS = {{
+static constexpr std::array<SubComp, 5> RAID_SUBCOMPS = {{
     { 5,  1, 1, 2 },   // 4 bots + you
     { 10, 2, 2, 5 },   // 9 bots + you
+    { 20, 2, 4, 13 },  // 19 bots + you (ZG/AQ20)
     { 25, 2, 6, 16 },  // 24 bots + you
     { 40, 4, 8, 27 },  // 39 bots + you (all 4 tanks, 8 of 9 healers, all 27 dps)
 }};

@@ -42,7 +42,7 @@ ChatCommandTable RaidRosterCommand::GetCommands() const
     // Console::Yes still allows the worldserver console (handled before that check).
     static ChatCommandTable sub =
     {
-        { "",       HandleQuickLogin, SEC_PLAYER, Console::Yes }, // .raidroster <5|10|25|40>
+        { "",       HandleQuickLogin, SEC_PLAYER, Console::Yes }, // .raidroster <5|10|20|25|40>
         { "create", HandleCreate, SEC_PLAYER, Console::Yes },
         { "login",  HandleLogin,  SEC_PLAYER, Console::Yes },
         { "sync",   HandleSync,   SEC_PLAYER, Console::Yes },
@@ -130,7 +130,7 @@ bool RaidRosterCommand::HandleCreate(ChatHandler* handler)
 
     RaidRosterStore::Replace(owner, rows);
     handler->PSendSysMessage("Created roster of {} bots (4 tank / 9 heal / 27 dps). "
-        "Use .raidroster login [5|10|25|40] then .raidroster sync.", (uint32)rows.size());
+        "Use .raidroster login [5|10|20|25|40] then .raidroster sync.", (uint32)rows.size());
     return true;
 }
 
@@ -138,7 +138,7 @@ bool RaidRosterCommand::HandleQuickLogin(ChatHandler* handler, Optional<uint32> 
 {
     if (!sizeArg)
     {
-        handler->SendSysMessage("Usage: .raidroster <5|10|25|40> [tank|heal|dps]");
+        handler->SendSysMessage("Usage: .raidroster <5|10|20|25|40> [tank|heal|dps]");
         return true;
     }
     return HandleLogin(handler, sizeArg, roleArg);
@@ -154,7 +154,7 @@ bool RaidRosterCommand::HandleLogin(ChatHandler* handler, Optional<uint32> sizeA
     uint32 size = sizeArg ? *sizeArg : 40;
     SubComp const* sc = nullptr;
     for (SubComp const& s : RAID_SUBCOMPS) if (s.size == size) { sc = &s; break; }
-    if (!sc) { handler->SendSysMessage("Size must be 5, 10, 25, or 40."); return true; }
+    if (!sc) { handler->SendSysMessage("Size must be 5, 10, 20, 25, or 40."); return true; }
 
     // Which slot the player fills: explicit override, else auto-detect from active spec.
     // 0 = tank, 1 = heal, 2 = dps. IsTank/IsHeal(bySpec=true) read the talent tab and work on
