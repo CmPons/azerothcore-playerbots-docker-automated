@@ -1,0 +1,49 @@
+# Runtime raid scaling / raid instance tools
+#
+# Commands:
+#   .raidscale 10
+#   .raidscale off
+#   .raidscale status
+#   .raidscale boss hp <multiplier>
+#   .raidscale boss damage <multiplier>
+#   .raidscale trash hp <multiplier>
+#   .raidscale trash damage <multiplier>
+#   .raidscale export
+#   .raidinstance boss list
+#   .raidinstance boss reset <id>
+#   .raidinstance reset all [confirm]
+
+RaidScaling.Enable = 1
+
+# Security level required for commands. 0=player, 1=moderator, 2=gamemaster, 3=admin.
+RaidScaling.CommandSecurity = 2
+
+# If enabled, .raidscale <target> derives damage from pow(target/original, DamageExponent).
+# Health uses target/original directly.
+RaidScaling.BlizzardLikeDefault = 1
+RaidScaling.DamageExponent = 0.6
+
+# Known original raid sizes used by .raidscale <target>.
+# Classic: Onyxia, ZG, MC, BWL, AQ20, AQ40, Naxx
+# TBC: Kara, Gruul, Mag, SSC, TK, Hyjal, BT, Sunwell
+RaidScaling.OriginalSize.249 = 40
+RaidScaling.OriginalSize.309 = 20
+RaidScaling.OriginalSize.409 = 40
+RaidScaling.OriginalSize.469 = 40
+RaidScaling.OriginalSize.509 = 20
+RaidScaling.OriginalSize.531 = 40
+RaidScaling.OriginalSize.533 = 40
+RaidScaling.OriginalSize.532 = 10
+RaidScaling.OriginalSize.565 = 25
+RaidScaling.OriginalSize.544 = 25
+RaidScaling.OriginalSize.548 = 25
+RaidScaling.OriginalSize.550 = 25
+RaidScaling.OriginalSize.534 = 25
+RaidScaling.OriginalSize.564 = 25
+RaidScaling.OriginalSize.580 = 25
+
+# Minimum clamps to avoid accidental zero-health/zero-damage tuning.
+RaidScaling.MinHealthMultiplier = 0.05
+RaidScaling.MinDamageMultiplier = 0.05
+RaidScaling.MaxHealthMultiplier = 5.0
+RaidScaling.MaxDamageMultiplier = 5.0
