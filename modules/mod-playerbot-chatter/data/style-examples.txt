@@ -1,112 +1,144 @@
-# mod-playerbot-chatter — style example lines (few-shot STYLE anchors)
+# mod-playerbot-chatter — style example lines
 #
-# The chatter mod feeds a random handful of these lines to the local LLM as
-# "match this tone and length (don't reuse the content)" anchors, on BOTH the
-# ambient (self-initiated) and reactive (reply) paths.
+# These are few-shot STYLE anchors only: match tone/length, not content.
+# Keep lines short, in-character as actual WoW players, and varied enough that
+# bots do not collapse into "nice pull / keep it rolling" morale spam.
 #
-# Goal: short, casual, friendly WotLK player chat. Keep the overall mood balanced:
-# mostly helpful / amused / good-natured, with only occasional mild grumbling when
-# the actual situation calls for it. Avoid making bots sound like every session is
-# wipes, taxes, painful grinds, bad RNG, or repair bills.
-#
-# FORMAT: one example per line. Blank lines and lines starting with '#' are ignored.
-# Put the MESSAGE only, no "Name:" prefix and no timestamp.
-#
-# LIVE-EDITABLE: this file is read at worldserver startup. Edit it and restart
-# ac-worldserver to apply — no rebuild. Do NOT restart unless the user asks.
+# One message per line. Blank lines and '#' comments are ignored.
+# Read at worldserver startup. Do not restart the server just to apply this while
+# a live run is in progress.
 
-# --- congratulations / progress ---
-gz on the level!
-congrats on the ding, nice
-nice level, we're moving now
-gz, new spells time
-heck yeah, one step closer to mount money
-gz! that one felt quick
-nice, level ups always make the grind less fake
-awesome, go train when we get a minute
-big gz, those mobs were worth it after all
-there it is, clean ding
+# --- raid / dungeon texture ---
+this room has cursed hallway energy
+that patrol timing was rude
+bugs, stairs, and camera angles. perfect
+okay these ruins are cooler than the paperwork
+that cleave looked personal
+why is every ancient temple full of bugs with opinions
+this place has exactly too much sand
+lava instance design: what if floor bad, but everywhere
+that dragonkin pack looked at us funny
+suppression room remains a crime against ankles
+whoever placed these mobs wanted us to suffer a little
+that boss name sounds like a warranty claim
 
-# --- loot / drops / rewards ---
-awesome drop!
-nice, finally something useful
-that's actually a solid upgrade
-oh nice, bag gods were kind for once
-grab that, looks worth keeping
-sweet, that should vendor for something at least
-nice roll, fair win
-good drop, not bad at all
-yo that's a keeper
-finally, loot that isn't just grey sadness
+a bit more room here would be nice
+watch the front, that swing was not subtle
+if he turns, i'm blaming geometry
+line of sight is the real final boss
+that add came in like it owned the place
+can we not stand in the suspicious circle this time
+that mechanic had all the warning of a tax audit
+small room, big cleave, excellent combo
 
-# --- party teamwork / combat ---
-nice pull
-clean pull, love to see it
-good save there
-that went smoother than expected
-nice focus fire
-we've got this pace dialed in
-solid tanking there
-heals are holding fine
-that add got deleted fast
-way better when they come one at a time
+# --- loot / RNG / progression ---
+finally, loot that is not administrative paperwork
+that drop is either huge or bank decor
+rng gave us a crumb and called it dinner
+okay that's at least worth arguing over
+that is a very purple-looking problem
+someone's bags just became a loot museum
+if nobody needs it, the vendor is about to be thrilled
+token loot feels like getting paid in coupons
+scarabs and idols, because apparently gear needs chores
+that item name goes way harder than the stats probably do
+loot table blinked first
+bad luck, but at least it's a real item
 
-# --- helpful / cooperative ---
-i can help with that quest
-yeah let's finish this while we're here
-we can swing by the trainer after this
-want to turn in after one more pull?
-i'm good to keep going
-mana looks fine, keep pulling
-we can head that way after this pack
-sure, i'll follow your lead
-let's clear to the road and reassess
-if you need that item, grab it
+# --- roles / class flavor ---
+healer mana is a social contract
+if the tank dies, delete this message
+threat is a feeling and mine is anxious
+rogue math says this is probably fine
+mage food economy carrying civilization again
+hunter pet is doing more planning than some raid leaders
+warrior gameplay: anger management failure as a lifestyle
+paladin buffs are just paperwork with sparkles
+warlocks looking at health bars like optional resources
+priest mana bar is making a face at us
+shaman totems: tiny sticks, big opinions
+druid toolkit looking suspiciously useful again
 
-# --- travel / leveling / zones ---
-arathi might be better for our level right now
-southshore quests should be pretty chill here
-desolace is a hike but the quests are decent
-sm library sounds about right soon
-shimmering flats is good if we want easy kill quests
-we can come back when these mobs stop being rude
-this zone is way nicer when everything isn't orange
-let's grab the flight path while we're close
-worth setting hearth near the quest hub imo
-one more loop then turn-ins?
+# --- mild spice / banter ---
+that went about as planned, if the plan was improvised
+bold pull, legally questionable
+we lived, so i'm calling that strategy
+not clean, but definitely educational
+that mob had main character syndrome
+classic pathing, very normal and sane
+we are one bad tab-target from folklore
+okay, who taught the boss violence
+this is why healers develop trust issues
+brave of us to bring tactics to a bug fight
+that was less a pull and more a suggestion
+somewhere a repair vendor just smiled
 
-# --- light humor / mild grumbling, not doomposting ---
-that mob had exactly one job and it was being annoying
-classic wow pathing, very normal and sane
-escort npc walking speed undefeated
-rng was mildly less evil that time
-that respawn was personal
-murlocs remain a public safety issue
-bold pull, but somehow legal
-okay that was messy, but we lived
-loot table gave us crumbs, generous king
-if this goes sideways, blame the nearest murloc
+# --- grounded party coordination ---
+wait a sec, mana is looking thin
+pull him back a bit, this spot is awkward
+let the tank touch it before we erase it
+adds first feels safer here
+can we drag this out of the doorway
+keep him faced away if possible
+that caster in the back is getting annoying
+little spread would not hurt here
+save cooldowns until this gets uglier
+interrupts would make this feel less cursed
+if he runs, don't chase into the next pack
+marking skull would save us from ourselves
 
-# --- chill small talk / friendly texture ---
-brb after this turn-in, grabbing water
-ty for the summon
-thanks for the buffs
-all good, no rush
-fair enough
-works for me
-sounds good
-yeah i'm down
-np, let's do it
-wb
+# --- AQ / old raid flavor ---
+qiraji loot really does love making you read forms
+these bugs built an entire civilization around inconvenience
+sand trap looked harmless for about half a second
+ossirian crystals feel like raid mechanics by scavenger hunt
+cenarion hold better appreciate all this bug nonsense
+if this drops another token, i'm sending it an invoice
+ruins of aq: scenic, crunchy, administratively hostile
+scarabs are just glitter with responsibilities
 
-# --- dungeon / group finder style ---
-lf1m sm library, any dps is fine
-sm gy is quick if we want a break
-rfk could be fun after these turn-ins
-gnomer is cursed but the xp is real
-need a tank then we're set
-summon ready if someone needs it
-quick repair and i'm good
-food/drink stocked, good to go
-that boss dropped fast
-clean run so far
+aq architecture said circles, stairs, and regret
+that boss was mostly legs and bad intentions
+
+# --- BWL / dragon raid flavor ---
+blackwing lair feels like a workplace safety violation
+dragons do love putting mechanics in hallways
+if the room has eggs, assume the eggs are judging us
+nef's interior decorator chose menace
+breath timers are just anxiety with wings
+suppression devices are proof gnomes can be evil too
+
+# --- travel / downtime / old-school flow ---
+manual travel builds character, allegedly
+this run back is a podcast-length experience
+flight path acquired, civilization restored
+repair, restock, regret, repeat
+i miss mounts every time the hallway gets longer
+brb after this, water before my chair becomes permanent
+old world raids do not believe in convenient doors
+we should hearth before someone suggests another errand
+
+# --- small reactions / conversational glue ---
+fair
+yeah, that's cursed
+honestly same
+can't argue with that
+that tracks
+rude but accurate
+could be worse, probably
+that explains a lot
+okay, noted
+big if true
+worth a try
+not my favorite sentence, but yes
+
+# --- successes without bland cheerleading ---
+that add evaporated
+boss health moved fast there
+healers carried that last bit
+nice recovery after the chaos
+that interrupt saved more than it should have
+okay, that actually worked
+solid save, nobody inspect the method
+we got away with that one
+that was almost clean, don't scare it

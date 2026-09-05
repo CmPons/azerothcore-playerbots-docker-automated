@@ -4,6 +4,7 @@
 #include "PBChatterConfig.h"    // for g_PBChatStyleExamples (file-loaded pool)
 #include "PBChatterContext.h"
 #include "PBChatterEvents.h"
+#include "PBChatterPersona.h"
 #include "DBCStores.h"
 #include "Group.h"
 #include "Map.h"
@@ -14,6 +15,7 @@
 #include "Random.h"
 #include "StringFormat.h"
 #include "World.h"
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -155,6 +157,15 @@ namespace
 
     char const* PickGroupTopic(Player* bot)
     {
+        static char const* const raidTopics[] = {
+            "one concrete thing about the current raid map, boss, trash pack, or recent kill/loot listed in the facts",
+            "a specific visible enemy, boss health, add, corpse, token, scarab, idol, or drop listed in the facts",
+            "the raid's positioning around the current boss or trash without generic cheerleading",
+            "a small tactical comment about threat, cleaves, bombs, adds, mana, or deaths only when the facts support it",
+            "the atmosphere of this raid instance — ruins, lava, bugs, dragons, temples, idols, or war trophies as appropriate",
+            "class-role banter tied to the speaker's role and what the raid is currently fighting",
+            "wondering who needs a listed token/drop or reacting to a listed token/drop without claiming it is an upgrade",
+        };
         static char const* const dungeonTopics[] = {
             "the current pull, the last listed event, or the next visible trash pack",
             "a mob that just died or a drop someone just looted, only if listed in recent events",
@@ -175,6 +186,8 @@ namespace
         };
 
         MapEntry const* entry = bot ? sMapStore.LookupEntry(bot->GetMapId()) : nullptr;
+        if (entry && entry->IsRaid())
+            return raidTopics[urand(0, (int)(sizeof(raidTopics) / sizeof(*raidTopics)) - 1)];
         if (entry && entry->IsDungeon())
             return dungeonTopics[urand(0, (int)(sizeof(dungeonTopics) / sizeof(*dungeonTopics)) - 1)];
         return outdoorTopics[urand(0, (int)(sizeof(outdoorTopics) / sizeof(*outdoorTopics)) - 1)];
@@ -344,6 +357,34 @@ namespace
             TomlQuote(unit->GetName()), TomlBool(unit->IsAlive()), (int)unit->GetHealthPct());
     }
 
+    void AddUniqueUnitFact(std::vector<std::string>& units, Unit* unit)
+    {
+        if (!unit || unit->GetName().empty())
+            return;
+        std::string fact = TomlUnit(unit);
+        if (std::find(units.begin(), units.end(), fact) == units.end())
+            units.push_back(std::move(fact));
+    }
+
+    std::vector<std::string> RaidFlavorHooks(uint32 mapId)
+    {
+        switch (mapId)
+        {
+            case 309: // Zul'Gurub
+                return { "jungle ruins", "troll priests", "bijous and coins", "animal aspects", "bloodlord raptor", "Hakkar" };
+            case 409: // Molten Core
+                return { "lava", "core hounds", "fire elementals", "Molten Giants", "runes", "Ragnaros" };
+            case 469: // Blackwing Lair
+                return { "dragonkin", "suppression rooms", "eggs", "chromatic experiments", "Nefarian", "Blackrock spire" };
+            case 509: // Ruins of Ahn'Qiraj
+                return { "desert ruins", "silithid bugs", "scarabs and idols", "Qiraji rings, drapes, and hilts", "sand traps", "Ossirian crystals" };
+            case 531: // Temple of Ahn'Qiraj
+                return { "Qiraji temple", "bug packs", "prophets", "twin emperors", "scarabs and idols", "C'Thun" };
+            default:
+                return {};
+        }
+    }
+
     std::string BuildFactToml(Player* bot, uint8_t kind)
     {
         if (!bot)
@@ -365,7 +406,9 @@ namespace
         out += Acore::StringFormat("class = {}\n", TomlQuote(ClassName(bot->getClass())));
         out += Acore::StringFormat("role = {}\n", TomlQuote(RoleName(bot)));
         out += Acore::StringFormat("faction = {}\n", TomlQuote(faction));
-        out += "kind = \"playerbot\"\n\n";
+        out += "kind = \"playerbot\"\n";
+        out += PBChatterPersona::BuildPromptBlock(bot);
+        out += "\n";
 
         out += "[chat]\n";
         out += Acore::StringFormat("channel = {}\n", TomlQuote(channel));
@@ -380,6 +423,21 @@ namespace
         out += Acore::StringFormat("area = {}\n", TomlQuote(area));
         out += Acore::StringFormat("is_dungeon = {}\n", TomlBool(mapEntry && mapEntry->IsDungeon()));
         out += Acore::StringFormat("is_raid = {}\n\n", TomlBool(mapEntry && mapEntry->IsRaid()));
+
+        std::vector<std::string> raidHooks = RaidFlavorHooks(bot->GetMapId());
+        if (mapEntry && mapEntry->IsRaid() && !raidHooks.empty())
+        {
+            out += "[raid_context]\n";
+            out += "note = \"These are setting/flavor hooks for this raid map, not claims that a mechanic is happening right now.\"\n";
+            out += "hooks = [";
+            for (size_t i = 0; i < raidHooks.size(); ++i)
+            {
+                if (i)
+                    out += ", ";
+                out += TomlQuote(raidHooks[i]);
+            }
+            out += "]\n\n";
+        }
 
         out += "[movement]\n";
         out += Acore::StringFormat("state = {}\n", TomlQuote(MotionName(bot)));
@@ -448,6 +506,41 @@ namespace
                     break;
             }
 
+            uint32 groupSize = 0, alive = 0, dead = 0, tanks = 0, healers = 0, lowMana = 0, inCombat = 0;
+            std::vector<std::string> hostileFacts;
+            for (GroupReference* r = group->GetFirstMember(); r; r = r->next())
+            {
+                Player* member = r->GetSource();
+                if (!member)
+                    continue;
+                ++groupSize;
+                if (member->IsAlive()) ++alive; else ++dead;
+                if (member->HasTankSpec()) ++tanks;
+                if (member->HasHealSpec()) ++healers;
+                if (member->IsInCombat()) ++inCombat;
+                if (member->GetMaxPower(POWER_MANA) > 0 && member->GetPowerPct(POWER_MANA) < 25.0f)
+                    ++lowMana;
+                AddUniqueUnitFact(hostileFacts, member->GetVictim());
+                AddUniqueUnitFact(hostileFacts, FirstAttacker(member));
+            }
+
+            out += "[encounter]\n";
+            out += Acore::StringFormat("group_size_seen = {}\n", groupSize);
+            out += Acore::StringFormat("alive_members = {}\n", alive);
+            out += Acore::StringFormat("dead_members = {}\n", dead);
+            out += Acore::StringFormat("tank_count_seen = {}\n", tanks);
+            out += Acore::StringFormat("healer_count_seen = {}\n", healers);
+            out += Acore::StringFormat("low_mana_members = {}\n", lowMana);
+            out += Acore::StringFormat("members_in_combat = {}\n", inCombat);
+            out += "current_hostiles_or_targets = [";
+            for (size_t i = 0; i < hostileFacts.size() && i < 8; ++i)
+            {
+                if (i)
+                    out += ", ";
+                out += hostileFacts[i];
+            }
+            out += "]\n\n";
+
             auto events = PBChatterEvents::RecentForGroup(group, PBChatterAmbient::NowMs(), 8);
             if (!events.empty())
             {
@@ -481,6 +574,8 @@ namespace
     {
         return "Use the TOML-style fact block as authoritative current game state. "
                "Do not recite the facts. Do not invent unlisted wipes, deaths, loot, level-ups, quest progress, mana problems, summons, or dungeon mechanics. "
+               "In party/raid chat, prefer one concrete noun from the facts: a boss, mob, zone, item, token, role, health/mana issue, death, or visible mechanic hook. "
+               "Avoid vague morale filler like 'clean pull', 'keep it rolling', 'doing well', or 'nice work' unless tied to a specific listed event. "
                "Write like the player behind this character typing in WoW chat, not like an NPC.\n\n";
     }
 
@@ -534,7 +629,7 @@ std::string PBChatterAmbientPrompt::Build(int mode, Player* bot, uint8_t kind,
             return PromptPreamble() + facts + Acore::StringFormat(
                 "\n[task]\nmode = \"flavor\"\nchat_channel = {}\ninstructions = {}\n{}",
                 TomlQuote(where),
-                TomlQuote("Make a short, casual remark about what the speaker is doing, what the party just killed/looted, travel state, or where they are right now. Keep it appropriate to their level. Don't list stats or inventory; use them only as background. Don't force quest talk or sound like a game announcement."),
+                TomlQuote("Make a short, casual remark about what the speaker is doing, what the party just killed/looted, travel state, current raid/dungeon setting, or where they are right now. In group/raid chat, include one concrete detail from facts when possible. Keep it appropriate to their level. Don't list stats or inventory; use them only as background. Don't force quest talk, don't sound like a game announcement, and avoid generic 'clean pull/keep rolling/doing well' filler."),
                 StyleExamples(2)) + Tail();
         }
         case MODE_EVENT:
@@ -552,7 +647,7 @@ std::string PBChatterAmbientPrompt::Build(int mode, Player* bot, uint8_t kind,
                 "\n[task]\nmode = \"generic\"\nchat_channel = {}\ntopic = {}\ninstructions = {}\n{}",
                 TomlQuote(where),
                 TomlQuote((kind == AMB_GROUP) ? PickGroupTopic(bot) : PickTopic(bot->GetLevel())),
-                TomlQuote("Say something short and casual about the topic, like a real player typing in chat. Stay true to the speaker's level and current facts. Make it a natural comment or statement, not a poll to the whole channel. Don't force quest talk and don't start with anyone."),
+                TomlQuote("Say something short and casual about the topic, like a real player typing in chat. Stay true to the speaker's level and current facts. In party/raid chat, anchor the line on a concrete listed fact or raid flavor hook instead of generic morale. Make it a natural comment or statement, not a poll to the whole channel. Don't force quest talk, don't start with anyone, and avoid repeating 'clean pull', 'keep it rolling', or 'we're doing well'."),
                 StyleExamples(3)) + Tail();
         }
     }

@@ -3,6 +3,7 @@
 #include "PBChatterClassifier.h"
 #include "PBChatterContext.h"
 #include "PBChatterMemory.h"
+#include "PBChatterPersona.h"
 #include "PBChatterQueue.h"
 #include "PBChatterLore.h"
 #include "PBChatterAmbient.h"
@@ -361,6 +362,7 @@ namespace
     std::string BuildPrompt(Player* bot, Player* sender, PBChatChannel channel, Group* group, std::string const& msg)
     {
         std::string p = PBChatterContext::BuildSnapshot(bot);
+        p += PBChatterPersona::BuildPromptBlock(bot);
         p += GroundingRules();
         p += BuildGroupContext(bot, sender, group, channel);
         auto recent = PBChatterMemory::Recent(bot->GetGUID().GetCounter(), sender->GetGUID().GetCounter());
