@@ -1,0 +1,27 @@
+diff --git a/src/server/scripts/EasternKingdoms/BlackrockMountain/BlackwingLair/boss_broodlord_lashlayer.cpp b/src/server/scripts/EasternKingdoms/BlackrockMountain/BlackwingLair/boss_broodlord_lashlayer.cpp
+index 467b2f96b..3932c9c72 100644
+--- a/src/server/scripts/EasternKingdoms/BlackrockMountain/BlackwingLair/boss_broodlord_lashlayer.cpp
++++ b/src/server/scripts/EasternKingdoms/BlackrockMountain/BlackwingLair/boss_broodlord_lashlayer.cpp
+@@ -152,7 +152,9 @@ struct go_suppression_device : public GameObjectAI
+             switch (eventId)
+             {
+                 case EVENT_SUPPRESSION_CAST:
+-                    if (me->GetGoState() == GO_STATE_READY)
++                    // Despawned objects still receive AI updates while waiting to respawn.
++                    // Do not suppress players from a device they cannot see or disarm.
++                    if (me->isSpawned() && me->GetGoState() == GO_STATE_READY)
+                     {
+                         me->CastSpell(nullptr, SPELL_SUPPRESSION_AURA);
+                         me->SendCustomAnim(0);
+diff --git a/data/sql/updates/pending_db_world/rev_1788721200000000000.sql b/data/sql/updates/pending_db_world/rev_1788721200000000000.sql
+new file mode 100644
+index 000000000..35d6c61f3
+--- /dev/null
++++ b/data/sql/updates/pending_db_world/rev_1788721200000000000.sql
+@@ -0,0 +1,6 @@
++-- Razorgore's phase-one Explosion (20038), effect 1 (mask 2), must only despawn eggs.
++-- The spell ignores line of sight and otherwise also despawns suppression devices,
++-- doors and other unrelated objects in nearby rooms. Keep effect 0's player filter.
++DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 13 AND `SourceGroup` = 2 AND `SourceEntry` = 20038 AND `SourceId` = 0;
++INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`, `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES
++(13, 2, 20038, 0, 0, 31, 0, 5, 177807, 0, 0, 0, 0, '', 'Razorgore - Explosion despawns only Black Dragon Eggs');
