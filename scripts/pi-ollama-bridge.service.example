@@ -27,7 +27,7 @@ Environment=PI_BRIDGE_MODEL=gpt-5.4-mini
 
 # Guardrails so ambient chatter cannot run wild.
 Environment=PI_BRIDGE_MAX_CONCURRENT=1
-Environment=PI_BRIDGE_MAX_PER_MINUTE=6
+Environment=PI_BRIDGE_MAX_PER_MINUTE=12
 Environment=PI_BRIDGE_MAX_PER_HOUR=120
 Environment=PI_BRIDGE_TIMEOUT_SECONDS=75
 Environment=PI_BRIDGE_THINKING=off
