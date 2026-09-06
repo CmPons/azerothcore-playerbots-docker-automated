@@ -19,10 +19,19 @@
 #include "PlayerbotAIConfig.h"
 #include "Group.h"
 #include "InstanceSaveMgr.h"
+#include "AiObjectContext.h"
+#include "Bag.h"
 #include "DatabaseEnv.h"
-#include "QueryResult.h"
 #include "Field.h"
+#include "Item.h"
+#include "ItemPackets.h"
+#include "ItemTemplate.h"
+#include "ItemUsageValue.h"
+#include "ItemVisitors.h"
+#include "Mgr/Item/RandomItemMgr.h"
+#include "QueryResult.h"
 #include "SharedDefines.h"
+#include "SpellDefines.h"
 #include "Containers.h"
 #include <set>
 #include <unordered_set>
@@ -30,6 +39,7 @@
 #include <map>
 #include <cctype>
 #include <algorithm>
+#include <utility>
 
 using namespace Acore::ChatCommands;
 
@@ -47,6 +57,7 @@ ChatCommandTable RaidRosterCommand::GetCommands() const
         { "login",  HandleLogin,  SEC_PLAYER, Console::Yes },
         { "sync",   HandleSync,   SEC_PLAYER, Console::Yes },
         { "syncone",HandleSyncOne,SEC_PLAYER, Console::Yes },
+        { "stockup",HandleStockUp,SEC_PLAYER, Console::Yes },
         { "logout", HandleLogout, SEC_PLAYER, Console::Yes },
         { "reset",  HandleReset,  SEC_PLAYER, Console::Yes },
         { "remove", HandleRemove, SEC_PLAYER, Console::Yes },
@@ -54,6 +65,179 @@ ChatCommandTable RaidRosterCommand::GetCommands() const
     };
     static ChatCommandTable root = { { "raidroster", sub } };
     return root;
+}
+
+namespace
+{
+template <typename Fn>
+void ForEachBagItem(Player* player, Fn&& fn)
+{
+    if (!player)
+        return;
+
+    for (uint8 slot = INVENTORY_SLOT_ITEM_START; slot < INVENTORY_SLOT_ITEM_END; ++slot)
+        if (Item* item = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+            fn(item);
+
+    for (uint8 bagSlot = INVENTORY_SLOT_BAG_START; bagSlot < INVENTORY_SLOT_BAG_END; ++bagSlot)
+    {
+        Bag* bag = player->GetBagByPos(bagSlot);
+        if (!bag)
+            continue;
+
+        for (uint32 slot = 0; slot < bag->GetBagSize(); ++slot)
+            if (Item* item = bag->GetItemByPos(slot))
+                fn(item);
+    }
+}
+
+ObjectGuid FindNearbyVendor(Player* bot, PlayerbotAI* botAI)
+{
+    if (!bot || !botAI)
+        return ObjectGuid();
+
+    GuidVector vendors = botAI->GetAiObjectContext()->GetValue<GuidVector>("nearest npcs")->Get();
+    for (ObjectGuid const& vendorGuid : vendors)
+        if (bot->GetNPCIfCanInteractWith(vendorGuid, UNIT_NPC_FLAG_VENDOR))
+            return vendorGuid;
+
+    return ObjectGuid();
+}
+
+uint32 CountRaidStockItems(Player* bot)
+{
+    uint32 total = 0;
+    ForEachBagItem(bot, [&](Item* item)
+    {
+        ItemTemplate const* proto = item->GetTemplate();
+        if (!proto)
+            return;
+
+        if (proto->Class == ITEM_CLASS_CONSUMABLE || proto->Class == ITEM_CLASS_REAGENT ||
+            proto->Class == ITEM_CLASS_PROJECTILE)
+            total += item->GetCount();
+    });
+    return total;
+}
+
+uint32 StoreMissingItemCount(Player* bot, uint32 itemId, uint32 wantedCount)
+{
+    if (!bot || !itemId || !wantedCount)
+        return 0;
+
+    ItemTemplate const* proto = sObjectMgr->GetItemTemplate(itemId);
+    if (!proto)
+        return 0;
+
+    uint32 const current = bot->GetItemCount(itemId, false);
+    if (current >= wantedCount)
+        return 0;
+
+    uint32 const toAdd = wantedCount - current;
+    uint32 const before = bot->GetItemCount(itemId, false);
+    ItemPosCountVec dest;
+    if (bot->CanStoreNewItem(INVENTORY_SLOT_BAG_0, NULL_SLOT, dest, itemId, toAdd) != EQUIP_ERR_OK)
+        return 0;
+
+    if (Item* newItem = bot->StoreNewItem(dest, itemId, true, Item::GenerateItemRandomPropertyId(itemId)))
+        newItem->AddToUpdateQueueOf(bot);
+
+    uint32 const after = bot->GetItemCount(itemId, false);
+    return after > before ? after - before : 0;
+}
+
+uint32 SelectPotionItem(Player* bot, uint32 effect)
+{
+    FindPotionVisitor visitor(bot, effect);
+    ForEachBagItem(bot, [&](Item* item)
+    {
+        visitor.Visit(item);
+    });
+
+    std::vector<Item*>& potions = visitor.GetResult();
+    if (!potions.empty())
+    {
+        std::sort(potions.begin(), potions.end(), [](Item* a, Item* b)
+        {
+            ItemTemplate const* pa = a ? a->GetTemplate() : nullptr;
+            ItemTemplate const* pb = b ? b->GetTemplate() : nullptr;
+            if (!pa || !pb)
+                return pa != nullptr;
+            if (pa->RequiredLevel != pb->RequiredLevel)
+                return pa->RequiredLevel > pb->RequiredLevel;
+            return pa->ItemLevel > pb->ItemLevel;
+        });
+        return potions.front()->GetEntry();
+    }
+
+    return sRandomItemMgr.GetRandomPotion(bot->GetLevel(), effect);
+}
+
+uint32 TopOffPotions(Player* bot)
+{
+    uint32 added = 0;
+
+    if (uint32 healingPotion = SelectPotionItem(bot, SPELL_EFFECT_HEAL))
+        if (ItemTemplate const* proto = sObjectMgr->GetItemTemplate(healingPotion))
+            added += StoreMissingItemCount(bot, healingPotion, proto->GetMaxStackSize());
+
+    if (bot->GetMaxPower(POWER_MANA) > 0)
+        if (uint32 manaPotion = SelectPotionItem(bot, SPELL_EFFECT_ENERGIZE))
+            if (ItemTemplate const* proto = sObjectMgr->GetItemTemplate(manaPotion))
+                added += StoreMissingItemCount(bot, manaPotion, proto->GetMaxStackSize());
+
+    return added;
+}
+
+uint32 SellVendorItems(Player* bot, PlayerbotAI* botAI, ObjectGuid vendorGuid)
+{
+    if (!bot || !botAI || !bot->GetSession() || !vendorGuid)
+        return 0;
+
+    if (!bot->GetNPCIfCanInteractWith(vendorGuid, UNIT_NPC_FLAG_VENDOR))
+        return 0;
+
+    struct SellCandidate
+    {
+        ObjectGuid itemGuid;
+        uint32 count = 0;
+    };
+
+    std::vector<SellCandidate> items;
+    ForEachBagItem(bot, [&](Item* item)
+    {
+        if (!item || !item->GetTemplate() || item->GetTemplate()->SellPrice == 0)
+            return;
+
+        ItemUsage usage = botAI->GetAiObjectContext()->GetValue<ItemUsage>("item usage", item->GetEntry())->Get();
+        if (usage != ITEM_USAGE_VENDOR)
+            return;
+
+        items.push_back({ item->GetGUID(), item->GetCount() });
+    });
+
+    uint32 sold = 0;
+    for (SellCandidate const& item : items)
+    {
+        if (!bot->GetItemByGuid(item.itemGuid))
+            continue;
+
+        uint32 const botMoney = bot->GetMoney();
+        WorldPacket packet(CMSG_SELL_ITEM);
+        packet << vendorGuid << item.itemGuid << item.count;
+        WorldPackets::Item::SellItem sellPacket(std::move(packet));
+        sellPacket.Read();
+        bot->GetSession()->HandleSellItemOpcode(sellPacket);
+
+        if (botAI->HasCheat(BotCheatMask::gold))
+            bot->SetMoney(botMoney);
+
+        if (!bot->GetItemByGuid(item.itemGuid))
+            ++sold;
+    }
+
+    return sold;
+}
 }
 
 bool RaidRosterCommand::HandleCreate(ChatHandler* handler)
@@ -455,6 +639,78 @@ bool RaidRosterCommand::HandleSyncOne(ChatHandler* handler, std::string name, Op
 
     handler->PSendSysMessage("Synced {} to your level/gear as {}. (A full .raidroster sync reverts it to the roster default.)",
         bot->GetName(), roleArg ? *roleArg : std::string("its roster role"));
+    return true;
+}
+
+bool RaidRosterCommand::HandleStockUp(ChatHandler* handler)
+{
+    if (!g_RaidRosterEnable) { handler->SendSysMessage("RaidRoster is disabled (set RaidRoster.Enable=1)."); return true; }
+
+    Player* master = handler->GetSession() ? handler->GetSession()->GetPlayer() : nullptr;
+    if (!master) { handler->SendSysMessage("Run this in-world as a player."); return true; }
+
+    Group* group = master->GetGroup();
+    if (!group)
+    {
+        handler->SendSysMessage("You are not grouped. Use this with your raid/party bots near a vendor.");
+        return true;
+    }
+
+    uint32 checked = 0;
+    uint32 stocked = 0;
+    uint32 skippedNoVendor = 0;
+    uint32 soldStacks = 0;
+    uint32 stockItemsAdded = 0;
+
+    for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+    {
+        Player* bot = ref->GetSource();
+        if (!bot || bot == master || !bot->IsInWorld())
+            continue;
+
+        PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
+        if (!botAI)
+            continue;
+
+        ++checked;
+
+        ObjectGuid vendorGuid = FindNearbyVendor(bot, botAI);
+        if (!vendorGuid)
+        {
+            ++skippedNoVendor;
+            continue;
+        }
+
+        soldStacks += SellVendorItems(bot, botAI, vendorGuid);
+        uint32 const beforeStock = CountRaidStockItems(bot);
+
+        PlayerbotFactory factory(bot, bot->GetLevel());
+        factory.InitAmmo();
+        factory.InitReagents();
+        factory.InitConsumables();
+        factory.InitPotions();
+        TopOffPotions(bot);
+
+        uint32 const afterStock = CountRaidStockItems(bot);
+        if (afterStock > beforeStock)
+            stockItemsAdded += afterStock - beforeStock;
+
+        bot->SaveToDB(false, false);
+        ++stocked;
+    }
+
+    if (!checked)
+    {
+        handler->SendSysMessage("No online playerbots found in your current group/raid.");
+        return true;
+    }
+
+    std::string skippedMessage;
+    if (skippedNoVendor)
+        skippedMessage = " Skipped " + std::to_string(skippedNoVendor) + " bot(s) not close enough to a normal vendor.";
+
+    handler->PSendSysMessage("Stocked {} bot(s): sold {} vendor stack(s), added/topped {} consumable/reagent/ammo item(s).{}",
+        stocked, soldStacks, stockItemsAdded, skippedMessage.c_str());
     return true;
 }
 
