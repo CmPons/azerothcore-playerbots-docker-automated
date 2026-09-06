@@ -594,11 +594,19 @@ if [[ -f "$AH_CONF" ]]; then
     # 1.0 = pays roughly the item's calculated value; raise (e.g. 1.25) to be more generous.
     set_conf "AuctionHouseBot.Buyer.AcceptablePriceModifier" "1"            "$AH_CONF"
 
-    # Stock depth: more total listings so bought-out goods reappear sooner
-    # (refill is ItemsPerCycle=150/min toward this cap; there is no per-item restock).
-    set_conf "AuctionHouseBot.Alliance.MaxItems" "25000" "$AH_CONF"
-    set_conf "AuctionHouseBot.Horde.MaxItems"    "25000" "$AH_CONF"
-    set_conf "AuctionHouseBot.Neutral.MaxItems"  "25000" "$AH_CONF"
+    # Stock depth and refill rate; there is no per-item restock guarantee.
+    for house in Alliance Horde Neutral; do
+      set_conf "AuctionHouseBot.${house}.MinItems" "${AHBOT_MIN_ITEMS:-15000}" "$AH_CONF"
+      set_conf "AuctionHouseBot.${house}.MaxItems" "${AHBOT_MAX_ITEMS:-25000}" "$AH_CONF"
+    done
+    set_conf "AuctionHouseBot.ItemsPerCycle" "${AHBOT_ITEMS_PER_CYCLE:-150}" "$AH_CONF"
+    set_conf "AuctionHouseBot.Buyer.BuyCandidatesPerBuyCycle" "${AHBOT_BUY_CANDIDATES:-1}" "$AH_CONF"
+
+    # Optional progression caps (required level alone does not filter high-level materials).
+    set_conf "AuctionHouseBot.EquipItemUseOrEquipLevelRestrict.Enabled" "${AHBOT_LEVEL_RESTRICT:-false}" "$AH_CONF"
+    set_conf "AuctionHouseBot.EquipItemUseOrEquipLevelRestrict.MaxLevel" "${AHBOT_MAX_REQUIRED_LEVEL:-${MAX_PLAYER_LEVEL:-80}}" "$AH_CONF"
+    set_conf "AuctionHouseBot.ListedItemLevelRestrict.Enabled" "${AHBOT_ITEM_LEVEL_RESTRICT:-false}" "$AH_CONF"
+    set_conf "AuctionHouseBot.ListedItemLevelRestrict.MaxItemLevel" "${AHBOT_MAX_ITEM_LEVEL:-999}" "$AH_CONF"
 
     # Listing mix (relative weights per category/quality roll): bias the AH toward a
     # consumable/crafting economy — gems, glyphs, trade goods, reagents up; the
@@ -624,7 +632,7 @@ if [[ -f "$AH_CONF" ]]; then
     set_conf "AuctionHouseBot.ListProportion.CategoryArmor.QualityRare"      "10" "$AH_CONF"
     set_conf "AuctionHouseBot.ListProportion.CategoryArmor.QualityEpic"      "3"  "$AH_CONF"
     echo "    AHBot ON (char GUIDs: ${AHBOT_GUIDS}) -> lists goods and buys fairly-priced player auctions."
-    echo "      (consumable/crafting-weighted mix: gems+glyphs+trade goods up, weapons/armor down; 25k listings/house)"
+    echo "      (consumable/crafting-weighted mix; ${AHBOT_MIN_ITEMS:-15000}-${AHBOT_MAX_ITEMS:-25000} listings/house, ${AHBOT_ITEMS_PER_CYCLE:-150} added/cycle)"
   else
     set_conf "AuctionHouseBot.EnableSeller"  "false" "$AH_CONF"
     set_conf "AuctionHouseBot.Buyer.Enabled" "false" "$AH_CONF"
