@@ -435,6 +435,10 @@ set_conf "AiPlayerbot.RandomBotMaxLevel"  "${RANDOM_BOT_MAX_LEVEL:-${MAX_PLAYER_
 # Loot rolls: let bots Need real upgrades, but keep Greed off to avoid vendor/AH/trash rolls.
 set_conf "AiPlayerbot.LootNeedRollLevel"  "${LOOT_NEED_ROLL_LEVEL:-2}" "$PB_CONF"
 set_conf "AiPlayerbot.LootGreedRollLevel" "${LOOT_GREED_ROLL_LEVEL:-0}" "$PB_CONF"
+set_conf "AiPlayerbot.DirectTokenLoot.Enable" "${DIRECT_TOKEN_LOOT_ENABLE:-0}" "$PB_CONF"
+set_conf "AiPlayerbot.DirectTokenLoot.Mode" "${DIRECT_TOKEN_LOOT_MODE:-1}" "$PB_CONF"
+set_conf "AiPlayerbot.DirectTokenLoot.MinRewardQuality" "${DIRECT_TOKEN_LOOT_MIN_REWARD_QUALITY:-3}" "$PB_CONF"
+set_conf "AiPlayerbot.DirectTokenLoot.Debug" "${DIRECT_TOKEN_LOOT_DEBUG:-0}" "$PB_CONF"
 # Required by mod-player-bot-level-brackets: bots must keep their random levels.
 set_conf "AiPlayerbot.DisableRandomLevels" "0"   "$PB_CONF"
 # Disable gear/spec persistence: it's incompatible with mod-player-bot-level-brackets.
