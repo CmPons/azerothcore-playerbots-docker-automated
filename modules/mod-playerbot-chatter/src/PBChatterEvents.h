@@ -6,6 +6,7 @@
 #include <vector>
 
 class Group;
+class GroupScript;
 class PlayerScript;
 
 namespace PBChatterEvents
@@ -19,12 +20,13 @@ namespace PBChatterEvents
     bool Take(uint64_t botGuidCounter, uint32_t nowMs, std::string& outHint);
 
     // World thread. Recent party/raid happenings for prompt grounding: normal mob kills,
-    // notable kills, quest turn-ins, level-ups, and safe item-store notifications. Returns
+    // notable kills, quest turn-ins, level-ups, joins, and safe item-store notifications. Returns
     // newest relevant events in chronological order; expired events are forgotten.
     std::vector<std::string> RecentForGroup(Group* group, uint32_t nowMs, uint32_t maxItems = 6);
 }
 
 // Registered by the loader. Stamps a short-lived "last event" phrase on bots.
 PlayerScript* PBChatterMakeEventScript();
+GroupScript* PBChatterMakeGroupEventScript();
 
 #endif

@@ -123,6 +123,10 @@ PlayerbotChatter.EventChance.EpicLoot = 90
 PlayerbotChatter.EventChance.BossKill = 65
 PlayerbotChatter.EventChance.EliteKill = 25
 PlayerbotChatter.EventChance.PartyDeath = 75
+# Real-player or bot joins to human-containing parties/raids (not BG/BF auto-groups).
+# At most one join reaction candidate per group per 30s; normal event cooldowns apply.
+# Set 0 to disable join greetings. Does not treat an ordinary relog as a new join.
+PlayerbotChatter.EventChance.GroupJoin = 80
 PlayerbotChatter.EventChance.PvPContact = 70
 PlayerbotChatter.EventChance.PvPSighting = 50
 

@@ -14,4 +14,5 @@ void Addmod_playerbot_chatterScripts()
     new PBChatterObserver();
     new PBChatterCommand();
     PBChatterMakeEventScript();
+    PBChatterMakeGroupEventScript();
 }

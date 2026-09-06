@@ -10,6 +10,7 @@
 #include "Player.h"
 #include "Creature.h"
 #include "Group.h"
+#include "GroupScript.h"
 #include "Item.h"
 #include "ItemTemplate.h"
 #include "QuestDef.h"
@@ -45,6 +46,7 @@ namespace
         PartyDeath,
         PvPContact,
         PvPSighting,
+        GroupJoin,
     };
 
     struct EventReaction
@@ -55,6 +57,7 @@ namespace
         uint64_t speakerGuid = 0;  // optional bot that noticed the event and should speak
         EventKind kind = EventKind::PvPSighting;
         std::string hint;
+        uint64_t joinedMemberGuid = 0; // join reactions must still refer to a current member
     };
 
     std::unordered_map<uint64_t, Seed> g_seeds; // bot GUID counter -> last notable event seed
@@ -161,6 +164,7 @@ namespace
             case EventKind::BossKill:      return g_PBChatEventChanceBossKill;
             case EventKind::EliteKill:     return g_PBChatEventChanceEliteKill;
             case EventKind::PartyDeath:    return g_PBChatEventChancePartyDeath;
+            case EventKind::GroupJoin:     return g_PBChatEventChanceGroupJoin;
             case EventKind::PvPContact:    return g_PBChatEventChancePvpContact;
             case EventKind::PvPSighting:   return g_PBChatEventChancePvpSighting;
         }
@@ -274,7 +278,7 @@ namespace
 
     void QueueEventReaction(Player* contextPlayer, EventKind kind, std::string hint,
                             Player* preferredSpeaker = nullptr, uint64_t dedupeKey = 0,
-                            uint32_t dedupeMs = 30000)
+                            uint32_t dedupeMs = 30000, uint64_t joinedMemberGuid = 0)
     {
         if (!g_PBChatEnable || !g_PBChatEventEnable || hint.empty())
             return;
@@ -303,9 +307,37 @@ namespace
         }
 
         g_eventReactions.push_back(EventReaction{ now, groupGuid,
-                                                  anchor->GetGUID().GetCounter(), speakerGuid, kind, std::move(hint) });
+                                                  anchor->GetGUID().GetCounter(), speakerGuid, kind, std::move(hint),
+                                                  joinedMemberGuid });
         while (g_eventReactions.size() > 24)
             g_eventReactions.pop_front();
+    }
+
+    void RecordGroupJoin(Group* group, ObjectGuid memberGuid)
+    {
+        if (!g_PBChatEnable || !g_PBChatEventEnable)
+            return;
+        // Group creation adds the leader too; that is not someone joining an existing party.
+        // Ignore automatically assembled battleground/battlefield raids.
+        if (!group || group->GetMembersCount() < 2 || group->isBGGroup() || group->isBFGroup())
+            return;
+
+        Player* member = ObjectAccessor::FindPlayer(memberGuid);
+        if (!member || !member->IsInWorld() || member->GetGroup() != group)
+            return;
+        Player* anchor = FindRealAnchor(group);
+        if (!anchor)
+            return; // no greetings or model requests for bot-only groups
+
+        std::string const text = std::string(member->GetName()) + " joined the " +
+            (group->isRaidGroup() ? "raid" : "party");
+        AppendGroupEvent(anchor, text);
+        // A single shared key coalesces mass roster joins instead of greeting every bot.
+        // Normal event group/bot cooldowns and the global rate limit still apply.
+        QueueEventReaction(anchor, EventKind::GroupJoin,
+            text + ". Give a brief, natural welcome; joining does not imply physical arrival nearby.",
+            nullptr, PairKey(0, static_cast<uint64_t>(EventKind::GroupJoin)), 30000,
+            memberGuid.GetCounter());
     }
 
     void RecordKill(Player* killer, Creature* killed, bool pet)
@@ -452,6 +484,13 @@ namespace
             if (!group || group->GetGUID().GetRawValue() != ev.groupGuid)
                 continue;
 
+            if (ev.kind == EventKind::GroupJoin)
+            {
+                Player* member = FindByCounter(ev.joinedMemberGuid);
+                if (!member || !member->IsInWorld() || member->GetGroup() != group)
+                    continue; // don't greet someone who already left or disconnected
+            }
+
             std::vector<Player*> bots;
             CollectGroupBots(group, bots);
 
@@ -484,6 +523,11 @@ namespace
                     continue;
                 bot = pool[urand(0, pool.size() - 1)];
             }
+            std::string hint = ev.hint;
+            if (ev.kind == EventKind::GroupJoin && bot->GetGUID().GetCounter() == ev.joinedMemberGuid)
+                hint = std::string("You just joined the ") + (group->isRaidGroup() ? "raid" : "party") +
+                    ". Briefly greet the existing members; do not welcome yourself or claim you arrived nearby.";
+
             PBChatJob job;
             job.botGuid          = bot->GetGUID().GetCounter();
             job.playerGuid       = anchor->GetGUID().GetCounter();
@@ -491,7 +535,7 @@ namespace
             job.channel          = ChannelForGroup(group);
             job.systemPrompt     = g_PBChatSystemPrompt;
             job.prompt           = PBChatterAmbientPrompt::Build(PBChatterAmbientPrompt::MODE_EVENT,
-                                                                 bot, AMB_GROUP, {}, ev.hint);
+                                                                 bot, AMB_GROUP, {}, hint);
             job.ambient          = true;
             job.ambientKind      = AMB_GROUP;
             job.ambientIdent     = ev.groupGuid;
@@ -680,6 +724,19 @@ std::vector<std::string> PBChatterEvents::RecentForGroup(Group* group, uint32_t 
 
 namespace
 {
+    class PBChatterGroupEventScript : public GroupScript
+    {
+    public:
+        PBChatterGroupEventScript() : GroupScript("PBChatterGroupEventScript", {
+            GROUPHOOK_ON_ADD_MEMBER,
+        }) {}
+
+        void OnAddMember(Group* group, ObjectGuid guid) override
+        {
+            RecordGroupJoin(group, guid);
+        }
+    };
+
     class PBChatterEventScript : public PlayerScript
     {
     public:
@@ -778,4 +835,9 @@ namespace
 PlayerScript* PBChatterMakeEventScript()
 {
     return new PBChatterEventScript();
+}
+
+GroupScript* PBChatterMakeGroupEventScript()
+{
+    return new PBChatterGroupEventScript();
 }
