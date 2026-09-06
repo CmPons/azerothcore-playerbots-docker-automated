@@ -5,11 +5,16 @@
 # Manual run:   ./backup.sh
 # Nightly cron: 0 4 * * *  /path/to/AzerothCore/backup.sh >> /path/to/AzerothCore/backups/backup.log 2>&1
 set -euo pipefail
+umask 077
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AC_DIR="$ROOT/azerothcore-wotlk"
 BACKUP_DIR="$ROOT/backups"
 KEEP="${BACKUP_KEEP:-14}"          # how many backups to retain
+if [[ ! "$KEEP" =~ ^[1-9][0-9]*$ ]]; then
+  echo "ERROR: BACKUP_KEEP must be a positive integer." >&2
+  exit 1
+fi
 # Stable, sortable timestamp without relying on locale: YYYYmmdd-HHMMSS
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
@@ -45,6 +50,8 @@ if [[ ! -s "$STAGE/database.sql.gz" ]]; then
   exit 1
 fi
 
+gzip -t "$STAGE/database.sql.gz"
+
 # Bundle .env with the dump. It holds the DB root password plus webreg/lore secrets
 # that setup.sh autogenerates and stores nowhere else — unrecoverable from a DB dump.
 cp "$AC_DIR/.env" "$STAGE/env"
@@ -54,7 +61,14 @@ cp "$AC_DIR/.env" "$STAGE/env"
 tar -cf "$OUT" -C "$STAGE" database.sql.gz env
 chmod 600 "$OUT"   # contains plaintext secrets via env
 
-echo "[$(date)] Backup OK ($(du -h "$OUT" | cut -f1)). Pruning to last $KEEP."
+echo "[$(date)] Backup OK ($(du -h "$OUT" | cut -f1))."
+# Opt-in off-host storage. Upload failures fail the service but preserve the local
+# backup and skip pruning, so a network/authentication failure never loses it.
+if [[ -n "${BACKUP_GITHUB_REPO:-}" ]]; then
+  "$ROOT/scripts/upload-backup-github.sh" "$OUT"
+fi
+
+echo "[$(date)] Pruning local backups to last $KEEP."
 # Delete all but the newest $KEEP bundles.
 ls -1t "$BACKUP_DIR"/acore-*.tar 2>/dev/null | tail -n +"$((KEEP + 1))" | xargs -r rm -f
 

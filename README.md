@@ -803,7 +803,57 @@ Options:
 - Change the time: run with e.g. `BACKUP_SCHEDULE="30 3 * * *" ./setup.sh`.
 - Tune retention with `BACKUP_KEEP` (default 14).
 
-The dump uses `--single-transaction`, so it won't lock the live server.
+The dump uses `--single-transaction`, so it won't lock the live server. This gives
+InnoDB tables a consistent snapshot; MyISAM tables can change during the dump.
+
+### Optional private GitHub backups
+
+The local NixOS installation uses `azerothcore-backup.timer` instead of cron
+(daily at 04:00 with up to 10 minutes of jitter). Its service runs `backup.sh`.
+To add off-host storage, create a **separate private repository**, authenticate
+`gh` as the same user running the backup service, and install the drop-in:
+
+```bash
+gh repo create OWNER/azerothcore-backups --private --add-readme
+mkdir -p ~/.config/systemd/user/azerothcore-backup.service.d
+cp scripts/azerothcore-backup-github.conf.example \
+  ~/.config/systemd/user/azerothcore-backup.service.d/github.conf
+# Edit github.conf: set your repository and absolute path to gh (command -v gh).
+systemctl --user daemon-reload
+systemctl --user start azerothcore-backup.service  # optional immediate backup/upload
+journalctl --user -u azerothcore-backup.service -n 50
+```
+
+This does not restart the WoW server or change the timer. Each successful backup
+is uploaded as a timestamped release with a SHA-256 checksum. Both uploaded asset
+sizes are checked before publishing. The newest 14 published backup releases are
+kept (`BACKUP_GITHUB_KEEP`); old releases and their tags are deleted only after a
+successful upload. Local retention remains controlled by `BACKUP_KEEP`.
+
+Uploads fail closed if the repository isn't private. An upload failure fails the
+service, preserves the local backup, and skips local pruning; inspect the journal
+for errors. Incomplete releases may remain as drafts and need manual cleanup.
+Do not enable immutable releases, since retention needs to delete old releases.
+Archives contain plaintext secrets, so **keep the repository private**. GitHub
+login credentials stay in your normal `gh` credential store, not in the unit.
+
+Manual upload of an existing backup (without dumping again):
+
+```bash
+BACKUP_GITHUB_REPO=OWNER/azerothcore-backups \
+  ./scripts/upload-backup-github.sh backups/acore-YYYYmmdd-HHMMSS.tar
+```
+
+Download and verify a backup before using `restore.sh`:
+
+```bash
+mkdir -m 700 recovered-backup
+cd recovered-backup
+gh release download acore-YYYYmmdd-HHMMSS --repo OWNER/azerothcore-backups
+sha256sum -c acore-YYYYmmdd-HHMMSS.tar.sha256
+```
+
+### Backup contents and restore
 
 Each bundle holds both the databases **and** `.env` (which carries the DB root
 password and the secrets `setup.sh` autogenerates), so one file is a complete

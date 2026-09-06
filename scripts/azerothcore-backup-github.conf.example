@@ -1,0 +1,9 @@
+# Install as ~/.config/systemd/user/azerothcore-backup.service.d/github.conf
+# Then run: systemctl --user daemon-reload
+# Existing ExecStart=.../backup.sh and the daily timer remain unchanged.
+# Create the PRIVATE repository first and authenticate with `gh auth login`.
+[Service]
+Environment=BACKUP_GITHUB_REPO=CmPons/azerothcore-backups
+Environment=BACKUP_GITHUB_KEEP=14
+# The NixOS service PATH does not include gh. Adjust for other installations.
+Environment=BACKUP_GH_BIN=/etc/profiles/per-user/chrisp/bin/gh
