@@ -2,8 +2,17 @@
 
 ## Status / scope
 
-Prepared, **not deployed**. No service interruption, encounter reset, bind edit,
-production SQL migration, or assistant-issued respawn command was performed.
+Built with explicit permission, **not deployed**. No service interruption,
+encounter reset, bind edit, production SQL migration, or assistant-issued respawn
+command was performed.
+
+- Image: `acore/ac-wotlk-worldserver:bwl-suppression-fix-test`
+- SHA: `1f8289b93dbe39fd83d13a924113d9dfd68c35934198c0c70048c54c4707d4dd`
+- Build log: `/tmp/bwl-suppression-fix-build.log` (exit 0).
+- Live `master` tag and running container remain on `458d485446ed...`, with start
+  time `2026-09-06T16:19:33.915042366Z` and restart count 0 at verification.
+- The SQL targeting fix is still unapplied; see the deployment caveat below.
+
 The user restored the devices using the in-game macro below. A subsequent
 read-only query found zero future suppression-device respawn timers in instance
 199. Normal visibility of one individually restored pillar was confirmed by the
@@ -87,8 +96,10 @@ warriors able to disarm traps.
 - SQL codestyle passes. Modified C++ file passes the official checker in isolation.
   Repository-wide C++ codestyle fails on pre-existing unrelated files (tabs,
   blank lines, qualifier alignment, whitespace); these were not edited.
-- **No worldserver build or live reproduction performed.** The core's AGENTS.md
-  requires explicit build permission. No restart or deployment authorized.
+- After explicit build-only permission, the full host-network Docker worldserver
+  build passed, including compilation of `boss_broodlord_lashlayer.cpp` and image
+  packaging. **No isolated live encounter reproduction performed.** No restart
+  or deployment authorized.
 
 ## Immediate recovery used for this copy
 
@@ -109,16 +120,26 @@ respawn-table edits would not reliably repair already-loaded objects.
 
 ## Deployment and remaining validation
 
-Obtain explicit permission before building, and separately before interrupting
-the live server. Use the project's host-network Docker build procedure. A full
-working-tree build also includes other staged/uncommitted module work and the
-pending group-join chatter change; do not describe it as an isolated hotfix image.
+Build-only permission has been used; obtain fresh explicit permission before
+interrupting the live server. The full working-tree build also includes other
+staged/uncommitted module work and the pending group-join chatter change; do not
+describe it as an isolated hotfix image.
 
-The runtime world DB includes the pending-update directory in `updates_include`.
-Ensure the new SQL is included in the deployment's source/mounted SQL tree and
-verify the updater applies it on the approved startup. Verify masks 1 and 2 after
-startup and watch for rejected condition/script errors. Do not run full setup
-against the active raid just to deploy this patch.
+**SQL deployment caveat:** although the world DB lists the pending-update directory
+in `updates_include`, the worldserver Docker target sets
+`AC_UPDATES_ENABLE_DATABASES=0` and does not package the core SQL tree. Merely
+recreating worldserver with this image will NOT apply the egg-targeting migration.
+The new C++ pulse guard is in the image; the SQL must be applied separately during
+an approved deployment (preferably while worldserver is stopped, before startup),
+or through an explicitly approved db-import deployment containing the new SQL.
+Do not assume the existing db-import image contains this new file. Avoid running
+broad setup/import work against the active raid for this one change.
+
+During that deployment, back up spell 20038's existing conditions, apply only
+`data/sql/updates/pending_db_world/rev_1788721200000000000.sql`, and verify masks
+1 and 2 after startup. The SQL is idempotent if a future updater applies it again.
+Watch for rejected condition/script errors. No production SQL was applied during
+the build-only request.
 
 In a disposable test copy, with a separate process or later authorized test window:
 
