@@ -439,6 +439,8 @@ set_conf "AiPlayerbot.DirectTokenLoot.Enable" "${DIRECT_TOKEN_LOOT_ENABLE:-0}" "
 set_conf "AiPlayerbot.DirectTokenLoot.Mode" "${DIRECT_TOKEN_LOOT_MODE:-1}" "$PB_CONF"
 set_conf "AiPlayerbot.DirectTokenLoot.MinRewardQuality" "${DIRECT_TOKEN_LOOT_MIN_REWARD_QUALITY:-3}" "$PB_CONF"
 set_conf "AiPlayerbot.DirectTokenLoot.Debug" "${DIRECT_TOKEN_LOOT_DEBUG:-0}" "$PB_CONF"
+set_conf "AiPlayerbot.RaidThreatDiscipline.Enable" "${RAID_THREAT_DISCIPLINE_ENABLE:-1}" "$PB_CONF"
+set_conf "AiPlayerbot.RaidThreatDiscipline.HoldPercent" "${RAID_THREAT_DISCIPLINE_HOLD_PERCENT:-70}" "$PB_CONF"
 # Required by mod-player-bot-level-brackets: bots must keep their random levels.
 set_conf "AiPlayerbot.DisableRandomLevels" "0"   "$PB_CONF"
 # Disable gear/spec persistence: it's incompatible with mod-player-bot-level-brackets.
