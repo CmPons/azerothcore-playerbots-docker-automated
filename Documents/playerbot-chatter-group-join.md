@@ -35,7 +35,15 @@ Join facts also enter recent group context, like other event types.
 - Image: `acore/ac-wotlk-worldserver:chatter-group-join-test`.
 - No restart, deployment, live party mutation, or generated-model request during development.
 
-After an approved deployment, check in-game:
+Deployed on 2026-09-06 with the approved BWL suppression update:
+
+- Image: `acore/ac-wotlk-worldserver:bwl-suppression-fix-test` (also live `master`).
+- SHA: `1f8289b93dbe39fd83d13a924113d9dfd68c35934198c0c70048c54c4707d4dd`.
+- Worldserver start: `2026-09-06T19:44:01.75751003Z`; ready, restart count 0.
+- Startup loaded 107 persistent personas. No live join test or deliberate model
+  request was performed during deployment; the checks below remain pending.
+
+Check in-game:
 
 1. Human joins a party with a bot: a bot may briefly welcome the human in party chat.
 2. Bot joins a human's party: the bot can greet existing members in first person.

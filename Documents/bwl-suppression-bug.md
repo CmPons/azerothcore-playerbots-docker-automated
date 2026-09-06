@@ -2,16 +2,29 @@
 
 ## Status / scope
 
-Built with explicit permission, **not deployed**. No service interruption,
-encounter reset, bind edit, production SQL migration, or assistant-issued respawn
-command was performed.
+**Deployed with explicit permission.** Only worldserver was gracefully stopped
+(exit 0) and recreated. The targeted SQL migration was applied while it was stopped.
+No encounter reset, bind edit, or assistant-issued respawn command was performed.
 
-- Image: `acore/ac-wotlk-worldserver:bwl-suppression-fix-test`
+- Live image: `acore/ac-wotlk-worldserver:master`, also tagged `bwl-suppression-fix-test`.
 - SHA: `1f8289b93dbe39fd83d13a924113d9dfd68c35934198c0c70048c54c4707d4dd`
+- Started: `2026-09-06T19:44:01.75751003Z`; ready, restart count 0.
 - Build log: `/tmp/bwl-suppression-fix-build.log` (exit 0).
-- Live `master` tag and running container remain on `458d485446ed...`, with start
-  time `2026-09-06T16:19:33.915042366Z` and restart count 0 at verification.
-- The SQL targeting fix is still unapplied; see the deployment caveat below.
+- SQL verified after startup: mask 1 still targets players; mask 2 targets only eggs.
+- BWL 199 boss progress and all saved binds match the post-shutdown/pre-deployment
+  snapshot exactly: first four bosses DONE, completedEncounters 15.
+- Authserver/database start times and restart counts, plus Pi's PID/start time,
+  were checked before and after and are unchanged.
+- Pending party/raid join chatter is also in this image and is now deployed;
+  its in-game validation remains pending.
+
+Backup: `backups/bwl-predeploy-20260906-213916/` (private, gitignored). Includes
+all four databases, configs, original spell conditions, and the previous image
+archive/tag. An additional full database snapshot was taken **after worldserver
+saved and stopped, before applying SQL**: `databases-after-worldserver-stop.sql.gz`.
+Gzip integrity, dump completion markers, and checksums were verified. Startup/
+shutdown logs and before/after raid/service snapshots are preserved there.
+Rollback image tag: `acore/ac-wotlk-worldserver:pre-bwl-suppression-20260906-213916`.
 
 The user restored the devices using the in-game macro below. A subsequent
 read-only query found zero future suppression-device respawn timers in instance
@@ -98,8 +111,12 @@ warriors able to disarm traps.
   blank lines, qualifier alignment, whitespace); these were not edited.
 - After explicit build-only permission, the full host-network Docker worldserver
   build passed, including compilation of `boss_broodlord_lashlayer.cpp` and image
-  packaging. **No isolated live encounter reproduction performed.** No restart
-  or deployment authorized.
+  packaging. **No isolated live encounter reproduction performed.** Deployment
+  was subsequently explicitly approved and completed as recorded above.
+- Startup reached ready and loaded 14661 conditions. No spell-20038 rejection was
+  observed. Logs are not entirely error-free: process-priority permission and
+  unrelated invalid skill-condition warnings were present; no claim of fixing
+  those is made.
 
 ## Immediate recovery used for this copy
 
@@ -120,10 +137,9 @@ respawn-table edits would not reliably repair already-loaded objects.
 
 ## Deployment and remaining validation
 
-Build-only permission has been used; obtain fresh explicit permission before
-interrupting the live server. The full working-tree build also includes other
-staged/uncommitted module work and the pending group-join chatter change; do not
-describe it as an isolated hotfix image.
+The approved deployment is complete. Any further interruption requires fresh
+permission. The full working-tree build also includes other staged/uncommitted
+module work and the group-join chatter change; it is not an isolated hotfix image.
 
 **SQL deployment caveat:** although the world DB lists the pending-update directory
 in `updates_include`, the worldserver Docker target sets
@@ -135,11 +151,13 @@ or through an explicitly approved db-import deployment containing the new SQL.
 Do not assume the existing db-import image contains this new file. Avoid running
 broad setup/import work against the active raid for this one change.
 
-During that deployment, back up spell 20038's existing conditions, apply only
-`data/sql/updates/pending_db_world/rev_1788721200000000000.sql`, and verify masks
-1 and 2 after startup. The SQL is idempotent if a future updater applies it again.
-Watch for rejected condition/script errors. No production SQL was applied during
-the build-only request.
+For this deployment, spell 20038's existing conditions were backed up, then only
+`data/sql/updates/pending_db_world/rev_1788721200000000000.sql` was applied inside
+a transaction while worldserver was stopped. Masks 1 and 2 were verified before
+and after startup. No db-import or broad setup run was needed. The SQL is
+idempotent if a future updater applies it again; it was applied manually, not
+recorded as an updater-run migration. No production SQL was applied during the
+earlier build-only request.
 
 In a disposable test copy, with a separate process or later authorized test window:
 
