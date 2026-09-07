@@ -15,6 +15,13 @@
 
 RaidScaling.Enable = 1
 
+# Persistent server default for every newly loaded, supported raid instance.
+# Applied once before entry, never recalculated from attendance or on add spawns.
+# 0 disables automatic scaling; .raidscale commands remain available. Valid: 0..40.
+# Manual target/multiplier/off overrides last for the loaded instance; unloading
+# or restarting restores this configured default on its next load.
+RaidScaling.DefaultTargetPlayers = 10
+
 # Security level required for commands. 0=player, 1=moderator, 2=gamemaster, 3=admin.
 RaidScaling.CommandSecurity = 2
 

@@ -138,6 +138,13 @@ void RaidScalingMgr::LoadConfig()
 {
     _enabled = sConfigMgr->GetOption<bool>("RaidScaling.Enable", true);
     _commandSecurity = sConfigMgr->GetOption<uint32>("RaidScaling.CommandSecurity", 2);
+    int32 defaultTarget = sConfigMgr->GetOption<int32>("RaidScaling.DefaultTargetPlayers", 10);
+    if (defaultTarget < 0 || defaultTarget > 40)
+    {
+        LOG_WARN("server.loading", "[RaidScaling] DefaultTargetPlayers must be 0..40; using 10.");
+        defaultTarget = 10;
+    }
+    _defaultTargetPlayers = uint32(defaultTarget);
     _blizzardLikeDefault = sConfigMgr->GetOption<bool>("RaidScaling.BlizzardLikeDefault", true);
     _damageExponent = sConfigMgr->GetOption<float>("RaidScaling.DamageExponent", 0.6f);
     _minHealth = sConfigMgr->GetOption<float>("RaidScaling.MinHealthMultiplier", 0.05f);
@@ -155,9 +162,62 @@ void RaidScalingMgr::LoadConfig()
         size = sConfigMgr->GetOption<uint32>("RaidScaling.OriginalSize." + std::to_string(mapId), size);
 }
 
-RaidScalingMgr::InstanceKey RaidScalingMgr::MakeKey(Map const* map) const
+uint64 RaidScalingMgr::MakeKey(Map const* map) const
 {
-    return map ? InstanceKey{map->GetId(), map->GetInstanceId()} : InstanceKey{};
+    return map ? RaidScaleKey(map->GetId(), map->GetInstanceId()) : 0;
+}
+
+RaidScaleSettings RaidScalingMgr::MakeSettings(uint32 original, uint32 targetPlayers, bool fromDefault) const
+{
+    targetPlayers = std::max<uint32>(1, targetPlayers);
+    float ratio = float(targetPlayers) / float(original);
+    float damage = _blizzardLikeDefault ? std::pow(ratio, _damageExponent) : ratio;
+
+    RaidScaleSettings settings;
+    settings.targetPlayers = targetPlayers;
+    settings.originalPlayers = original;
+    settings.bossHealth = ClampHealth(ratio);
+    settings.trashHealth = ClampHealth(ratio);
+    settings.bossDamage = ClampDamage(damage);
+    settings.trashDamage = ClampDamage(damage);
+    settings.fromDefault = fromDefault;
+    return settings;
+}
+
+void RaidScalingMgr::OnMapCreate(Map* map)
+{
+    if (!_enabled || !_defaultTargetPlayers || !map || !map->IsRaid() || !map->GetInstanceId())
+        return;
+
+    uint32 original = GetOriginalSize(map->GetId());
+    if (!original)
+    {
+        LOG_WARN("server.loading", "[RaidScaling] No original size configured for raid map {}; default not applied.",
+            map->GetId());
+        return;
+    }
+
+    // Initialize once, before players enter. Never recalculate from attendance,
+    // on player entry, or on an add spawn: that would overwrite manual tuning/off.
+    RaidScaleSettings settings = MakeSettings(original, _defaultTargetPlayers, true);
+    if (!_state.Initialize(MakeKey(map), settings))
+        return;
+
+    // This core calls OnCreateMap after preloading instance grids.
+    ApplyToMap(map);
+    LOG_INFO("server.loading", "[RaidScaling] Default applied to {} #{}: {} -> {} players.",
+        map->GetMapName(), map->GetInstanceId(), original, settings.targetPlayers);
+}
+
+void RaidScalingMgr::OnMapDestroy(Map* map)
+{
+    if (!map || !map->GetInstanceId())
+        return;
+
+    uint64 key = MakeKey(map);
+    _state.Erase(key);
+    std::lock_guard<std::mutex> lock(_statsMutex);
+    _originalCreatureStats.erase(key);
 }
 
 uint32 RaidScalingMgr::GetOriginalSize(uint32 mapId) const
@@ -197,34 +257,26 @@ bool RaidScalingMgr::EnableForMap(Map* map, uint32 targetPlayers, ChatHandler* h
         return false;
     }
 
-    targetPlayers = std::max<uint32>(1, targetPlayers);
-    float ratio = float(targetPlayers) / float(original);
-    float damage = _blizzardLikeDefault ? std::pow(ratio, _damageExponent) : ratio;
-
-    RaidScaleSettings settings;
-    settings.targetPlayers = targetPlayers;
-    settings.originalPlayers = original;
-    settings.bossHealth = ClampHealth(ratio);
-    settings.trashHealth = ClampHealth(ratio);
-    settings.bossDamage = ClampDamage(damage);
-    settings.trashDamage = ClampDamage(damage);
-
-    _instances[MakeKey(map)] = settings;
+    RaidScaleSettings settings = MakeSettings(original, targetPlayers, false);
+    _state.Set(MakeKey(map), settings);
     ApplyToMap(map, handler);
 
     if (handler)
         handler->PSendSysMessage("RaidScale enabled for {} #{}: {} -> {} players (hp {}, damage {}).",
-            map->GetMapName(), map->GetInstanceId(), original, targetPlayers, FormatFloat(settings.bossHealth), FormatFloat(settings.bossDamage));
+            map->GetMapName(), map->GetInstanceId(), original, settings.targetPlayers, FormatFloat(settings.bossHealth), FormatFloat(settings.bossDamage));
     return true;
 }
 
 bool RaidScalingMgr::DisableForMap(Map* map, ChatHandler* handler)
 {
-    if (!map)
+    if (!map || !map->IsRaid() || !map->GetInstanceId())
+    {
+        if (handler) handler->SendSysMessage("Stand inside a raid instance first.");
         return false;
+    }
 
     RestoreMap(map, handler);
-    _instances.erase(MakeKey(map));
+    _state.Disable(MakeKey(map));
 
     if (handler)
         handler->PSendSysMessage("RaidScale disabled for {} #{}.", map->GetMapName(), map->GetInstanceId());
@@ -233,16 +285,15 @@ bool RaidScalingMgr::DisableForMap(Map* map, ChatHandler* handler)
 
 bool RaidScalingMgr::HasScaling(Map const* map) const
 {
-    return GetSettings(map) != nullptr;
+    return GetSettings(map).has_value();
 }
 
-RaidScaleSettings const* RaidScalingMgr::GetSettings(Map const* map) const
+std::optional<RaidScaleSettings> RaidScalingMgr::GetSettings(Map const* map) const
 {
-    if (!map)
-        return nullptr;
-
-    auto itr = _instances.find(MakeKey(map));
-    return itr != _instances.end() ? &itr->second : nullptr;
+    // Keep the global registry lock off the normal open-world/dungeon damage path.
+    if (!map || !map->IsRaid() || !map->GetInstanceId())
+        return std::nullopt;
+    return _state.Get(MakeKey(map));
 }
 
 bool RaidScalingMgr::IsScalableCreature(Creature const* creature) const
@@ -340,17 +391,21 @@ void RaidScalingMgr::ApplyToCreature(Creature* creature)
     if (!creature || !creature->GetMap() || !IsScalableCreature(creature) || creature->isDead())
         return;
 
-    RaidScaleSettings const* settings = GetSettings(creature->GetMap());
+    auto settings = GetSettings(creature->GetMap());
     if (!settings)
         return;
 
-    ObjectGuid guid = creature->GetGUID();
-    OriginalCreatureStats& original = _originalCreatureStats[guid];
-    if (!original.maxHealth)
+    OriginalCreatureStats original;
     {
-        original.createHealth = creature->GetCreateHealth();
-        original.maxHealth = creature->GetMaxHealth();
-        original.health = creature->GetHealth();
+        std::lock_guard<std::mutex> lock(_statsMutex);
+        auto& cached = _originalCreatureStats[MakeKey(creature->GetMap())][creature->GetGUID()];
+        if (!cached.maxHealth)
+        {
+            cached.createHealth = creature->GetCreateHealth();
+            cached.maxHealth = creature->GetMaxHealth();
+            cached.health = creature->GetHealth();
+        }
+        original = cached;
     }
 
     float scale = HealthScaleFor(creature, *settings);
@@ -371,18 +426,24 @@ void RaidScalingMgr::RestoreCreature(Creature* creature)
     if (!creature)
         return;
 
-    auto itr = _originalCreatureStats.find(creature->GetGUID());
-    if (itr == _originalCreatureStats.end())
-        return;
-
-    OriginalCreatureStats const original = itr->second;
+    OriginalCreatureStats original;
+    {
+        std::lock_guard<std::mutex> lock(_statsMutex);
+        auto mapItr = _originalCreatureStats.find(MakeKey(creature->GetMap()));
+        if (mapItr == _originalCreatureStats.end())
+            return;
+        auto itr = mapItr->second.find(creature->GetGUID());
+        if (itr == mapItr->second.end())
+            return;
+        original = itr->second;
+        mapItr->second.erase(itr);
+    }
     float pct = creature->GetMaxHealth() ? std::min(1.0f, float(creature->GetHealth()) / float(creature->GetMaxHealth())) : 1.0f;
 
     creature->SetCreateHealth(original.createHealth);
     creature->SetMaxHealth(original.maxHealth);
     creature->SetHealth(std::max<uint32>(1, uint32(std::round(float(original.maxHealth) * pct))));
     creature->ResetPlayerDamageReq();
-    _originalCreatureStats.erase(itr);
 }
 
 float RaidScalingMgr::GetDamageScale(Unit* attacker, Unit* victim) const
@@ -394,7 +455,7 @@ float RaidScalingMgr::GetDamageScale(Unit* attacker, Unit* victim) const
     if (!creature || !IsScalableCreature(creature))
         return 1.0f;
 
-    RaidScaleSettings const* settings = GetSettings(creature->GetMap());
+    auto settings = GetSettings(creature->GetMap());
     if (!settings)
         return 1.0f;
 
@@ -408,12 +469,7 @@ float RaidScalingMgr::GetDamageScale(Unit* attacker, Unit* victim) const
 
 bool RaidScalingMgr::SetMultiplier(Map* map, std::string const& creatureKind, std::string const& statKind, float value, ChatHandler* handler)
 {
-    RaidScaleSettings* settings = nullptr;
-    auto itr = _instances.find(MakeKey(map));
-    if (itr != _instances.end())
-        settings = &itr->second;
-
-    if (!settings)
+    if (!HasScaling(map))
     {
         if (handler) handler->SendSysMessage("RaidScale is not enabled for this instance. Use .raidscale 10 first.");
         return false;
@@ -431,10 +487,15 @@ bool RaidScalingMgr::SetMultiplier(Map* map, std::string const& creatureKind, st
     }
 
     value = hp ? ClampHealth(value) : ClampDamage(value);
-    if (boss && hp) settings->bossHealth = value;
-    if (boss && dmg) settings->bossDamage = value;
-    if (trash && hp) settings->trashHealth = value;
-    if (trash && dmg) settings->trashDamage = value;
+    if (!_state.Modify(MakeKey(map), [&](RaidScaleSettings& settings)
+    {
+        if (boss && hp) settings.bossHealth = value;
+        if (boss && dmg) settings.bossDamage = value;
+        if (trash && hp) settings.trashHealth = value;
+        if (trash && dmg) settings.trashDamage = value;
+        settings.fromDefault = false;
+    }))
+        return false;
 
     if (hp)
         ApplyToMap(map, nullptr);
@@ -455,15 +516,16 @@ void RaidScalingMgr::SendStatus(ChatHandler* handler, Map* map) const
         return;
     }
 
-    RaidScaleSettings const* s = GetSettings(map);
+    auto s = GetSettings(map);
     if (!s)
     {
         handler->PSendSysMessage("RaidScale inactive for {} #{} (original size {}).", map->GetMapName(), map->GetInstanceId(), GetOriginalSize(map->GetId()));
         return;
     }
 
-    handler->PSendSysMessage("RaidScale active for {} #{}: original {}, target {}, boss hp {}, boss damage {}, trash hp {}, trash damage {}.",
+    handler->PSendSysMessage("RaidScale active for {} #{}: original {}, target {} ({}), boss hp {}, boss damage {}, trash hp {}, trash damage {}.",
         map->GetMapName(), map->GetInstanceId(), s->originalPlayers, s->targetPlayers,
+        s->fromDefault ? "server default" : "manual override",
         FormatFloat(s->bossHealth), FormatFloat(s->bossDamage), FormatFloat(s->trashHealth), FormatFloat(s->trashDamage));
 }
 
@@ -472,7 +534,7 @@ void RaidScalingMgr::Export(ChatHandler* handler, Map* map) const
     if (!handler)
         return;
 
-    RaidScaleSettings const* s = GetSettings(map);
+    auto s = GetSettings(map);
     if (!map || !s)
     {
         handler->SendSysMessage("RaidScale is not enabled for this instance.");

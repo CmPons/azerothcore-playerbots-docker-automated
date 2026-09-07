@@ -28,7 +28,7 @@ MODULES=(
 )
 
 # Modules we author and ship from THIS repo (copied in, not git-cloned). Kept by the reconcile.
-LOCAL_MODULES=( "mod-playerbot-chatter" "mod-raid-roster" "mod-ahbot-price" "mod-wintergrasp-bots" "mod-arena-roster" )
+LOCAL_MODULES=( "mod-playerbot-chatter" "mod-raid-roster" "mod-raid-scaling" "mod-ahbot-price" "mod-wintergrasp-bots" "mod-arena-roster" )
 
 # Optional commit pins (repo-pins.txt): freeze the fork and/or a module at a known-good commit
 # instead of its branch tip — used to hold a stable upstream when the latest HEAD is broken.
@@ -381,6 +381,15 @@ set_conf "Rate.Reputation.Gain" "${REPUTATION_RATE:-5}" "$WS_CONF"
 set_conf "Rate.Honor"           "${HONOR_RATE:-5}"      "$WS_CONF"
 # Global raid/heroic reset period multiplier. MC's base 7-day reset becomes 24h at 1/7.
 set_conf "Rate.InstanceResetTime" "${INSTANCE_RESET_RATE:-1}" "$WS_CONF"
+
+# BEGIN RAID SCALING DEFAULT
+# Fixed target, not live attendance. Manual per-instance overrides still work.
+RS_CONF="$MODETC/mod_raid_scaling.conf"
+if [[ -f "$RS_CONF" ]]; then
+  set_conf "RaidScaling.DefaultTargetPlayers" "${RAID_SCALING_DEFAULT_PLAYERS:-10}" "$RS_CONF"
+fi
+# END RAID SCALING DEFAULT
+
 # Rested-XP pool fill rate (the blue "rested" bonus that doubles kill XP until spent).
 # InGame = while logged in resting in an inn/city; Offline = while logged off (tavern/city
 # vs wilderness). 3x so the pool refills fast and more of your killing is doubled. MaxBonus
