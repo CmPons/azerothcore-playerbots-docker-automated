@@ -32,7 +32,8 @@ THINKING = os.environ.get("PI_BRIDGE_THINKING", "off")
 TIMEOUT = float(os.environ.get("PI_BRIDGE_TIMEOUT_SECONDS", "75"))
 MAX_CONCURRENT = int(os.environ.get("PI_BRIDGE_MAX_CONCURRENT", "1"))
 MAX_PER_MINUTE = int(os.environ.get("PI_BRIDGE_MAX_PER_MINUTE", "10"))
-MAX_PER_HOUR = int(os.environ.get("PI_BRIDGE_MAX_PER_HOUR", "200"))
+# Opt-in only; the minute and concurrency limits bound normal chatter traffic.
+MAX_PER_HOUR = int(os.environ.get("PI_BRIDGE_MAX_PER_HOUR", "0"))
 MAX_CHARS = int(os.environ.get("PI_BRIDGE_MAX_CHARS", "220"))
 ONE_LINE = os.environ.get("PI_BRIDGE_ONE_LINE", "1") not in ("0", "false", "False", "no")
 EXTRA_ARGS = shlex.split(os.environ.get("PI_BRIDGE_EXTRA_ARGS", ""))
@@ -57,11 +58,12 @@ def log(msg: str) -> None:
 
 
 def allowed_by_rate_limit() -> tuple[bool, str]:
-    now = time.time()
+    """Atomically admit one generation; callers must already hold a worker slot."""
     with rate_lock:
-        while minute_hits and now - minute_hits[0] > 60:
+        now = time.monotonic()
+        while minute_hits and now - minute_hits[0] >= 60:
             minute_hits.popleft()
-        while hour_hits and now - hour_hits[0] > 3600:
+        while hour_hits and now - hour_hits[0] >= 3600:
             hour_hits.popleft()
 
         if MAX_PER_MINUTE > 0 and len(minute_hits) >= MAX_PER_MINUTE:
@@ -124,15 +126,16 @@ def build_pi_command(system_prompt: str, prompt: str) -> list[str]:
 
 
 def call_pi(system_prompt: str, prompt: str) -> str:
-    ok, bucket = allowed_by_rate_limit()
-    if not ok:
-        log(f"rate limited by {bucket} limit; returning empty response")
-        return ""
-
+    # Busy requests never reach Pi, so they must not consume generation quota.
     if not semaphore.acquire(timeout=0.1):
         log("concurrency limit hit; returning empty response")
         return ""
     try:
+        ok, bucket = allowed_by_rate_limit()
+        if not ok:
+            log(f"rate limited by {bucket} limit; returning empty response")
+            return ""
+
         cmd = build_pi_command(system_prompt, prompt)
         if DEBUG:
             log("running: " + " ".join(shlex.quote(c) for c in cmd[:12]) + " ...")
@@ -260,7 +263,7 @@ def main() -> int:
     log(
         f"listening on {HOST}:{PORT}; pi={PI_BIN!r}; provider={PROVIDER or '(default)'}; "
         f"model={MODEL or '(default)'}; max_concurrent={MAX_CONCURRENT}; "
-        f"rate={MAX_PER_MINUTE}/min {MAX_PER_HOUR}/hour"
+        f"rate={MAX_PER_MINUTE}/min {MAX_PER_HOUR if MAX_PER_HOUR > 0 else 'unlimited'}/hour"
     )
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
     try:
