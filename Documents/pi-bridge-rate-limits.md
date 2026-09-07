@@ -2,10 +2,13 @@
 
 ## Status
 
-Implemented and tested; **awaiting permission to restart only the bridge**.
-The installed service file is updated, but the old Python process still has its
-original 120/hour setting and admission order in memory. Worldserver needs no
-rebuild or restart for this change.
+**Active after the explicitly approved bridge-only restart.**
+
+- Restarted: 2026-09-07 18:34:10 CEST; PID 162731.
+- Startup confirmed `max_concurrent=1; rate=12/min unlimited/hour`.
+- GET `/api/version` succeeded; no deliberate model generation was used for the check.
+- Worldserver image, start time, and restart count matched before/after exactly.
+- Real in-game chatter delivery after activation remains to be observed.
 
 ## Diagnosis
 
@@ -59,11 +62,12 @@ disabled. Pi is mocked; tests never invoke the model or change the live service.
 Pre-change service/script copies and process metadata are retained privately in
 `backups/pi-bridge-quota-20260907/`. Git preserves the tracked rollback versions.
 
-After explicit restart permission:
+Activation procedure completed with explicit permission:
 
 1. `systemctl --user daemon-reload`
 2. `systemctl --user restart pi-ollama-bridge.service`
 3. Verify active status, the new startup limits, and GET `/api/version` (no model
    invocation). Confirm worldserver's image/start time is unchanged.
-4. Observe real chatter. Busy/minute rejections may still occur; hourly rejections
-   should not occur with the new configuration. No restart has been performed yet.
+4. Observe real chatter (pending). Busy/minute rejections may still occur; hourly
+   rejections should not occur with the new configuration. Further service
+   interruptions require fresh permission.
