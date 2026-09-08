@@ -2,10 +2,11 @@
 
 ## Status
 
-Implemented and tested at the state/setup level; **not built into a worldserver
-image or deployed yet**. No service interruption, live command, configuration
-reload, boss reset, or bind edit was performed. The current raid's manually
-selected scale remains in effect.
+**Built and deployed 2026-09-08**, alongside the
+[conditional progression raid reset policy](raid-progression-resets.md).
+Worldserver is ready with `RaidScaling.DefaultTargetPlayers = 10`.
+The user explicitly approved this build and deployment; only worldserver was
+restarted. In-game validation on the next actual raid entry remains pending.
 
 ## Configuration / workflow
 
@@ -17,7 +18,7 @@ RAID_SCALING_DEFAULT_PLAYERS=10
 RaidScaling.DefaultTargetPlayers = 10
 ```
 
-Both env files and the runtime config are prepared. The compiled module and dist
+Both env files and the runtime config are active. The compiled module and dist
 config also default to 10. A future setup run writes the env value into the module
 config. `setup.sh` and `update.sh` now include `mod-raid-scaling` in their canonical
 local-module sync lists, so fresh installs/updates do not silently omit this owned module.
@@ -88,19 +89,26 @@ unload/reload, process-restart semantics, concurrent registry mutations, setup
 fallback/0/20/40/idempotence, preservation of other config values, and canonical
 build-tree synchronization. Lifecycle hook checks are source contracts, not a
 live map integration test. Modified module sources pass the official C++ style
-checker. No full worldserver build has been performed for this change.
+checker. Full worldserver compilation passed on 2026-09-08, including
+`RaidScalingCommand.cpp`, `RaidScalingLoader.cpp` and `RaidScalingMgr.cpp`.
 
 Pre-change env/runtime config copies:
 `backups/raid-scaling-default-20260907-204555/` (private, gitignored).
 Only the new knob was edited; full setup was not run against the active server.
 
-## Next steps (permission required)
+## Deployment and in-game checks
 
-Build the updated image with host networking. Do not restart merely to build it.
-A full working-tree image includes other existing module changes, not just this
-feature. Obtain explicit permission before replacing the live worldserver.
+Deployed image `acore/ac-wotlk-worldserver:progression-resets` (also `:master`):
+`sha256:6d8f83feb682615edbe238eafb0c47409125faf459d8f8e5c8aa71ff5377bee5`.
+Worldserver started `2026-09-08T15:36:27.472694133Z`, reached ready, restart count 0.
+The approved build used host networking and included the existing working-tree
+module changes. See the progression-reset report for backups, SQL and service
+verification. No old-raid saves remained at deployment, so actual automatic
+scaling on raid entry is not yet observed.
 
-**2026-09-08 dependency:** the working core now also contains the pending
+Any further rebuild/service interruption still requires fresh approval.
+
+**2026-09-08 dependency:** the working core now also contains the
 [conditional raid reset change](raid-progression-resets.md). An image built from
 that tree requires its `instance_progression_reset` characters-table migration
 before startup, even when only deploying/testing raid scaling. The scaling module

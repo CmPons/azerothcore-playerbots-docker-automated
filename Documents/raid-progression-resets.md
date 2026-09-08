@@ -2,9 +2,11 @@
 
 ## Status
 
-Implemented in source, **not built or deployed**. The running worldserver still
-uses the previous global daily resets. Preparing these files does not protect a
-live save from its next reset. No live binds, boss states or deadlines were edited.
+**Deployed 2026-09-08 with explicit build/deployment approval.** Worldserver is
+ready with the conditional policy enabled and the persistent ten-player scaling
+default. The targeted characters-table migration is applied. No boss progress was
+restored or fabricated. Full in-game encounter/reset regression remains pending;
+see the deployment record below.
 
 User-selected policy:
 
@@ -103,14 +105,14 @@ restored without refreshing its deadline. Disabling the feature stops adopting
 new saves but **continues honoring existing managed saves** until they expire;
 it does not abruptly discard their progress at the next global reset.
 
-Core template/setup default: disabled. Prepared local values in both `.env` files:
+Core template/setup default: disabled. Active local values in both `.env` files:
 
 ```ini
 RAID_PROGRESSION_RESET_ENABLE=1
 RAID_PROGRESSION_RESET_DAYS=3
 ```
 
-Prepared runtime `azerothcore-wotlk/env/dist/etc/worldserver.conf`:
+Active runtime `azerothcore-wotlk/env/dist/etc/worldserver.conf`:
 
 ```ini
 Instance.ProgressionReset.Enable = 1
@@ -143,14 +145,59 @@ Do not rely on an unapproved activation to preserve tonight's BWL save.
 
 Build only with explicit permission and host networking. A full working-tree image
 also includes the pending persistent ten-player scaling change and any unrelated
-local module edits. No full worldserver compile or in-game integration test has
-been performed for this feature.
+local module edits. Full worldserver compilation passed during the approved
+2026-09-08 deployment; in-game encounter/reset integration tests remain pending.
 
 Rollback: reverting just the binary reinstates global resets and ignores the
 metadata table, potentially shortening retained progression saves. Preserve the
 backup and plan rollback timing explicitly; turning the new config off is the
 safer gradual return to global resets. Do not casually drop the metadata table
 while any binary that references it is running.
+
+## Deployment record — 2026-09-08
+
+- User explicitly authorized building and deployment while not playing.
+- Core commits: `3c03e67c11ef` policy and `112d363423f6a933f8e708eb45951129ffe2a109`
+  prepared-query type safety. The follow-up preserves native TINYINT/BIGINT widths
+  instead of widening nullable values with COALESCE; `Field::Get` already maps
+  NULL to typed zero. Nine checks, including temporary-table SQL, passed again.
+- Initial full host-network build passed, then the cached final build with the
+  query follow-up passed. Only the final image was deployed.
+- Image: `acore/ac-wotlk-worldserver:progression-resets`, also tagged `:master`.
+  SHA256: `6d8f83feb682615edbe238eafb0c47409125faf459d8f8e5c8aa71ff5377bee5`.
+- Started `2026-09-08T15:36:27.472694133Z`, ready after about 21 seconds,
+  restart count zero at verification. Runtime reports `112d363423f6+`.
+- Only worldserver stopped/recreated; old process exited zero, OOM false.
+  Auth/database image/start/restart metadata and Pi PID/start time compare exactly
+  before/after. No bridge restart or broad database importer/setup run.
+- Only the additive `instance_progression_reset` migration was applied. It is
+  manually applied, not marked as updater-run; later reapplication is idempotent.
+- Backup: `backups/raid-progression-predeploy-20260908-171332/`, private/gitignored.
+  Contains all four DBs before build and again after clean stop, old image archive,
+  configs/envs, migration, build/startup/shutdown logs, save/bind snapshots, and
+  before/after service metadata. Gzip integrity, dump completion markers and
+  SHA256 manifests verified. Files include `SHA256SUMS` and `DEPLOYMENT-SHA256SUMS`.
+- Rollback tag: `acore/ac-wotlk-worldserver:pre-progression-20260908-171333`,
+  old image `1f8289b93dbe39fd83d13a924113d9dfd68c35934198c0c70048c54c4707d4dd`.
+- Build logs: `/tmp/progression-resets-build.log` and
+  `/tmp/progression-resets-final-build.log`; matching `.exit` files both contain 0.
+
+**Existing progress:** before deployment there were already no old-raid saves or
+raid binds. The pre-build read found only temporary UBRS save 1806, with Redshift
+offline. By the final stopped snapshot, that temporary save/binds were also gone.
+The migration and new startup left the final snapshot exactly unchanged: zero
+instance saves, zero binds, zero managed reset rows. The user was told that the
+previous BWL run appears already expired under the old daily schedule. This
+feature cannot recover it and no historical progress was restored.
+
+Consequently, startup did not exercise legacy raid adoption or automatic scaling
+on an actual raid map. Confirm entry scaling and the first completion/deadline on
+the next real run rather than treating readiness as encounter-level proof.
+
+Startup still reports unrelated process-priority permission and invalid skill
+condition warnings, bot action-button cleanup, and unsigned reads of negative
+`npc_vendor.item` reference `-34040`. No reset-table prepare/load failure was
+observed. These warnings were not changed as part of deployment.
 
 ## Verification
 
