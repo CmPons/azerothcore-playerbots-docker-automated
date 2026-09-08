@@ -382,6 +382,12 @@ set_conf "Rate.Honor"           "${HONOR_RATE:-5}"      "$WS_CONF"
 # Global raid/heroic reset period multiplier. MC's base 7-day reset becomes 24h at 1/7.
 set_conf "Rate.InstanceResetTime" "${INSTANCE_RESET_RATE:-1}" "$WS_CONF"
 
+# BEGIN PROGRESSION RAID RESETS
+# Requires patch 0019 and its characters migration before starting the new binary.
+set_conf "Instance.ProgressionReset.Enable" "${RAID_PROGRESSION_RESET_ENABLE:-0}" "$WS_CONF"
+set_conf "Instance.ProgressionReset.Days" "${RAID_PROGRESSION_RESET_DAYS:-3}" "$WS_CONF"
+# END PROGRESSION RAID RESETS
+
 # BEGIN RAID SCALING DEFAULT
 # Fixed target, not live attendance. Manual per-instance overrides still work.
 RS_CONF="$MODETC/mod_raid_scaling.conf"

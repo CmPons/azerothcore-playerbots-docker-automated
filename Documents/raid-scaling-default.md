@@ -100,6 +100,12 @@ Build the updated image with host networking. Do not restart merely to build it.
 A full working-tree image includes other existing module changes, not just this
 feature. Obtain explicit permission before replacing the live worldserver.
 
+**2026-09-08 dependency:** the working core now also contains the pending
+[conditional raid reset change](raid-progression-resets.md). An image built from
+that tree requires its `instance_progression_reset` characters-table migration
+before startup, even when only deploying/testing raid scaling. The scaling module
+itself still needs no SQL migration.
+
 After deployment, verify in-game:
 
 1. Enter a fresh MC/BWL/ZG copy: entry/status reports default target 10 and expected
