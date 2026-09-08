@@ -109,7 +109,12 @@ class ProgressionRaidResetTests(unittest.TestCase):
         self.assertIn("CREATE TABLE IF NOT EXISTS `instance_progression_reset`", sql)
         self.assertNotRegex(sql, r"(?i)\b(DELETE|DROP|UPDATE|ALTER|TRUNCATE)\b")
         self.assertIn("ENGINE=InnoDB", sql)
-        self.assertIn("LEFT JOIN instance_progression_reset", statement("CHAR_SEL_INSTANCE_SAVES_WITH_PROGRESSION"))
+        select = statement("CHAR_SEL_INSTANCE_SAVES_WITH_PROGRESSION")
+        self.assertIn("LEFT JOIN instance_progression_reset", select)
+        # Prepared Field::Get reads raw native-width values; expressions such as
+        # COALESCE(stage,0) can widen a TINYINT. NULL already maps to typed zero.
+        self.assertIn("p.stage,p.resetTime,p.extendedResetTime", select)
+        self.assertNotIn("COALESCE", select)
 
     @unittest.skipUnless(os.environ.get("AC_TEST_MYSQL_TEMP") == "1", "Opt-in connection-local MySQL test")
     def test_mysql_temporary_tables(self):
@@ -149,7 +154,7 @@ class ProgressionRaidResetTests(unittest.TestCase):
         rows = result.stdout.splitlines()
         self.assertEqual(rows[:4], ["2\t3000\t6000", "3\t1500\t2500", "3\t2500\t3500", "1"])
         self.assertEqual(rows[4].split("\t")[-3:], ["3", "2500", "3500"])
-        self.assertEqual(rows[5].split("\t")[-3:], ["0", "0", "0"])
+        self.assertEqual(rows[5].split("\t")[-3:], ["NULL", "NULL", "NULL"])
 
     def test_patch_delivers_exact_core_changes(self):
         if not PATCH.exists():

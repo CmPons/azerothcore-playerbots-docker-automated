@@ -33,16 +33,18 @@ index 379dd4765..6be25bc6b 100644
  #    Instance.ResetTimeRelativeTimestamp
  #        Description: Needed for displaying valid instance reset times in ingame calendar.
 diff --git a/src/server/database/Database/Implementation/CharacterDatabase.cpp b/src/server/database/Database/Implementation/CharacterDatabase.cpp
-index 5b92f768e..674b3473f 100644
+index 5b92f768e..2c6bf0cd5 100644
 --- a/src/server/database/Database/Implementation/CharacterDatabase.cpp
 +++ b/src/server/database/Database/Implementation/CharacterDatabase.cpp
-@@ -258,6 +258,23 @@ void CharacterDatabaseConnection::DoPrepareStatements()
+@@ -258,6 +258,25 @@ void CharacterDatabaseConnection::DoPrepareStatements()
      PrepareStatement(CHAR_INS_INSTANCE_SAVE, "INSERT INTO instance (id, map, resettime, difficulty, completedEncounters, data) VALUES (?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
      PrepareStatement(CHAR_UPD_INSTANCE_SAVE_DATA, "UPDATE instance SET data=? WHERE id=?", CONNECTION_ASYNC);
      PrepareStatement(CHAR_UPD_INSTANCE_SAVE_ENCOUNTERMASK, "UPDATE instance SET completedEncounters=? WHERE id=?", CONNECTION_ASYNC);
++    // Keep native TINYINT/BIGINT result widths for prepared Field::Get reads.
++    // Missing LEFT JOIN fields are NULL and Field returns the typed zero default.
 +    PrepareStatement(CHAR_SEL_INSTANCE_SAVES_WITH_PROGRESSION,
 +        "SELECT i.id,i.map,i.resettime,i.difficulty,i.completedEncounters,i.data,"
-+        "COALESCE(p.stage,0),COALESCE(p.resetTime,0),COALESCE(p.extendedResetTime,0) "
++        "p.stage,p.resetTime,p.extendedResetTime "
 +        "FROM instance i LEFT JOIN instance_progression_reset p ON p.instanceId=i.id ORDER BY i.id", CONNECTION_SYNCH);
 +    // Async workers may finish successive saves out of order. Never regress a
 +    // stage or overwrite an already-consumed extension with an older checkpoint.
