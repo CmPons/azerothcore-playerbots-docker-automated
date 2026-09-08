@@ -1,4 +1,7 @@
 # Example user service for the Pi Ollama-compatible bridge.
+# Build the pinned runtime first, from the repository root (no nixos-rebuild):
+#   mkdir -p "$HOME/.local/share/pi-ollama-bridge"
+#   nix build "path:$PWD/nix/pi-bridge#pi" --out-link "$HOME/.local/share/pi-ollama-bridge/runtime"
 # Install as: mkdir -p ~/.config/systemd/user
 #             cp scripts/pi-ollama-bridge.service.example ~/.config/systemd/user/pi-ollama-bridge.service
 #             systemctl --user daemon-reload
@@ -18,12 +21,12 @@ RestartSec=5
 # Bind to LAN-reachable host interface for Docker containers.
 Environment=PI_BRIDGE_HOST=0.0.0.0
 Environment=PI_BRIDGE_PORT=11435
-Environment=PI_BRIDGE_PI_BIN=/etc/profiles/per-user/chrisp/bin/pi
+Environment=PI_BRIDGE_PI_BIN=%h/.local/share/pi-ollama-bridge/runtime/bin/pi
 Environment=PATH=/etc/profiles/per-user/chrisp/bin:/run/current-system/sw/bin:/usr/bin
 
-# Use the cheapest Codex subscription model for testing.
+# Lightweight Luna model through the existing Codex subscription.
 Environment=PI_BRIDGE_PROVIDER=openai-codex
-Environment=PI_BRIDGE_MODEL=gpt-5.4-mini
+Environment=PI_BRIDGE_MODEL=gpt-5.6-luna
 
 # Guardrails so ambient chatter cannot run wild.
 Environment=PI_BRIDGE_MAX_CONCURRENT=1

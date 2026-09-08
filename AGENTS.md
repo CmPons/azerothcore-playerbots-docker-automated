@@ -100,7 +100,11 @@ Current expected bridge behavior:
 - Calls `pi --print` behind the scenes
 - Uses provider/model via env, currently expected as:
   - `PI_BRIDGE_PROVIDER=openai-codex`
-  - `PI_BRIDGE_MODEL=gpt-5.4-mini`
+  - `PI_BRIDGE_MODEL=gpt-5.6-luna`
+- Pi runtime is built from the dedicated pinned `nix/pi-bridge/` flake:
+  - `~/.local/share/pi-ollama-bridge/runtime/bin/pi` (currently 0.84.4)
+  - Do not change `/etc/nixos` to manage this bridge runtime.
+  - Leave the unrelated root `flake.nix` / `flake.lock` alone.
 - AzerothCore chatter points at:
   - `http://192.168.1.7:11435/api/generate`
 

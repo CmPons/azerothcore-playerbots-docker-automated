@@ -2,7 +2,10 @@
 
 ## Status
 
-**Active after the explicitly approved bridge-only restart.**
+**Active after the explicitly approved bridge-only restart.** The limits below
+remain unchanged. The model/runtime were subsequently switched to Luna and a
+project-local flake on 2026-09-08; see [the Luna activation record](pi-bridge-luna.md).
+The following PID and timestamps describe the earlier quota-fix activation.
 
 - Restarted: 2026-09-07 18:34:10 CEST; PID 162731.
 - Startup confirmed `max_concurrent=1; rate=12/min unlimited/hour`.

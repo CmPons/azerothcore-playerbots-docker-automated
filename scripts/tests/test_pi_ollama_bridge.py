@@ -1,6 +1,7 @@
 """Exercise bridge admission using mocked Pi calls; never touch the live service."""
 
 import importlib.util
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -45,6 +46,20 @@ class BridgeAdmissionTests(unittest.TestCase):
         self.assertIn("Environment=PI_BRIDGE_MAX_PER_HOUR=0\n", service)
         self.assertIn("Environment=PI_BRIDGE_MAX_PER_MINUTE=12\n", service)
         self.assertIn("Environment=PI_BRIDGE_MAX_CONCURRENT=1\n", service)
+
+    def test_service_uses_luna_and_separate_pinned_runtime(self):
+        service = (ROOT / "scripts/pi-ollama-bridge.service.example").read_text()
+        self.assertIn("Environment=PI_BRIDGE_MODEL=gpt-5.6-luna\n", service)
+        self.assertIn("Environment=PI_BRIDGE_PROVIDER=openai-codex\n", service)
+        self.assertIn("Environment=PI_BRIDGE_PI_BIN=%h/.local/share/pi-ollama-bridge/runtime/bin/pi\n", service)
+        lock = json.loads((ROOT / "nix/pi-bridge/flake.lock").read_text())
+        node = lock["nodes"]["nixpkgs"]
+        self.assertEqual(node["original"]["rev"], node["locked"]["rev"])
+        self.assertRegex(node["locked"]["rev"], r"^[0-9a-f]{40}$")
+        flake = (ROOT / "nix/pi-bridge/flake.nix").read_text()
+        self.assertIn(node["locked"]["rev"], flake)
+        self.assertIn("pi = pkgs.pi-coding-agent;", flake)
+        self.assertNotIn("/etc/nixos", flake)
 
     def test_busy_rejection_does_not_charge_or_invoke_pi(self):
         self.assertTrue(self.bridge.semaphore.acquire(blocking=False))
