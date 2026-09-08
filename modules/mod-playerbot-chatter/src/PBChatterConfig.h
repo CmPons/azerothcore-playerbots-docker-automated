@@ -33,6 +33,7 @@ extern bool        g_PBChatAmbientEnable;
 extern bool        g_PBChatAmbientGeneral;     // zone General channel
 extern bool        g_PBChatAmbientGroup;       // party/raid
 extern bool        g_PBChatAmbientGuild;       // guild chat
+extern uint32_t    g_PBChatAmbientRaidPreferenceChance; // public ambient opportunities preferring human raid
 extern uint32_t    g_PBChatAmbientSeedMin;     // s: cold-start interval lower bound
 extern uint32_t    g_PBChatAmbientSeedMax;     // s: cold-start interval upper bound
 extern uint32_t    g_PBChatAmbientFollowMin;   // s: active follow-up lower bound

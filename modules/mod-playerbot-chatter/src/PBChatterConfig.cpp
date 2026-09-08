@@ -35,6 +35,7 @@ bool        g_PBChatAmbientEnable        = false;
 bool        g_PBChatAmbientGeneral       = true;
 bool        g_PBChatAmbientGroup         = true;
 bool        g_PBChatAmbientGuild         = true;
+uint32_t    g_PBChatAmbientRaidPreferenceChance = 80;
 uint32_t    g_PBChatAmbientSeedMin       = 60;
 uint32_t    g_PBChatAmbientSeedMax       = 90;
 uint32_t    g_PBChatAmbientFollowMin     = 8;
@@ -155,6 +156,13 @@ void PBChatterLoadConfig()
     g_PBChatAmbientGeneral       = sConfigMgr->GetOption<bool>("PlayerbotChatter.AmbientGeneral", true);
     g_PBChatAmbientGroup         = sConfigMgr->GetOption<bool>("PlayerbotChatter.AmbientGroup", true);
     g_PBChatAmbientGuild         = sConfigMgr->GetOption<bool>("PlayerbotChatter.AmbientGuild", true);
+    int32_t raidPreference = sConfigMgr->GetOption<int32_t>("PlayerbotChatter.AmbientRaidPreferenceChance", 80);
+    if (raidPreference < 0 || raidPreference > 100)
+    {
+        LOG_WARN("server.loading", "[PlayerbotChatter] AmbientRaidPreferenceChance must be 0..100; using 80.");
+        raidPreference = 80;
+    }
+    g_PBChatAmbientRaidPreferenceChance = static_cast<uint32_t>(raidPreference);
     g_PBChatAmbientSeedMin       = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.AmbientSeedMin", 60);
     g_PBChatAmbientSeedMax       = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.AmbientSeedMax", 90);
     g_PBChatAmbientFollowMin     = sConfigMgr->GetOption<uint32_t>("PlayerbotChatter.AmbientFollowMin", 8);

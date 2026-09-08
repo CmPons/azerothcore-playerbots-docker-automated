@@ -4,6 +4,8 @@
 #include "PBChatterPersona.h"
 #include "PBChatterQueue.h"
 #include "PBChatterAmbient.h"
+#include "PBChatterChannelPolicy.h"
+#include "Group.h"
 #include "PBChatterEvents.h"
 #include "PBChatterAreaBackfill.h"
 #include "Playerbots.h"
@@ -49,6 +51,26 @@ void PBChatterWorld::OnUpdate(uint32 diff)
         PlayerbotAI* ai = GET_PLAYERBOT_AI(bot);
         if (!ai)
             continue;
+
+        // Generated group chatter belongs to the original audience. Membership
+        // can change while Pi is answering; drop stale output, never reroute it.
+        if (r.ambient && r.ambientKind == AMB_GROUP)
+        {
+            Player* anchor = ObjectAccessor::FindPlayer(ObjectGuid::Create<HighGuid::Player>(
+                static_cast<ObjectGuid::LowType>(r.anchorPlayerGuid)));
+            Group* group = bot->GetGroup();
+            Group* anchorGroup = anchor ? anchor->GetGroup() : nullptr;
+            PlayerbotAI* anchorAI = anchor ? GET_PLAYERBOT_AI(anchor) : nullptr;
+            if (!bot->IsInWorld() || !anchor || !anchor->IsInWorld() ||
+                (anchorAI && !anchorAI->IsRealPlayer()) ||
+                !PBChatterChannelPolicy::SameGroup(r.ambientIdent,
+                    group ? group->GetGUID().GetRawValue() : 0,
+                    anchorGroup ? anchorGroup->GetGUID().GetRawValue() : 0))
+                continue;
+            PBChatChannel expectedChannel = group->isRaidGroup() ? PBChatChannel::Raid : PBChatChannel::Party;
+            if (r.channel != expectedChannel)
+                continue;
+        }
 
         bool sent = false;
         switch (r.channel)

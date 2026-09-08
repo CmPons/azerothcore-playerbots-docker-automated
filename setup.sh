@@ -718,6 +718,9 @@ if [[ -f "$PBCHAT_CONF" ]]; then
   set_conf "PlayerbotChatter.AmbientGeneral"    "${CHATTER_AMBIENT_GENERAL:-1}"                   "$PBCHAT_CONF"
   set_conf "PlayerbotChatter.AmbientGroup"      "${CHATTER_AMBIENT_GROUP:-1}"                     "$PBCHAT_CONF"
   set_conf "PlayerbotChatter.AmbientGuild"      "${CHATTER_AMBIENT_GUILD:-1}"                     "$PBCHAT_CONF"
+  # BEGIN CHATTER RAID PREFERENCE
+  set_conf "PlayerbotChatter.AmbientRaidPreferenceChance" "${CHATTER_AMBIENT_RAID_PREFERENCE_CHANCE:-80}" "$PBCHAT_CONF"
+  # END CHATTER RAID PREFERENCE
   set_conf "PlayerbotChatter.AmbientSeedMin"    "${CHATTER_AMBIENT_SEED_MIN:-60}"                 "$PBCHAT_CONF"
   set_conf "PlayerbotChatter.AmbientSeedMax"    "${CHATTER_AMBIENT_SEED_MAX:-90}"                 "$PBCHAT_CONF"
   set_conf "PlayerbotChatter.AmbientFollowMin"  "${CHATTER_AMBIENT_FOLLOWUP_MIN:-4}"              "$PBCHAT_CONF"

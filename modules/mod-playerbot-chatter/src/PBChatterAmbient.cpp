@@ -1,5 +1,6 @@
 #include "PBChatterAmbient.h"
 #include "PBChatterAmbientPrompt.h"
+#include "PBChatterChannelPolicy.h"
 #include "PBChatterConfig.h"
 #include "PBChatterEvents.h"
 #include "PBChatterQueue.h"
@@ -177,10 +178,38 @@ namespace
         if (!total)
             return PBChatterAmbientPrompt::MODE_GENERIC;
         uint32_t roll = urand(0, total - 1);
-        if (roll < wG) return PBChatterAmbientPrompt::MODE_GENERIC; roll -= wG;
-        if (roll < wR) return PBChatterAmbientPrompt::MODE_REACT;   roll -= wR;
-        if (roll < wF) return PBChatterAmbientPrompt::MODE_FLAVOR;
+        if (roll < wG)
+            return PBChatterAmbientPrompt::MODE_GENERIC;
+        roll -= wG;
+        if (roll < wR)
+            return PBChatterAmbientPrompt::MODE_REACT;
+        roll -= wR;
+        if (roll < wF)
+            return PBChatterAmbientPrompt::MODE_FLAVOR;
         return PBChatterAmbientPrompt::MODE_EVENT;
+    }
+
+    bool AnchorMatches(Ctx const& c, Player* anchor)
+    {
+        if (!anchor || !anchor->IsInWorld() || IsBot(anchor))
+            return false;
+        if (c.kind == AMB_ZONE)
+            return anchor->GetZoneId() == c.ident;
+        if (c.kind == AMB_GUILD)
+            return anchor->GetGuildId() == c.ident;
+        Group* group = anchor->GetGroup();
+        return group && group->GetGUID().GetRawValue() == c.ident;
+    }
+
+    Group* HumanRaid(Player* bot)
+    {
+        Group* group = bot->GetGroup();
+        if (!group || !group->isRaidGroup() || group->isBGGroup() || group->isBFGroup())
+            return nullptr;
+        for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+            if (Player* member = ref->GetSource(); member && member->IsInWorld() && !IsBot(member))
+                return group;
+        return nullptr;
     }
 
     void TryEmit(Ctx& c)
@@ -191,7 +220,7 @@ namespace
             return;
         }
         Player* anchor = FindByCounter(c.anchor);
-        if (!anchor || !anchor->IsInWorld())
+        if (!AnchorMatches(c, anchor))
         {
             c.nextEmitMs = g_nowMs + 5000;
             return;
@@ -218,38 +247,63 @@ namespace
         }
 
         Player* bot = pool[urand(0, pool.size() - 1)];
+        Ctx* destination = &c;
+        if (g_PBChatAmbientRaidPreferenceChance && g_PBChatAmbientGroup &&
+            (c.kind == AMB_ZONE || c.kind == AMB_GUILD))
+        {
+            Group* raid = HumanRaid(bot);
+            if (raid && PBChatterChannelPolicy::PreferRaid(c.kind, g_PBChatAmbientGroup, true,
+                g_PBChatAmbientRaidPreferenceChance, urand(0, 99)))
+            {
+                // Consume this public opportunity, not the bot's cooldown or any
+                // model budget. Never retry the preference roll every world tick.
+                c.nextEmitMs = g_nowMs + NextInterval(Active(c));
+                auto it = g_ctx.find(Key(AMB_GROUP, raid->GetGUID().GetRawValue()));
+                if (it == g_ctx.end())
+                    return; // Sweep will discover the human raid; no public fallback.
+                Ctx& raidCtx = it->second;
+                Player* raidAnchor = FindByCounter(raidCtx.anchor);
+                if (!raidCtx.eligible || !AnchorMatches(raidCtx, raidAnchor) ||
+                    g_nowMs < raidCtx.cooldownUntilMs || g_nowMs < raidCtx.nextEmitMs ||
+                    raidCtx.lastAuthorBot == bot->GetGUID().GetCounter())
+                    return; // Respect the destination's pacing and no-self-reply rule.
+                destination = &raidCtx;
+                anchor = raidAnchor;
+            }
+        }
+        Ctx& target = *destination;
 
-        bool haveBuffer = !c.buffer.empty();
+        bool haveBuffer = !target.buffer.empty();
         std::string eventHint;
         bool haveEvent = PBChatterEvents::Take(bot->GetGUID().GetCounter(), g_nowMs, eventHint);
         int mode = PickMode(haveBuffer, haveEvent);
 
         std::vector<std::pair<std::string, std::string>> recent;
-        for (Line const& l : c.buffer)
+        for (Line const& l : target.buffer)
             recent.emplace_back(l.speaker, l.text);
 
         PBChatJob job;
         job.botGuid          = bot->GetGUID().GetCounter();
         job.playerGuid       = 0;
-        job.channel          = ChannelForCtx(c, anchor);
+        job.channel          = ChannelForCtx(target, anchor);
         job.systemPrompt     = g_PBChatSystemPrompt;
-        job.prompt           = PBChatterAmbientPrompt::Build(mode, bot, c.kind, recent, eventHint);
+        job.prompt           = PBChatterAmbientPrompt::Build(mode, bot, target.kind, recent, eventHint);
         job.ambient          = true;
-        job.ambientKind      = c.kind;
-        job.ambientIdent     = c.ident;
-        job.anchorPlayerGuid = c.anchor;
+        job.ambientKind      = target.kind;
+        job.ambientIdent     = target.ident;
+        job.anchorPlayerGuid = target.anchor;
 
-        bool active = Active(c);
+        bool active = Active(target);
         if (PBChatterQueue::TrySubmitAmbient(std::move(job)))
         {
             ++g_rateCount;
             g_botCooldown[bot->GetGUID().GetCounter()] =
                 g_nowMs + g_PBChatAmbientPerBotCooldown * 1000u;
-            c.nextEmitMs = g_nowMs + NextInterval(active);
+            target.nextEmitMs = g_nowMs + NextInterval(active);
         }
         else
         {
-            c.nextEmitMs = g_nowMs + 3000; // queue busy with reactive work; retry soon
+            target.nextEmitMs = g_nowMs + 3000; // queue busy with reactive work; retry soon
         }
     }
 }

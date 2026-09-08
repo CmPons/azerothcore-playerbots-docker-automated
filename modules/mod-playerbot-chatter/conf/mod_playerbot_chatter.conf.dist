@@ -76,6 +76,14 @@ PlayerbotChatter.AmbientGeneral = 1
 PlayerbotChatter.AmbientGroup = 1
 PlayerbotChatter.AmbientGuild = 1
 
+# When a selected ambient speaker belongs to a normal raid with an online human,
+# prefer its raid context over General/guild this percentage of the time.
+# Raid cooldowns still apply: if it cannot speak there yet, skip the public turn.
+# Uses raid history only; direct reactive replies and non-raiders are unchanged.
+# Requires AmbientGroup=1. 0 restores old routing; 100 always prefers the raid.
+# This is not an exact percentage of all delivered messages.
+PlayerbotChatter.AmbientRaidPreferenceChance = 80
+
 # Two-speed cadence (seconds). Seed = cold-channel opening line; Follow = fast
 # in-thread reply while a context is active.
 PlayerbotChatter.AmbientSeedMin = 60
