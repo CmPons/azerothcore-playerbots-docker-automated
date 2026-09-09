@@ -1,6 +1,8 @@
 # Skull is a combat focus marker
 
-Status: source prepared, not built/deployed. No server or bridge restart.
+Status: **built and deployed on 2026-09-09** in the authorized worldserver-only
+QoL release. See [deployment record](raid-qol-deployment-20260909.md).
+The Pi bridge was not restarted; in-game targeting regression remains pending.
 
 Skull previously inserted an otherwise idle mob into the attackers list and could
 also be selected directly by the DPS/RTI selectors. It now only supplies automatic
@@ -36,5 +38,5 @@ The runner compiles extracted, unchanged production method bodies with game API
 and cache doubles, exercises precombat/in-combat/postcombat targeting, stale RTI
 fallbacks, cache transitions, explicit pulls, ordinary assistance, other icons and
 existing validity checks. It also verifies selector/cache source contracts and
-patch reverse/apply round-trip. This is not a full worldserver build or an in-game
-regression test. A build and deployment require fresh approval.
+patch reverse/apply round-trip. These are offline tests, not in-game regression.
+The subsequent full worldserver build passed and was deployed with permission.

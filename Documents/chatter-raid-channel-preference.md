@@ -2,9 +2,10 @@
 
 ## Status
 
-Implemented and tested in source; **not built into a worldserver image or deployed**.
-No service restart, live config reload, database mutation or Pi generation was made.
-The current live chatter behavior is unchanged until an approved build/deployment.
+**Built and deployed on 2026-09-09**, with raid preference 80, in the authorized
+worldserver-only QoL release. See [deployment record](raid-qol-deployment-20260909.md).
+No SQL changes or Pi bridge restart were needed. In-game routing observation
+remains pending.
 
 ## Behavior
 
@@ -60,7 +61,8 @@ PlayerbotChatter.AmbientRaidPreferenceChance = 80
 Accepted range 0–100; invalid config values fall back to 80 with a warning. The
 compiled default and module dist template also use 80. `setup.sh` writes only the
 new knob when its chatter config block is applied. Local env/runtime values are
-prepared, but broad setup and config reload were not run against the live server.
+prepared before deployment and activated by the authorized new worldserver start;
+broad setup and config reload were not run.
 Private pre-edit env/config backups are under `backups/chatter-raid-preference-*`;
 `/tmp/chatter-raid-preference-backup` records the exact local path.
 
@@ -93,6 +95,6 @@ Five tests include:
 The targeted official C++ style checker, shell syntax check and all thirteen Pi
 bridge regression tests also passed.
 
-Full worldserver build, real raid/group membership changes during generation, and
-observed in-game channel distribution remain pending. Deployment requires fresh
-build/restart permission; no new SQL or Pi bridge restart is needed for this change.
+The full worldserver build and authorized deployment subsequently passed. Real
+raid/group membership changes during generation and observed in-game channel
+distribution remain pending. No new SQL or Pi bridge restart was needed.

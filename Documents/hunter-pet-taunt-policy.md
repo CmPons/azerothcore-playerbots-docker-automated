@@ -2,8 +2,10 @@
 
 ## Status
 
-Implemented in source; **not built/deployed**. No live pet settings, configuration,
-SQL, server process or Pi bridge were changed. Deployment needs fresh permission.
+**Built and deployed on 2026-09-09** with the authorized worldserver-only QoL
+release. No saved pet settings or SQL changes were needed. See
+[deployment record](raid-qol-deployment-20260909.md). In-game cast verification
+remains pending; startup and binary verification are not a combat test.
 
 ## Policy
 
@@ -69,6 +71,7 @@ human/bot tanks and owners, other groups, dead/offline/non-tank victims, ordinar
 pet spells, threat fallback, an aggro change between selection and preparation,
 and preserving a previous cast error.
 
-These are offline tests, not a full server compile or live-cast verification.
-After authorized deployment, validate actual Growl casts while Redshift/Ari hold a
-mob, healer-aggro rescue, target changes, group departure and solo hunter combat.
+These are offline tests, not live-cast verification. The subsequent full
+worldserver build passed and was deployed. In game, validate actual Growl casts
+while Redshift/Ari hold a mob, healer-aggro rescue, target changes, group departure
+and solo hunter combat.
