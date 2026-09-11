@@ -2,9 +2,10 @@
 
 ## Status
 
-**Prepared September 11, 2026; not built or deployed.** No service interruption, live commands, SQL,
-gear changes, raid-role/subgroup edits, or configuration changes were made while preparing this.
-The running September 11 AQ40 image still contains the previous Twins AI.
+**Deployed September 11, 2026, with explicit permission.** The native image build passed and only
+worldserver was recreated; six AQ40 kills, all ten binds and reset deadlines were preserved.
+See [deployment evidence and rollback](twins-deployment-20260911.md). No gear, saved raid-role/subgroup,
+configuration or manual SQL changes were made. Live combat validation awaits the next attempt.
 
 The goal is coordination, not reducing encounter difficulty. Repeated Heal Brother explains the
 lack of health-bar progress; do not tune DPS/HP around a broken separation strategy.
@@ -166,9 +167,9 @@ beneficial casts during threat holds, local adds, pet re-arming, melee range bou
 settling/preemption, Arcane/Blizzard destination conflict, ordinary casting delegation and DONE
 cleanup. Patch reversal/reapplication and action registration are checked as well.
 
-**These are not live combat proof or a full worldserver build.** Native spell damage, actual
-healing throughput, full engine scheduling, geometry/pathfinding and raid survival need an
-observed attempt after an explicitly authorized build/deployment. Boss damage, HP, healing,
+**These tests are not live combat proof.** The subsequent full worldserver build and deployment
+passed, but native spell damage, actual healing throughput, full engine scheduling,
+geometry/pathfinding and raid survival still need an observed attempt. Boss damage, HP, healing,
 immunities, timers and general raid scaling are unchanged.
 
 ### Existing regeneration caveat
@@ -185,4 +186,4 @@ successful deployments did; do not regenerate it from pins or run setup on the l
 
 Preparation backup: `backups/twins-coordination-preparation-20260911-211515/` (pointer
 `/tmp/twins-coordination-backup`). It contains the full pre-edit playerbot source, hashes, git
-status/diffs and repository heads. No live DB restore or boss reset is part of this source-only change.
+status/diffs and repository heads. Neither preparation nor deployment restored a DB or reset a boss.
