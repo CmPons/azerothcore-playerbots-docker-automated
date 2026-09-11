@@ -2,10 +2,10 @@
 
 ## Status
 
-**Source prepared and pushed; not built or deployed.** The user approved the
-proposed hit-count changes while continuing AQ40 toward Huhuran. That is not
-permission to interrupt the server. Both this adjustment and the
-[Bug Trio reset fix](aq40-bug-trio-wipe-reset.md) await an authorized deployment.
+**Deployed September 11 after separate explicit deployment permission.** This
+adjustment, the [Bug Trio reset fix](aq40-bug-trio-wipe-reset.md), and the
+[Huhuran cap](huhuran-ten-player-sting.md) are now in the running binary.
+See [deployment record](aq40-deployment-20260911.md); in-game validation remains.
 
 - Core commit: `267f29e60` (on top of trio fix `63aa5aadd`).
 - Core fork branch: `CmPons/azerothcore-wotlk:fix/aq40-ten-player-encounters`.
@@ -74,8 +74,8 @@ the patch also proves the rest of the source is byte-identical. These four tests
 are arithmetic/source checks, **not live combat or production AI execution**.
 The official C++ style checker and core whitespace checks passed.
 
-A worldserver build and explicit restart/recreation authorization are still
-required. No setup, SQL migration, live encounter reset or service action was
-performed. During an authorized later deployment, back up current raid progress
-and verify it is preserved; do not restore an old snapshot over the user's new
-kills (including Huhuran if defeated before deployment).
+The subsequent full worldserver build passed. The deployed executable's
+50/38 comparisons and binary hash were verified; current raid progress was
+preserved. Only worldserver was restarted, with no setup, migration or manual
+encounter reset. Future deployments require fresh permission and current
+backups; never restore an old snapshot over later kills.

@@ -2,11 +2,11 @@
 
 ## Status
 
-**Prepared and tested offline; not built or deployed.** No live encounter reset,
-SQL write, configuration change or service interruption was performed.
-Worldserver remains on the September 9 QoL image
-`464d82c98891e5e3bb75ebbdc748aeee8bc5557bbead70c039a1ab1c7818edff`,
-started `2026-09-09T20:17:35.806944016Z`, restart count zero at verification.
+**Deployed September 11 with explicit permission**, alongside the Viscidus and
+Huhuran adjustments. See [deployment record](aq40-deployment-20260911.md).
+Only worldserver was restarted; no manual encounter reset, bind change,
+configuration change or migration was performed. The already-completed trio
+and the rest of AQ40 save 5670 were preserved.
 
 - Core commit: `63aa5aadd`.
 - Canonical patch: `patches/0022-core-aq40-bug-trio-reset.patch`.
@@ -111,18 +111,19 @@ python3 -m unittest discover -s scripts/tests -p test_progression_raid_reset.py 
 **These are not full-engine or live-combat tests.** The harness models native
 respawn and BossAI services; it does not execute the complete server, actual
 pathfinding, delayed-event timing, ability casts or SQL persistence. Full
-worldserver compilation and in-game verification remain pending authorization.
+worldserver compilation subsequently passed and the deployed binary was
+verified. In-game wipe-recovery verification remains observational.
 
 ## Deployment and live recovery
 
 This is a future-wipe fix, not an automatic migration of an already-broken live
-attempt or a general startup recovery overhaul. No actor or saved state has been
-changed in the user's current AQ40 copy.
+attempt or a general startup recovery overhaul. No manual actor/saved-state edits
+were made; saved boss states, binds, deadlines and AQ40 respawn rows matched
+exactly across the authorized deployment.
 
-Build/deploy only with fresh permission and the normal fresh backup procedure.
-After deployment, verify a two-death wipe restores all three original spawns,
-then complete another attempt. Check Skeram, binds and progression deadlines
-before/after the deployment and targeted recovery.
+Future deployments require fresh permission and backups. On a future legitimate
+trio attempt, verify a two-death wipe restores all three original spawns, then
+complete another attempt. Do not reset the current completed trio just to test.
 
 If manual recovery is still needed, the existing targeted command is:
 
@@ -133,8 +134,8 @@ If manual recovery is still needed, the existing targeted command is:
 
 Use only deliberately, inside AQ40 with the group out of combat and the survivor
 already evaded. The command queues/respawns dead entries but does not explicitly
-reset a living survivor's AI. Its outcome for the currently broken attempt is
-not verified here; wait for all three before pulling.
+reset a living survivor's AI. This fallback was not exercised during deployment;
+wait for all three before pulling. It is not needed for the current completed trio.
 
 Do **not** substitute `.raidinstance reset all confirm`: that unbinds the group
 and disables scaling on the current instance rather than just repairing the trio.

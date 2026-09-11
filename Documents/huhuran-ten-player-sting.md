@@ -2,11 +2,12 @@
 
 ## Status
 
-**Prepared and pushed; not built or deployed.** The user approved reducing the
-sleep target count after whole-raid sleeps caused wipes. No server interruption,
-live encounter reset, configuration change or SQL write was performed.
+**Deployed September 11 with explicit deployment permission.** The user approved
+reducing the sleep target count after whole-raid sleeps caused wipes. Only
+worldserver was restarted; no manual encounter reset, configuration change,
+bind edit or migration was performed. See [deployment record](aq40-deployment-20260911.md).
 
-Pending AQ40 changes now comprise:
+The deployed AQ40 changes comprise:
 
 1. [Bug Trio wipe recovery](aq40-bug-trio-wipe-reset.md).
 2. [Viscidus ten-player hit counts](viscidus-ten-player-hit-counts.md).
@@ -73,8 +74,8 @@ cap and native selection ordering. Patch reverse/apply checks prove everything
 outside the cap declaration, cast argument and filter limit is byte-identical.
 The official C++ style checker and core whitespace checks passed.
 
-These are offline tests, not live combat or full-server compilation. Actual
-spell delivery, immunity/resist handling, bot healing and fight difficulty still
-need observation after an authorized build/deployment. Wait for fresh permission
-before restarting; preserve the user's current AQ40 progress with the normal
-backup and deployment procedure.
+These are offline tests, not live combat. A subsequent full-server build passed;
+the deployed filter's spell-26180-specific cap of three and binary hash were
+verified. Actual spell delivery, immunity/resist handling, bot healing and fight
+difficulty still need observation. Future restarts require fresh permission
+and backups; current AQ40 progress was preserved during this deployment.
