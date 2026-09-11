@@ -1,0 +1,36 @@
+diff --git a/src/server/scripts/Kalimdor/TempleOfAhnQiraj/boss_huhuran.cpp b/src/server/scripts/Kalimdor/TempleOfAhnQiraj/boss_huhuran.cpp
+index 0d171c8a4..7839d89be 100644
+--- a/src/server/scripts/Kalimdor/TempleOfAhnQiraj/boss_huhuran.cpp
++++ b/src/server/scripts/Kalimdor/TempleOfAhnQiraj/boss_huhuran.cpp
+@@ -48,6 +48,9 @@ enum Events
+     EVENT_HARD_ENRAGE           = 5
+ };
+
++// Fixed ten-player tuning; independent of attendance and raid-scaling overrides.
++constexpr uint32 WYVERN_STING_MAX_TARGETS = 3;
++
+ struct boss_huhuran : public BossAI
+ {
+     boss_huhuran(Creature* creature) : BossAI(creature, DATA_HUHURAN)
+@@ -99,7 +102,8 @@ struct boss_huhuran : public BossAI
+                     events.Repeat(12s, 21s);
+                     break;
+                 case EVENT_WYVERN_STING:
+-                    me->CastCustomSpell(SPELL_WYVERN_STING, SPELLVALUE_MAX_TARGETS, 10, me, true);
++                    me->CastCustomSpell(SPELL_WYVERN_STING, SPELLVALUE_MAX_TARGETS,
++                        WYVERN_STING_MAX_TARGETS, me, true);
+                     events.Repeat(25s, 43s);
+                     break;
+                 case EVENT_ACID_SPIT:
+@@ -165,7 +169,10 @@ class spell_huhuran_poison_bolt : public SpellScript
+
+     void FilterTargets(std::list<WorldObject*>& targets)
+     {
+-        uint32 const maxTargets = GetSpellInfo()->MaxAffectedTargets;
++        // Trim Sting to its local cap here as well, preserving closest-target selection.
++        // Otherwise the core would randomly reduce the DBC-selected ten to three afterwards.
++        uint32 const maxTargets = GetSpellInfo()->Id == SPELL_WYVERN_STING
++            ? WYVERN_STING_MAX_TARGETS : GetSpellInfo()->MaxAffectedTargets;
+         if (targets.size() > maxTargets)
+         {
+             targets.sort(Acore::ObjectDistanceOrderPred(GetCaster()));
