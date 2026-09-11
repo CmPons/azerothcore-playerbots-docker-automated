@@ -1,0 +1,339 @@
+diff --git a/modules/mod-playerbots/conf/playerbots.conf.dist b/modules/mod-playerbots/conf/playerbots.conf.dist
+index a23d873b..f868a407 100644
+--- a/modules/mod-playerbots/conf/playerbots.conf.dist
++++ b/modules/mod-playerbots/conf/playerbots.conf.dist
+@@ -487,6 +487,17 @@ AiPlayerbot.DropObsoleteQuests = 1
+ # Auto add dungeon/raid strategies when entering the instance if implemented
+ AiPlayerbot.ApplyInstanceStrategies = 1
+ 
++# Make non-tank bots threat-aware on taunt-immune raid bosses.
++# When enabled, DPS/healers follow the main tank target for taunt-immune bosses and stop direct damage
++# if they approach the configured percentage of main tank threat.
++# Default: 1 (enabled)
++AiPlayerbot.RaidThreatDiscipline.Enable = 1
++
++# Threat percentage of the main tank where non-tank bots stop direct damage on taunt-immune raid bosses.
++# They may resume once tank threat pulls ahead again.
++# Default: 70
++AiPlayerbot.RaidThreatDiscipline.HoldPercent = 70
++
+ # Enable auto avoid aoe strategy
+ # Default: 1 (enabled)
+ AiPlayerbot.AutoAvoidAoe = 1
+diff --git a/modules/mod-playerbots/src/Ai/Base/Strategy/ThreatStrategy.cpp b/modules/mod-playerbots/src/Ai/Base/Strategy/ThreatStrategy.cpp
+index 4985e1c0..24407ac8 100644
+--- a/modules/mod-playerbots/src/Ai/Base/Strategy/ThreatStrategy.cpp
++++ b/modules/mod-playerbots/src/Ai/Base/Strategy/ThreatStrategy.cpp
+@@ -6,9 +6,15 @@
+ 
+ #include "ThreatStrategy.h"
+ 
++#include "AttackAction.h"
++#include "Config.h"
++#include "GenericActions.h"
+ #include "GenericSpellActions.h"
+ #include "Map.h"
+ #include "Playerbots.h"
++#include "RaidThreatUtils.h"
++
++#include <algorithm>
+ 
+ float ThreatMultiplier::GetValue(Action* action)
+ {
+@@ -17,12 +23,28 @@ float ThreatMultiplier::GetValue(Action* action)
+         return 1.0f;
+     }
+ 
+-    if (!action || action->getThreatType() == Action::ActionThreatType::None)
++    if (!action)
++        return 1.0f;
++
++    bool const isThreateningAction = action->getThreatType() != Action::ActionThreatType::None ||
++                                     dynamic_cast<AttackAction*>(action) ||
++                                     dynamic_cast<PetAttackAction*>(action);
++    if (!isThreateningAction)
+         return 1.0f;
+ 
+     if (!AI_VALUE(bool, "group"))
+         return 1.0f;
+ 
++    Unit* currentTarget = AI_VALUE(Unit*, "current target");
++    uint8 const tauntImmuneLimit = uint8(std::min<uint32>(100, std::max<uint32>(1, sConfigMgr->GetOption<uint32>(
++        "AiPlayerbot.RaidThreatDiscipline.HoldPercent", 70))));
++    if (sConfigMgr->GetOption<bool>("AiPlayerbot.RaidThreatDiscipline.Enable", true) &&
++        ai::threat::ShouldHoldDamageOnTauntImmuneBoss(botAI, currentTarget, tauntImmuneLimit))
++    {
++        ai::threat::StopDirectDamage(botAI, currentTarget);
++        return 0.0f;
++    }
++
+     if (action->getThreatType() == Action::ActionThreatType::Aoe)
+     {
+         uint8 threat = AI_VALUE2(uint8, "threat", "aoe");
+diff --git a/modules/mod-playerbots/src/Ai/Base/Trigger/GenericTriggers.cpp b/modules/mod-playerbots/src/Ai/Base/Trigger/GenericTriggers.cpp
+index 2801435e..0b1e386a 100644
+--- a/modules/mod-playerbots/src/Ai/Base/Trigger/GenericTriggers.cpp
++++ b/modules/mod-playerbots/src/Ai/Base/Trigger/GenericTriggers.cpp
+@@ -23,6 +23,7 @@
+ #include "PlayerbotAI.h"
+ #include "Player.h"
+ #include "Corpse.h"
++#include "RaidThreatUtils.h"
+ 
+ bool LowManaTrigger::IsActive()
+ {
+@@ -217,7 +218,15 @@ bool MediumThreatTrigger::IsActive()
+     if (!AI_VALUE(Unit*, "main tank"))
+         return false;
+ 
+-    return MyAttackerCountTrigger::IsActive();
++    Unit* currentTarget = AI_VALUE(Unit*, "current target");
++    if (!currentTarget)
++        return false;
++
++    uint8 const threat = AI_VALUE2(uint8, "threat", "current target");
++    if (ai::threat::IsTauntImmuneRaidBoss(currentTarget))
++        return threat >= 65;
++
++    return threat >= 80;
+ }
+ 
+ bool LowTankThreatTrigger::IsActive()
+diff --git a/modules/mod-playerbots/src/Ai/Base/Util/RaidThreatUtils.cpp b/modules/mod-playerbots/src/Ai/Base/Util/RaidThreatUtils.cpp
+new file mode 100644
+index 00000000..b027cec1
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Base/Util/RaidThreatUtils.cpp
+@@ -0,0 +1,165 @@
++/*
++ * This file is part of the mod-playerbots module for AzerothCore.
++ * Released under GNU GPL v2 license.
++ */
++
++#include "RaidThreatUtils.h"
++
++#include "AiObjectContext.h"
++#include "Creature.h"
++#include "CreatureData.h"
++#include "Group.h"
++#include "Pet.h"
++#include "Player.h"
++#include "PlayerbotAI.h"
++#include "Playerbots.h"
++#include "Spell.h"
++#include "SpellMgr.h"
++#include "ThreatManager.h"
++#include "Unit.h"
++
++namespace ai::threat
++{
++namespace
++{
++    Unit* GetThreatVictim(Unit* unit)
++    {
++        if (!unit)
++            return nullptr;
++
++        if (Unit* victim = unit->GetVictim())
++            return victim;
++
++        ThreatManager& threatMgr = unit->GetThreatMgr();
++        if (!threatMgr.CanHaveThreatList())
++            return nullptr;
++
++        return threatMgr.GetCurrentVictim();
++    }
++
++    Unit* GetMainTank(PlayerbotAI* botAI)
++    {
++        if (!botAI)
++            return nullptr;
++
++        return botAI->GetAiObjectContext()->GetValue<Unit*>("main tank")->Get();
++    }
++}
++
++bool IsTauntImmuneRaidBoss(Unit* unit)
++{
++    Creature* creature = unit ? unit->ToCreature() : nullptr;
++    if (!creature)
++        return false;
++
++    if (!creature->IsDungeonBoss() && !creature->isWorldBoss())
++        return false;
++
++    if (creature->HasFlagsExtra(CREATURE_FLAG_EXTRA_NO_TAUNT))
++        return true;
++
++    // AzerothCore also grants many boss-rank creatures taunt immunity through spell immunity data,
++    // without setting CREATURE_FLAG_EXTRA_NO_TAUNT in creature_template. Probe normal warrior taunts.
++    static uint32 constexpr TAUNT = 355;
++    static uint32 constexpr MOCKING_BLOW = 694;
++    if (SpellInfo const* taunt = sSpellMgr->GetSpellInfo(TAUNT))
++        if (creature->IsImmunedToSpell(taunt, nullptr))
++            return true;
++
++    if (SpellInfo const* mockingBlow = sSpellMgr->GetSpellInfo(MOCKING_BLOW))
++        if (creature->IsImmunedToSpell(mockingBlow, nullptr))
++            return true;
++
++    return false;
++}
++
++Unit* GetMainTankTarget(PlayerbotAI* botAI)
++{
++    Unit* mainTank = GetMainTank(botAI);
++    if (!mainTank || !mainTank->IsAlive())
++        return nullptr;
++
++    if (Unit* victim = mainTank->GetVictim())
++        return victim;
++
++    ObjectGuid selected = mainTank->GetTarget();
++    if (!selected)
++        return nullptr;
++
++    return botAI->GetUnit(selected);
++}
++
++bool ShouldHoldDamageOnTauntImmuneBoss(PlayerbotAI* botAI, Unit* target, uint8 threatPercentLimit)
++{
++    if (!botAI || !target || !IsTauntImmuneRaidBoss(target))
++        return false;
++
++    Player* bot = botAI->GetBot();
++    if (!bot || !bot->GetGroup() || !bot->GetGroup()->isRaidGroup())
++        return false;
++
++    if (PlayerbotAI::IsTank(bot))
++        return false;
++
++    Unit* mainTank = GetMainTank(botAI);
++    if (!mainTank || mainTank == bot || !mainTank->IsAlive())
++        return false;
++
++    Unit* victim = GetThreatVictim(target);
++    if (victim == bot)
++        return true;
++
++    ThreatManager& threatMgr = target->GetThreatMgr();
++    if (!threatMgr.CanHaveThreatList())
++        return false;
++
++    float const tankThreat = threatMgr.GetThreat(mainTank);
++    float const botThreat = threatMgr.GetThreat(bot);
++
++    // Opening pull: do not let DPS/healers start before the MT has any real threat.
++    if (target->IsInCombat() && tankThreat <= 0.0f && botThreat <= 0.0f)
++        return true;
++
++    if (tankThreat <= 0.0f)
++        return false;
++
++    return botThreat * 100.0f >= tankThreat * float(threatPercentLimit);
++}
++
++void StopDirectDamage(PlayerbotAI* botAI, Unit* target)
++{
++    if (!botAI)
++        return;
++
++    Player* bot = botAI->GetBot();
++    if (!bot)
++        return;
++
++    if (!target || bot->GetVictim() == target || bot->HasUnitState(UNIT_STATE_MELEE_ATTACKING))
++        bot->AttackStop();
++
++    if (Spell const* spell = bot->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL))
++    {
++        if (!target || spell->m_targets.GetUnitTarget() == target)
++            bot->InterruptSpell(CURRENT_AUTOREPEAT_SPELL);
++    }
++
++    Guardian* guardian = bot->GetGuardianPet();
++    if (guardian && (!target || guardian->GetVictim() == target))
++    {
++        guardian->AttackStop();
++        if (guardian->GetCharmInfo())
++            guardian->GetCharmInfo()->SetIsCommandAttack(false);
++    }
++
++    if (Pet* pet = bot->GetPet())
++    {
++        if (!target || pet->GetVictim() == target)
++        {
++            pet->AttackStop();
++            if (pet->GetCharmInfo())
++                pet->GetCharmInfo()->SetIsCommandAttack(false);
++        }
++    }
++}
++}
+diff --git a/modules/mod-playerbots/src/Ai/Base/Util/RaidThreatUtils.h b/modules/mod-playerbots/src/Ai/Base/Util/RaidThreatUtils.h
+new file mode 100644
+index 00000000..b806a188
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Base/Util/RaidThreatUtils.h
+@@ -0,0 +1,22 @@
++/*
++ * This file is part of the mod-playerbots module for AzerothCore.
++ * Released under GNU GPL v2 license.
++ */
++
++#ifndef PLAYERBOTS_RAIDTHREATUTILS_H
++#define PLAYERBOTS_RAIDTHREATUTILS_H
++
++#include "Define.h"
++
++class PlayerbotAI;
++class Unit;
++
++namespace ai::threat
++{
++    bool IsTauntImmuneRaidBoss(Unit* unit);
++    bool ShouldHoldDamageOnTauntImmuneBoss(PlayerbotAI* botAI, Unit* target, uint8 threatPercentLimit);
++    Unit* GetMainTankTarget(PlayerbotAI* botAI);
++    void StopDirectDamage(PlayerbotAI* botAI, Unit* target);
++}
++
++#endif
+diff --git a/modules/mod-playerbots/src/Ai/Base/Value/DpsTargetValue.cpp b/modules/mod-playerbots/src/Ai/Base/Value/DpsTargetValue.cpp
+index fd200dda..eb0e74a2 100644
+--- a/modules/mod-playerbots/src/Ai/Base/Value/DpsTargetValue.cpp
++++ b/modules/mod-playerbots/src/Ai/Base/Value/DpsTargetValue.cpp
+@@ -8,6 +8,7 @@
+ 
+ #include "PlayerbotAIConfig.h"
+ #include "Playerbots.h"
++#include "RaidThreatUtils.h"
+ #include "Strategy.h"
+ 
+ class DpsFindTargetStrategy : public FindTargetStrategy
+@@ -285,6 +286,13 @@ Unit* DpsTargetValue::Calculate()
+     if (rti)
+         return rti;
+ 
++    if (!PlayerbotAI::IsTank(bot))
++    {
++        Unit* mainTankTarget = ai::threat::GetMainTankTarget(botAI);
++        if (ai::threat::IsTauntImmuneRaidBoss(mainTankTarget))
++            return mainTankTarget;
++    }
++
+     float dps = AI_VALUE(float, "estimated group dps");
+ 
+     if (botAI->GetNearGroupMemberCount() > 3)
+diff --git a/modules/mod-playerbots/src/Bot/Factory/AiFactory.cpp b/modules/mod-playerbots/src/Bot/Factory/AiFactory.cpp
+index c895385c..200345d9 100644
+--- a/modules/mod-playerbots/src/Bot/Factory/AiFactory.cpp
++++ b/modules/mod-playerbots/src/Bot/Factory/AiFactory.cpp
+@@ -399,6 +399,8 @@ void AiFactory::AddDefaultCombatStrategies(Player* player, PlayerbotAI* const fa
+ 
+     if (PlayerbotAI::IsTank(player, true))
+         engine->addStrategy("tank face", false);
++    else
++        engine->addStrategy("threat", false);
+ 
+     if (PlayerbotAI::IsMelee(player, true) && PlayerbotAI::IsDps(player, true))
+         engine->addStrategy("behind", false);

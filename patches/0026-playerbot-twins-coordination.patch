@@ -1,0 +1,1553 @@
+diff --git a/modules/mod-playerbots/src/Ai/Base/Strategy/ThreatStrategy.cpp b/modules/mod-playerbots/src/Ai/Base/Strategy/ThreatStrategy.cpp
+index 24407ac..311cec0 100644
+--- a/modules/mod-playerbots/src/Ai/Base/Strategy/ThreatStrategy.cpp
++++ b/modules/mod-playerbots/src/Ai/Base/Strategy/ThreatStrategy.cpp
+@@ -7,6 +7,7 @@
+ #include "ThreatStrategy.h"
+ 
+ #include "AttackAction.h"
++#include "Aq40Helpers.h"
+ #include "Config.h"
+ #include "GenericActions.h"
+ #include "GenericSpellActions.h"
+@@ -26,6 +27,18 @@ float ThreatMultiplier::GetValue(Action* action)
+     if (!action)
+         return 1.0f;
+ 
++    if (TempleOfAhnQirajHelpers::IsTwinsEncounterActive(bot))
++    {
++        // Healing actions report AoE threat too. A DPS hold must never silence tank healing,
++        // dispels or defensive buffs during the pull/teleport handoff.
++        if (dynamic_cast<CastHealingSpellAction*>(action))
++            return 1.0f;
++        if (auto* spell = dynamic_cast<CastSpellAction*>(action))
++            if (Unit* recipient = spell->GetTarget())
++                if (!bot->IsValidAttackTarget(recipient))
++                    return 1.0f;
++    }
++
+     bool const isThreateningAction = action->getThreatType() != Action::ActionThreatType::None ||
+                                      dynamic_cast<AttackAction*>(action) ||
+                                      dynamic_cast<PetAttackAction*>(action);
+@@ -38,13 +51,19 @@ float ThreatMultiplier::GetValue(Action* action)
+     Unit* currentTarget = AI_VALUE(Unit*, "current target");
+     uint8 const tauntImmuneLimit = uint8(std::min<uint32>(100, std::max<uint32>(1, sConfigMgr->GetOption<uint32>(
+         "AiPlayerbot.RaidThreatDiscipline.HoldPercent", 70))));
+-    if (sConfigMgr->GetOption<bool>("AiPlayerbot.RaidThreatDiscipline.Enable", true) &&
++    bool const twins = TempleOfAhnQirajHelpers::IsTwinsBossTarget(bot, currentTarget);
++    if ((twins || sConfigMgr->GetOption<bool>("AiPlayerbot.RaidThreatDiscipline.Enable", true)) &&
+         ai::threat::ShouldHoldDamageOnTauntImmuneBoss(botAI, currentTarget, tauntImmuneLimit))
+     {
+         ai::threat::StopDirectDamage(botAI, currentTarget);
+         return 0.0f;
+     }
+ 
++    // The encounter already checked threat against THIS emperor's owner. The generic 80%/AoE
++    // checks compare with physical tanks and would immediately silence the caster tank again.
++    if (twins)
++        return 1.0f;
++
+     if (action->getThreatType() == Action::ActionThreatType::Aoe)
+     {
+         uint8 threat = AI_VALUE2(uint8, "threat", "aoe");
+diff --git a/modules/mod-playerbots/src/Ai/Base/Util/RaidThreatUtils.cpp b/modules/mod-playerbots/src/Ai/Base/Util/RaidThreatUtils.cpp
+index b027cec..c259df5 100644
+--- a/modules/mod-playerbots/src/Ai/Base/Util/RaidThreatUtils.cpp
++++ b/modules/mod-playerbots/src/Ai/Base/Util/RaidThreatUtils.cpp
+@@ -6,6 +6,7 @@
+ #include "RaidThreatUtils.h"
+ 
+ #include "AiObjectContext.h"
++#include "Aq40Helpers.h"
+ #include "Creature.h"
+ #include "CreatureData.h"
+ #include "Group.h"
+@@ -98,12 +99,18 @@ bool ShouldHoldDamageOnTauntImmuneBoss(PlayerbotAI* botAI, Unit* target, uint8 t
+     if (!bot || !bot->GetGroup() || !bot->GetGroup()->isRaidGroup())
+         return false;
+ 
+-    if (PlayerbotAI::IsTank(bot))
++    bool const twins = TempleOfAhnQirajHelpers::IsTwinsBossTarget(bot, target);
++    if (!twins && PlayerbotAI::IsTank(bot))
+         return false;
+ 
+-    Unit* mainTank = GetMainTank(botAI);
+-    if (!mainTank || mainTank == bot || !mainTank->IsAlive())
++    Unit* mainTank = twins ? TempleOfAhnQirajHelpers::GetTwinsTank(bot,
++        target == TempleOfAhnQirajHelpers::GetTwin(bot, TempleOfAhnQirajHelpers::AQT_DATA_VEKLOR)
++            ? TempleOfAhnQirajHelpers::AQT_DATA_VEKLOR : TempleOfAhnQirajHelpers::AQT_DATA_VEKNILASH)
++        : GetMainTank(botAI);
++    if (mainTank == bot)
+         return false;
++    if (!mainTank || !mainTank->IsAlive())
++        return twins;  // no assigned owner: do not deliberately feed this emperor more DPS threat
+ 
+     Unit* victim = GetThreatVictim(target);
+     if (victim == bot)
+@@ -121,7 +128,7 @@ bool ShouldHoldDamageOnTauntImmuneBoss(PlayerbotAI* botAI, Unit* target, uint8 t
+         return true;
+ 
+     if (tankThreat <= 0.0f)
+-        return false;
++        return twins;
+ 
+     return botThreat * 100.0f >= tankThreat * float(threatPercentLimit);
+ }
+diff --git a/modules/mod-playerbots/src/Ai/Base/Value/PartyMemberToHeal.cpp b/modules/mod-playerbots/src/Ai/Base/Value/PartyMemberToHeal.cpp
+index 61683e1..7737a21 100644
+--- a/modules/mod-playerbots/src/Ai/Base/Value/PartyMemberToHeal.cpp
++++ b/modules/mod-playerbots/src/Ai/Base/Value/PartyMemberToHeal.cpp
+@@ -6,6 +6,9 @@
+ 
+ #include "PartyMemberToHeal.h"
+ 
++#include <algorithm>
++
++#include "Aq40Helpers.h"
+ #include "Playerbots.h"
+ #include "ServerFacade.h"
+ 
+@@ -69,10 +72,12 @@ Unit* PartyMemberToHeal::Calculate()
+         return (Unit*)calc.param;
+     }
+ 
++    // Resolve once, not once per candidate. Explicit focus-heal commands above retain priority.
++    Player* twinsTank = TempleOfAhnQirajHelpers::GetTwinsHealerTank(bot, botAI);
+     for (GroupReference* gref = group->GetFirstMember(); gref; gref = gref->next())
+     {
+         Player* player = gref->GetSource();
+-        if (player->IsGameMaster())
++        if (!player || player->IsGameMaster())
+             continue;
+         if (player && player->IsAlive())
+         {
+@@ -88,6 +93,11 @@ Unit* PartyMemberToHeal::Calculate()
+                 {
+                     probeValue = health + player->GetDistance2d(bot) / 10.0f;
+                 }
++                if (twinsTank && health < 90.0f && player == twinsTank)
++                    probeValue -= 20.0f;
++                // An assignment is a preference, not permission to ignore a nearby dying player.
++                if (twinsTank && health < 30.0f)
++                    probeValue -= 40.0f;
+                 // delay Check player to here for better performance
+                 if (probeValue < calc.minValue && Check(player))
+                 {
+@@ -129,9 +139,15 @@ Unit* PartyMemberToHeal::Calculate()
+ 
+ bool PartyMemberToHeal::Check(Unit* player)
+ {
+-    // return player && player != bot && player->GetMapId() == bot->GetMapId() && player->IsInWorld() &&
+-    //     ServerFacade::instance().GetDistance2d(bot, player) < (player->IsPlayer() && botAI->IsTank((Player*)player) ? 50.0f
+-    //     : 40.0f);
++    // Don't select a remote human and then walk out of tank coverage to heal them. Encounter
++    // movement separately restores range/LOS to our assigned tank. Other raids keep the old rule.
++    if (TempleOfAhnQirajHelpers::IsTwinsEncounterActive(bot) && PlayerbotAI::IsHeal(bot))
++    {
++        float const range = std::min(botAI->GetRange("heal"), sPlayerbotAIConfig.healDistance);
++        if (!player || !player->IsInWorld() || player->GetMap() != bot->GetMap() ||
++            !player->InSamePhase(bot) || bot->GetDistance2d(player) > range)
++            return false;
++    }
+     return player->GetMapId() == bot->GetMapId() && !player->IsCharmed() &&
+            bot->GetDistance2d(player) < sPlayerbotAIConfig.healDistance * 2 && bot->IsWithinLOSInMap(player);
+ }
+diff --git a/modules/mod-playerbots/src/Ai/Base/Value/ThreatValues.cpp b/modules/mod-playerbots/src/Ai/Base/Value/ThreatValues.cpp
+index d25b217..75263f5 100644
+--- a/modules/mod-playerbots/src/Ai/Base/Value/ThreatValues.cpp
++++ b/modules/mod-playerbots/src/Ai/Base/Value/ThreatValues.cpp
+@@ -6,6 +6,9 @@
+ 
+ #include "ThreatValues.h"
+ 
++#include <algorithm>
++
++#include "Aq40Helpers.h"
+ #include "Playerbots.h"
+ #include "ThreatManager.h"
+ 
+@@ -45,6 +48,20 @@ uint8 ThreatValue::Calculate(Unit* target)
+     if (!group)
+         return 0;
+ 
++    // Panic/flee and other consumers must recognize the same encounter owner as the multiplier.
++    if (TempleOfAhnQirajHelpers::IsTwinsBossTarget(bot, target))
++    {
++        Player* tank = TempleOfAhnQirajHelpers::GetTwinsTank(bot,
++            target == TempleOfAhnQirajHelpers::GetTwin(bot, TempleOfAhnQirajHelpers::AQT_DATA_VEKLOR)
++                ? TempleOfAhnQirajHelpers::AQT_DATA_VEKLOR : TempleOfAhnQirajHelpers::AQT_DATA_VEKNILASH);
++        if (tank == bot)
++            return 0;
++        float const tankThreat = tank ? target->GetThreatMgr().GetThreat(tank) : 0.0f;
++        if (tankThreat <= 0.0f)
++            return 100;
++        return uint8(std::clamp(target->GetThreatMgr().GetThreat(bot) * 100.0f / tankThreat, 0.0f, 255.0f));
++    }
++
+     float botThreat = target->GetThreatMgr().GetThreat(bot);
+     float maxThreat = -1.0f;
+     bool hasTank = false;
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40ActionContext.h b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40ActionContext.h
+index f2ca8f6..cea6add 100644
+--- a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40ActionContext.h
++++ b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40ActionContext.h
+@@ -15,6 +15,9 @@ class RaidAq40ActionContext : public NamedObjectContext<Action>
+ public:
+     RaidAq40ActionContext()
+     {
++        creators["aq40 twins caster tank"] = &RaidAq40ActionContext::caster_tank;
++        creators["aq40 twins clear arcane"] = &RaidAq40ActionContext::clear_arcane;
++        creators["aq40 twins status"] = &RaidAq40ActionContext::status;
+         creators["aq40 twins erase trackers"] = &RaidAq40ActionContext::erase_trackers;
+         creators["aq40 twins clear explode"] = &RaidAq40ActionContext::clear_explode;
+         creators["aq40 twins clear blizzard"] = &RaidAq40ActionContext::clear_blizzard;
+@@ -26,6 +29,9 @@ public:
+     }
+ 
+ private:
++    static Action* caster_tank(PlayerbotAI* b) { return new Aq40TwinsCasterTankAction(b); }
++    static Action* clear_arcane(PlayerbotAI* b) { return new Aq40TwinsClearArcaneAction(b); }
++    static Action* status(PlayerbotAI* b) { return new Aq40TwinsStatusAction(b); }
+     static Action* erase_trackers(PlayerbotAI* b) { return new Aq40TwinsEraseTrackersAction(b); }
+     static Action* clear_explode(PlayerbotAI* b) { return new Aq40TwinsClearExplodeAction(b); }
+     static Action* clear_blizzard(PlayerbotAI* b) { return new Aq40TwinsClearBlizzardAction(b); }
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Actions.h b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Actions.h
+index 7d4091b..95a9c8a 100644
+--- a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Actions.h
++++ b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Actions.h
+@@ -19,19 +19,53 @@ public:
+     bool Execute(Event event) override;
+ };
+ 
+-class Aq40TwinsClearExplodeAction : public MovementAction
++class Aq40TwinsMovementAction : public MovementAction
++{
++public:
++    Aq40TwinsMovementAction(PlayerbotAI* botAI, std::string const name) : MovementAction(botAI, name) {}
++
++protected:
++    bool MoveTwins(Position const& spot);
++    void SettleTwins();
++};
++
++class Aq40TwinsCasterTankAction : public Action
++{
++public:
++    Aq40TwinsCasterTankAction(PlayerbotAI* botAI) : Action(botAI, "aq40 twins caster tank") {}
++    bool isUseful() override;
++    bool Execute(Event event) override;
++};
++
++class Aq40TwinsStatusAction : public Action
++{
++public:
++    Aq40TwinsStatusAction(PlayerbotAI* botAI) : Action(botAI, "aq40 twins status") {}
++    bool Execute(Event event) override;
++};
++
++class Aq40TwinsClearArcaneAction : public Aq40TwinsMovementAction
++{
++public:
++    Aq40TwinsClearArcaneAction(PlayerbotAI* botAI)
++        : Aq40TwinsMovementAction(botAI, "aq40 twins clear arcane") {}
++    bool isUseful() override;
++    bool Execute(Event event) override;
++};
++
++class Aq40TwinsClearExplodeAction : public Aq40TwinsMovementAction
+ {
+ public:
+     Aq40TwinsClearExplodeAction(PlayerbotAI* botAI)
+-        : MovementAction(botAI, "aq40 twins clear explode") {}
++        : Aq40TwinsMovementAction(botAI, "aq40 twins clear explode") {}
+     bool Execute(Event event) override;
+ };
+ 
+-class Aq40TwinsClearBlizzardAction : public MovementAction
++class Aq40TwinsClearBlizzardAction : public Aq40TwinsMovementAction
+ {
+ public:
+     Aq40TwinsClearBlizzardAction(PlayerbotAI* botAI)
+-        : MovementAction(botAI, "aq40 twins clear blizzard") {}
++        : Aq40TwinsMovementAction(botAI, "aq40 twins clear blizzard") {}
+     bool Execute(Event event) override;
+ };
+ 
+@@ -43,27 +77,27 @@ public:
+     bool Execute(Event event) override;
+ };
+ 
+-class Aq40TwinsSeparateTwinsAction : public MovementAction
++class Aq40TwinsSeparateTwinsAction : public Aq40TwinsMovementAction
+ {
+ public:
+     Aq40TwinsSeparateTwinsAction(PlayerbotAI* botAI)
+-        : MovementAction(botAI, "aq40 twins separate twins") {}
++        : Aq40TwinsMovementAction(botAI, "aq40 twins separate twins") {}
+     bool Execute(Event event) override;
+ };
+ 
+-class Aq40TwinsPositionTankAction : public MovementAction
++class Aq40TwinsPositionTankAction : public Aq40TwinsMovementAction
+ {
+ public:
+     Aq40TwinsPositionTankAction(PlayerbotAI* botAI)
+-        : MovementAction(botAI, "aq40 twins position tank") {}
++        : Aq40TwinsMovementAction(botAI, "aq40 twins position tank") {}
+     bool Execute(Event event) override;
+ };
+ 
+-class Aq40TwinsHoldHealerSpotAction : public MovementAction
++class Aq40TwinsHoldHealerSpotAction : public Aq40TwinsMovementAction
+ {
+ public:
+     Aq40TwinsHoldHealerSpotAction(PlayerbotAI* botAI)
+-        : MovementAction(botAI, "aq40 twins hold healer spot") {}
++        : Aq40TwinsMovementAction(botAI, "aq40 twins hold healer spot") {}
+     bool Execute(Event event) override;
+ };
+ 
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Actions_Coordination.cpp b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Actions_Coordination.cpp
+new file mode 100644
+index 0000000..e8ed41c
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Actions_Coordination.cpp
+@@ -0,0 +1,111 @@
++/*
++ * This file is part of the mod-playerbots module for AzerothCore.
++ * Released under GNU GPL v2 license.
++ */
++
++#include "Aq40Actions.h"
++
++#include <sstream>
++
++#include "Aq40Helpers.h"
++#include "Creature.h"
++#include "Playerbots.h"
++
++using namespace TempleOfAhnQirajHelpers;
++
++bool Aq40TwinsMovementAction::MoveTwins(Position const& spot)
++{
++    if (!botAI->CanMove())
++        return false;
++    LastMovement& last = AI_VALUE(LastMovement&, "last movement");
++    // A teleport/hazard must be able to replace the previous five-second move lease. Do not
++    // continually restart an unchanged destination, and don't override controlled movement.
++    if (last.priority <= MovementPriority::MOVEMENT_COMBAT &&
++        last.lastMoveShort.GetExactDist(spot.GetPositionX(), spot.GetPositionY(), spot.GetPositionZ()) >
++            TWINS_STATION_TOLERANCE)
++    {
++        bot->StopMovingOnCurrentPos();
++        last.clear();
++    }
++    if (bot->IsNonMeleeSpellCast(true))
++        bot->InterruptNonMeleeSpells(false);
++    return MoveTo(bot->GetMapId(), spot.GetPositionX(), spot.GetPositionY(), spot.GetPositionZ(),
++                  false, false, false, false, MovementPriority::MOVEMENT_COMBAT, true);
++}
++
++void Aq40TwinsMovementAction::SettleTwins()
++{
++    if (bot->isMoving() && botAI->CanMove())
++    {
++        bot->StopMovingOnCurrentPos();
++        AI_VALUE(LastMovement&, "last movement").clear();
++    }
++}
++
++bool Aq40TwinsClearArcaneAction::isUseful()
++{
++    return TwinsShouldClearArcane(bot, botAI);
++}
++
++bool Aq40TwinsClearArcaneAction::Execute(Event /*event*/)
++{
++    Position spot;
++    return GetTwinsArcaneClearSpot(bot, spot) && MoveTwins(spot);
++}
++
++bool Aq40TwinsCasterTankAction::isUseful()
++{
++    return IsTwinsEncounterActive(bot) && GetTwinsRole(bot, botAI) == TwinsRole::WarlockTank &&
++           !GetTwinsHeldWrongTwin(bot, botAI) &&
++           AI_VALUE(Unit*, "current target") == GetTwin(bot, AQT_DATA_VEKLOR);
++}
++
++bool Aq40TwinsCasterTankAction::Execute(Event /*event*/)
++{
++    if (!isUseful())
++        return false;
++    Creature* boss = GetTwin(bot, AQT_DATA_VEKLOR);
++    if (!boss || !boss->IsAlive())
++        return false;
++    // Establish threat first; spending the opener on a self-buff lets Vek'lor run into the raid.
++    if (boss->GetVictim() == bot && bot->getClass() == CLASS_WARLOCK && !botAI->HasAura("shadow ward", bot) &&
++        botAI->CanCastSpell("shadow ward", bot) && botAI->CastSpell("shadow ward", bot))
++        return true;
++    // Ordinary learned spells: native ranks, cast time, mana, cooldowns and double Searing Pain
++    // threat. No injected threat, free casts, saved strategy edits or specialization changes.
++    std::string const spell = bot->getClass() == CLASS_WARLOCK ? "searing pain" :
++                              bot->getClass() == CLASS_MAGE ? "frostbolt" : "smite";
++    return botAI->CanCastSpell(spell, boss) && botAI->CastSpell(spell, boss);
++}
++
++bool Aq40TwinsStatusAction::Execute(Event /*event*/)
++{
++    if (!IsInAq40(bot))
++        return false;
++    Player* melee = GetTwinsTank(bot, AQT_DATA_VEKNILASH);
++    Player* caster = GetTwinsTank(bot, AQT_DATA_VEKLOR);
++    Player* reserve = GetTwinsTank(bot, AQT_DATA_VEKNILASH, true);
++    Player* heal = GetTwinsHealerTank(bot, botAI);
++    Creature* vn = GetTwin(bot, AQT_DATA_VEKNILASH);
++    Creature* vl = GetTwin(bot, AQT_DATA_VEKLOR);
++    auto name = [](Unit* unit) -> std::string { return unit ? unit->GetName() : "none"; };
++    TwinsRole const role = GetTwinsRole(bot, botAI);
++    char const* roleName = role == TwinsRole::WarriorTank ? "melee tank" :
++        role == TwinsRole::WarlockTank ? "caster tank" : role == TwinsRole::Healer ? "healer" :
++        role == TwinsRole::PhysicalReserve ? "opposite-station reserve" :
++        IsTwinsPhysicalGroup(bot, botAI) ? "melee-group DPS" : "caster-group DPS";
++    std::ostringstream out;
++    out << "Twins " << (IsTwinsEncounterActive(bot) ? "active" : "inactive")
++        << ": melee tank=" << name(melee) << ", caster tank=" << name(caster)
++        << ", other physical station=" << name(reserve)
++        << ", my role=" << roleName
++        << ", passive=" << botAI->HasStrategy("passive", BOT_STATE_COMBAT)
++        << ", healing=" << name(heal);
++    if (heal)
++        out << " (" << uint32(bot->GetDistance2d(heal)) << "y, LOS=" << bot->IsWithinLOSInMap(heal) << ")";
++    if (vn && vl)
++        out << ", separation=" << uint32(vn->GetExactDist2d(vl)) << "y"
++            << ", melee victim=" << name(vn->GetVictim()) << ", caster victim=" << name(vl->GetVictim());
++    botAI->TellMaster(out.str());
++    return true;
++}
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Actions_Twins.cpp b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Actions_Twins.cpp
+index 3897aa0..78be55a 100644
+--- a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Actions_Twins.cpp
++++ b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Actions_Twins.cpp
+@@ -6,7 +6,11 @@
+ 
+ #include "Aq40Actions.h"
+ 
++#include <algorithm>
++
+ #include "Aq40Helpers.h"
++#include "Config.h"
++#include "RaidThreatUtils.h"
+ #include "CharmInfo.h"
+ #include "Creature.h"
+ #include "CreatureAI.h"
+@@ -23,39 +27,26 @@ bool Aq40TwinsEraseTrackersAction::Execute(Event /*event*/)
+ 
+ bool Aq40TwinsClearExplodeAction::Execute(Event /*event*/)
+ {
+-    if (!botAI->CanMove())
+-        return false;
+-
+-    // Try up to four snapped bearings and take the first the pathfinder accepts.
+     for (uint32 attempt = 0; attempt < 4; ++attempt)
+     {
+         Position spot;
+         if (!GetTwinsExplodeClearSpot(bot, spot, attempt))
+             return false;
+-        if (MoveTo(bot->GetMapId(), spot.GetPositionX(), spot.GetPositionY(), spot.GetPositionZ(),
+-                   false, false, false, false, MovementPriority::MOVEMENT_COMBAT))
+-        {
++        if (MoveTwins(spot))
+             return true;
+-        }
+     }
+     return false;
+ }
+ 
+ bool Aq40TwinsClearBlizzardAction::Execute(Event /*event*/)
+ {
+-    if (!botAI->CanMove())
+-        return false;
+-
+     for (uint32 attempt = 0; attempt < 4; ++attempt)
+     {
+         Position spot;
+         if (!GetTwinsBlizzardClearSpot(bot, spot, attempt))
+             return false;
+-        if (MoveTo(bot->GetMapId(), spot.GetPositionX(), spot.GetPositionY(), spot.GetPositionZ(),
+-                   false, false, false, false, MovementPriority::MOVEMENT_COMBAT))
+-        {
++        if (MoveTwins(spot))
+             return true;
+-        }
+     }
+     return false;
+ }
+@@ -75,8 +66,7 @@ bool Aq40TwinsSeparateTwinsAction::Execute(Event /*event*/)
+     if (!GetTwinsSeparationSpot(bot, botAI, spot))
+         return false;
+ 
+-    MoveTo(bot->GetMapId(), spot.GetPositionX(), spot.GetPositionY(), spot.GetPositionZ(), false,
+-           false, false, false, MovementPriority::MOVEMENT_COMBAT);
++    MoveTwins(spot);
+     return false;
+ }
+ 
+@@ -87,11 +77,12 @@ bool Aq40TwinsPositionTankAction::Execute(Event /*event*/)
+ 
+     Position spot;
+     if (!GetTwinsTankSpot(bot, botAI, spot))
++    {
++        SettleTwins();
+         return false;
++    }
+ 
+-    bool const moved =
+-        MoveTo(bot->GetMapId(), spot.GetPositionX(), spot.GetPositionY(), spot.GetPositionZ(),
+-               false, false, false, false, MovementPriority::MOVEMENT_COMBAT);
++    bool const moved = MoveTwins(spot);
+ 
+     TwinsSnapshot const& snap = GetTwinsSnapshot(bot);
+     Creature* mine = GetTwinsAssignedTwin(bot, botAI);
+@@ -113,15 +104,24 @@ bool Aq40TwinsHoldHealerSpotAction::Execute(Event /*event*/)
+ 
+     Position spot;
+     if (!GetTwinsHealerSpot(bot, botAI, spot))
++    {
++        SettleTwins();
+         return false;
+-
+-    MoveTo(bot->GetMapId(), spot.GetPositionX(), spot.GetPositionY(), spot.GetPositionZ(), false,
+-           false, false, false, MovementPriority::MOVEMENT_COMBAT);
++    }
++    // Finish a heal while actual range still permits it; the smaller positioning threshold is
++    // a movement buffer, not a reason to cancel a useful in-range cast on every tank step.
++    Player* tank = GetTwinsHealerTank(bot, botAI);
++    if (tank && bot->IsNonMeleeSpellCast(true) && bot->IsWithinLOSInMap(tank) &&
++        bot->GetDistance2d(tank) <= std::min(botAI->GetRange("heal"), sPlayerbotAIConfig.healDistance))
++        return false;
++    MoveTwins(spot);
+     return false;
+ }
+ 
+ bool Aq40TwinsDirectPetsAction::Execute(Event /*event*/)
+ {
++    if (!IsTwinsEncounterActive(bot))
++        return false;
+     std::vector<Creature*> pets;
+     if (Pet* pet = bot->GetPet())
+         pets.push_back(pet);
+@@ -156,9 +156,16 @@ bool Aq40TwinsDirectPetsAction::Execute(Event /*event*/)
+         return false;
+     }
+ 
+-    Creature* veknilash = GetTwin(bot, AQT_DATA_VEKNILASH);
+-    if (!veknilash || !veknilash->IsAlive())
++    Unit* target = GetTwinsAttackTarget(bot, botAI);
++    if (!target || !target->IsAlive())
+         return false;
++    uint8 const limit = uint8(std::clamp(sConfigMgr->GetOption<uint32>(
++        "AiPlayerbot.RaidThreatDiscipline.HoldPercent", 70), 1u, 100u));
++    if (ai::threat::ShouldHoldDamageOnTauntImmuneBoss(botAI, target, limit))
++    {
++        ai::threat::StopDirectDamage(botAI, target);
++        return false;
++    }
+ 
+     bool commanded = false;
+     for (Creature* pet : pets)
+@@ -166,7 +173,7 @@ bool Aq40TwinsDirectPetsAction::Execute(Event /*event*/)
+         CharmInfo* charmInfo = pet->GetCharmInfo();
+         if (!charmInfo || !pet->IsAIEnabled)
+             continue;
+-        if (pet->GetVictim() == veknilash && charmInfo->IsCommandAttack())
++        if (pet->GetVictim() == target && charmInfo->IsCommandAttack())
+             continue;  // already correct: do not restart the chase every tick
+ 
+         if (pet->GetReactState() == REACT_PASSIVE)
+@@ -175,13 +182,13 @@ bool Aq40TwinsDirectPetsAction::Execute(Event /*event*/)
+             pet->AttackStop();
+ 
+         pet->ClearUnitState(UNIT_STATE_FOLLOW);
+-        pet->SetTarget(veknilash->GetGUID());
++        pet->SetTarget(target->GetGUID());
+         charmInfo->SetIsCommandAttack(true);
+         charmInfo->SetIsAtStay(false);
+         charmInfo->SetIsFollowing(false);
+         charmInfo->SetIsCommandFollow(false);
+         charmInfo->SetIsReturning(false);
+-        pet->AI()->AttackStart(veknilash);
++        pet->AI()->AttackStart(target);
+         commanded = true;
+     }
+     return commanded;
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Coordination.cpp b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Coordination.cpp
+new file mode 100644
+index 0000000..f2ec237
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Coordination.cpp
+@@ -0,0 +1,302 @@
++/*
++ * This file is part of the mod-playerbots module for AzerothCore.
++ * Released under GNU GPL v2 license.
++ */
++
++#include "Aq40Helpers.h"
++
++#include <algorithm>
++#include <cmath>
++#include <limits>
++#include <vector>
++
++#include "Creature.h"
++#include "Group.h"
++#include "Playerbots.h"
++
++namespace TempleOfAhnQirajHelpers
++{
++namespace
++{
++    bool IsGroupMemberHere(Player* bot, Player* member)
++    {
++        return member && member->IsInWorld() && member->GetMap() == bot->GetMap() &&
++               member->GetGroup() == bot->GetGroup() && member->InSamePhase(bot) && !member->IsGameMaster();
++    }
++
++    uint32 DedicatedHealerData(Player* bot)
++    {
++        std::vector<Player*> healers;
++        if (Group* group = bot->GetGroup())
++            for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
++            {
++                Player* member = ref->GetSource();
++                // Keep dead members in the ordering; a floating healer covers their vacancy.
++                if (IsGroupMemberHere(bot, member) && GET_PLAYERBOT_AI(member) && PlayerbotAI::IsHeal(member))
++                    healers.push_back(member);
++            }
++        std::sort(healers.begin(), healers.end(), [](Player* a, Player* b) { return a->GetGUID() < b->GetGUID(); });
++        Player* assigned[2] = {nullptr, nullptr};
++        for (size_t i = 0; i < healers.size(); ++i)
++        {
++            if (!healers[i]->IsAlive())
++                continue;
++            if (i < 2)
++                assigned[i] = healers[i];
++            else if (!assigned[0])
++                assigned[0] = healers[i];
++            else if (!assigned[1])
++                assigned[1] = healers[i];
++        }
++        if (assigned[0] == bot)
++            return AQT_DATA_VEKNILASH;
++        return assigned[1] == bot ? AQT_DATA_VEKLOR : 0;
++    }
++
++    struct SupportHazards
++    {
++        explicit SupportHazards(Player* bot) : caster(GetTwin(bot, AQT_DATA_VEKLOR)),
++            bug(FindTwinsExplodingBug(bot)), hasBlizzard(GetTwinsBlizzardCenter(bot, blizzard)) {}
++
++        bool Allows(float x, float y) const
++        {
++            return (!caster || caster->GetExactDist2d(x, y) >= TWINS_ARCANE_CLEARANCE) &&
++                   (!hasBlizzard || blizzard.GetExactDist2d(x, y) >=
++                       TWINS_BLIZZARD_RADIUS + TWINS_STATION_TOLERANCE) &&
++                   (!bug || bug->GetExactDist2d(x, y) >= TWINS_EXPLODE_RADIUS + TWINS_STATION_TOLERANCE);
++        }
++
++        Creature* caster;
++        Creature* bug;
++        Position blizzard;
++        bool hasBlizzard;
++    };
++
++    bool SupportSpot(Player* bot, Unit* anchor, float radius, Position& spot)
++    {
++        float const bearing = std::atan2(bot->GetPositionY() - anchor->GetPositionY(),
++                                         bot->GetPositionX() - anchor->GetPositionX());
++        SupportHazards const hazards(bot);  // one hazard search, not one per candidate point
++        float best = std::numeric_limits<float>::max();
++        bool found = false;
++        for (uint32 sector = 0; sector < TWINS_ESCAPE_SECTORS; ++sector)
++        {
++            float const angle = bearing + float(sector) * 2.0f * float(M_PI) / float(TWINS_ESCAPE_SECTORS);
++            float x = anchor->GetPositionX() + radius * std::cos(angle);
++            float y = anchor->GetPositionY() + radius * std::sin(angle);
++            float z = bot->GetPositionZ();
++            bot->UpdateAllowedPositionZ(x, y, z);
++            if (!hazards.Allows(x, y) || !anchor->IsWithinLOS(x, y, z))
++                continue;
++            float const distance = bot->GetExactDist2d(x, y);
++            if (distance < best)
++            {
++                best = distance;
++                spot.Relocate(x, y, z);
++                found = true;
++            }
++        }
++        return found && best > TWINS_STATION_TOLERANCE;
++    }
++}
++
++Player* GetTwinsTank(Player* bot, uint32 dataId, bool reserve)
++{
++    if (!IsInAq40(bot) || !bot->GetGroup() || !bot->GetGroup()->isRaidGroup() ||
++        (dataId != AQT_DATA_VEKNILASH && dataId != AQT_DATA_VEKLOR))
++        return nullptr;
++
++    Player* best = nullptr;
++    Player* second = nullptr;
++    uint32 bestPriority = 100;
++    uint32 secondPriority = 100;
++    for (GroupReference* ref = bot->GetGroup()->GetFirstMember(); ref; ref = ref->next())
++    {
++        Player* member = ref->GetSource();
++        if (!IsGroupMemberHere(bot, member) || !member->IsAlive())
++            continue;
++        PlayerbotAI* memberAI = GET_PLAYERBOT_AI(member);
++        bool const automatic = memberAI && !memberAI->IsRealPlayer();
++        uint32 priority = 100;
++        if (dataId == AQT_DATA_VEKNILASH)
++        {
++            // Bot owns the original melee station; another tank owns the opposite station.
++            // A human participates as a tank, never as a raid-wide movement anchor.
++            bool const physicalClass = member->getClass() == CLASS_WARRIOR || member->getClass() == CLASS_PALADIN ||
++                member->getClass() == CLASS_DRUID || member->getClass() == CLASS_DEATH_KNIGHT;
++            if (physicalClass && PlayerbotAI::IsTank(member, !automatic))
++                priority = automatic ? 0 : 1;
++        }
++        else if (automatic && !PlayerbotAI::IsHeal(member))
++        {
++            // Class priority BEFORE GUID. A lower-GUID mage must not displace the warlock.
++            switch (member->getClass())
++            {
++                case CLASS_WARLOCK: priority = 0; break;
++                case CLASS_MAGE: priority = 1; break;
++                case CLASS_PRIEST: priority = 2; break;
++                default: break;
++            }
++        }
++        if (priority < bestPriority ||
++            (best && priority == bestPriority && member->GetGUID() < best->GetGUID()))
++        {
++            second = best;
++            secondPriority = bestPriority;
++            best = member;
++            bestPriority = priority;
++        }
++        else if (priority < secondPriority ||
++                 (second && priority == secondPriority && member->GetGUID() < second->GetGUID()))
++        {
++            second = member;
++            secondPriority = priority;
++        }
++    }
++    if (dataId != AQT_DATA_VEKNILASH)
++        return reserve ? nullptr : best;
++    if (!second)
++        return reserve ? nullptr : best;
++    bool const swapped = IsTwinsEncounterActive(bot) && GetTwinsSnapshot(bot).meleeAtCasterHome;
++    return swapped != reserve ? second : best;
++}
++
++bool IsTwinsBossTarget(Player* bot, Unit* target)
++{
++    return target && IsTwinsEncounterActive(bot) &&
++           (target == GetTwin(bot, AQT_DATA_VEKNILASH) || target == GetTwin(bot, AQT_DATA_VEKLOR));
++}
++
++bool IsTwinsAssignedTank(Player* bot, Unit* target)
++{
++    if (!IsTwinsBossTarget(bot, target))
++        return false;
++    return bot == GetTwinsTank(bot, target == GetTwin(bot, AQT_DATA_VEKLOR)
++        ? AQT_DATA_VEKLOR : AQT_DATA_VEKNILASH);
++}
++
++Creature* GetTwinsHeldWrongTwin(Player* bot, PlayerbotAI* botAI)
++{
++    if (!IsTwinsEncounterActive(bot))
++        return nullptr;
++    uint32 const other = GetTwinsAssignedData(bot, botAI) == AQT_DATA_VEKLOR
++        ? AQT_DATA_VEKNILASH : AQT_DATA_VEKLOR;
++    Creature* boss = GetTwin(bot, other);
++    return boss && boss->GetVictim() == bot ? boss : nullptr;
++}
++
++Player* GetTwinsHealerTank(Player* bot, PlayerbotAI* botAI)
++{
++    if (!IsTwinsEncounterActive(bot) || !bot->IsAlive() || !PlayerbotAI::IsHeal(bot))
++        return nullptr;
++    uint32 const assignment = DedicatedHealerData(bot);
++    Player* melee = GetTwinsTank(bot, AQT_DATA_VEKNILASH);
++    Player* caster = GetTwinsTank(bot, AQT_DATA_VEKLOR);
++    if (!melee || !caster)
++        return melee ? melee : caster;
++    if (assignment)
++        return assignment == AQT_DATA_VEKNILASH ? melee : caster;
++
++    // Floating coverage includes the actual victims: the stationary physical tank may be
++    // holding incoming Shadow Bolts while the warlock travels. Do not leave that handoff unhealed.
++    Creature* vn = GetTwin(bot, AQT_DATA_VEKNILASH);
++    Creature* vl = GetTwin(bot, AQT_DATA_VEKLOR);
++    Player* candidates[] = {melee, caster,
++        vn && vn->GetVictim() ? vn->GetVictim()->ToPlayer() : nullptr,
++        vl && vl->GetVictim() ? vl->GetVictim()->ToPlayer() : nullptr};
++    float const range = std::min(botAI->GetRange("heal"), sPlayerbotAIConfig.healDistance);
++    Player* best = nullptr;
++    float bestScore = std::numeric_limits<float>::max();
++    for (Player* candidate : candidates)
++    {
++        if (!IsGroupMemberHere(bot, candidate) || !candidate->IsAlive() || candidate->GetGroup() != bot->GetGroup())
++            continue;
++        float const distance = bot->GetDistance2d(candidate);
++        bool const reachable = distance <= range && bot->IsWithinLOSInMap(candidate);
++        float const score = distance + (reachable ? candidate->GetHealthPct() * 2.0f - 1000.0f : 0.0f);
++        if (score < bestScore)
++        {
++            best = candidate;
++            bestScore = score;
++        }
++    }
++    return best;
++}
++
++bool GetTwinsCoverageSpot(Player* bot, PlayerbotAI* botAI, Position& spot)
++{
++    Player* tank = GetTwinsHealerTank(bot, botAI);
++    if (!tank)
++        return false;
++    float const range = std::min({34.0f, botAI->GetRange("heal") - 3.0f,
++                                  sPlayerbotAIConfig.healDistance - 3.0f});
++    // Keep ANY convenient safe location. Moving the boss alone does not order the healer to move.
++    if (bot->GetDistance2d(tank) <= range && bot->IsWithinLOSInMap(tank) &&
++        SupportHazards(bot).Allows(bot->GetPositionX(), bot->GetPositionY()))
++        return false;
++    return SupportSpot(bot, tank, std::max(8.0f, std::min(24.0f, range - 5.0f)), spot);
++}
++
++bool GetTwinsRangedTankSpot(Player* bot, Creature* boss, Position& spot)
++{
++    if (!boss)
++        return false;
++    Creature* melee = GetTwin(bot, AQT_DATA_VEKNILASH);
++    // A caster who actually owns Vek'lor can also pull him away from a collapsed melee camp.
++    // His chase stops at 45y plus reach, so stepping merely 25y away cannot relocate him.
++    if (boss == GetTwin(bot, AQT_DATA_VEKLOR) && boss->GetVictim() == bot && melee &&
++        boss->GetExactDist2d(melee) < TWINS_SEPARATION_GUARD)
++    {
++        float const bearing = std::atan2(boss->GetPositionY() - melee->GetPositionY(),
++                                         boss->GetPositionX() - melee->GetPositionX());
++        float const distance = TWINS_SEAT_SEPARATION + 55.0f;
++        float x = melee->GetPositionX() + distance * std::cos(bearing);
++        float y = melee->GetPositionY() + distance * std::sin(bearing);
++        float z = bot->GetPositionZ();
++        bot->UpdateAllowedPositionZ(x, y, z);
++        spot.Relocate(x, y, z);
++        return bot->GetExactDist2d(x, y) > TWINS_STATION_TOLERANCE;
++    }
++    float const distance = bot->GetExactDist2d(boss);
++    if (distance >= TWINS_ARCANE_CLEARANCE && distance <= 27.0f && bot->IsWithinLOSInMap(boss))
++        return false;
++    return SupportSpot(bot, boss, 23.0f, spot);
++}
++
++bool TwinsShouldClearArcane(Player* bot, PlayerbotAI* /*botAI*/)
++{
++    Creature* caster = GetTwin(bot, AQT_DATA_VEKLOR);
++    return IsTwinsEncounterActive(bot) && caster &&
++           bot->GetExactDist2d(caster) < TWINS_ARCANE_CLEARANCE;
++}
++
++bool GetTwinsArcaneClearSpot(Player* bot, Position& spot)
++{
++    Creature* caster = GetTwin(bot, AQT_DATA_VEKLOR);
++    Creature* melee = GetTwin(bot, AQT_DATA_VEKNILASH);
++    if (!caster || !melee)
++        return false;
++    // Exit sideways. Running straight away from the incoming caster and then reaching the melee
++    // twin would send melee DPS straight BACK through Arcane Burst on the next tick.
++    float const axis = std::atan2(melee->GetPositionY() - caster->GetPositionY(),
++                                  melee->GetPositionX() - caster->GetPositionX());
++    float const nx = -std::sin(axis);
++    float const ny = std::cos(axis);
++    float const side = (bot->GetPositionX() - caster->GetPositionX()) * nx +
++                       (bot->GetPositionY() - caster->GetPositionY()) * ny >= 0.0f ? 1.0f : -1.0f;
++    SupportHazards const hazards(bot);
++    for (float const radius : {TWINS_ARCANE_CLEARANCE + 4.0f, 28.0f, 36.0f})
++        for (float const direction : {side, -side})
++        {
++            float x = caster->GetPositionX() + direction * nx * radius;
++            float y = caster->GetPositionY() + direction * ny * radius;
++            float z = bot->GetPositionZ();
++            bot->UpdateAllowedPositionZ(x, y, z);
++            if (!hazards.Allows(x, y) || !bot->IsWithinLOS(x, y, z))
++                continue;
++            spot.Relocate(x, y, z);
++            return true;
++        }
++    return false;
++}
++}
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Helpers.cpp b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Helpers.cpp
+index fee138a..c63b09a 100644
+--- a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Helpers.cpp
++++ b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Helpers.cpp
+@@ -8,6 +8,7 @@
+ 
+ #include <cmath>
+ #include <list>
++#include <mutex>
+ #include <vector>
+ 
+ #include "Creature.h"
+@@ -25,10 +26,14 @@ namespace TempleOfAhnQirajHelpers
+ {
+ 
+ std::unordered_map<uint32, TwinsSnapshot> twinsSnapshotByInstance;
++namespace
++{
++    std::mutex twinsSnapshotMutex;
++}
+ 
+ bool IsInAq40(Player* bot)
+ {
+-    return bot && bot->GetMapId() == AQ40_MAP_ID;
++    return bot && bot->IsInWorld() && bot->GetMap() && bot->GetMapId() == AQ40_MAP_ID;
+ }
+ 
+ Creature* GetTwin(Player* bot, uint32 dataId)
+@@ -49,7 +54,7 @@ bool IsTwinsEncounterActive(Player* bot)
+     return instance && instance->GetBossState(AQT_DATA_TWIN_EMPERORS) == IN_PROGRESS;
+ }
+ 
+-TwinsSnapshot const& GetTwinsSnapshot(Player* bot)
++TwinsSnapshot GetTwinsSnapshot(Player* bot)
+ {
+     static TwinsSnapshot const empty;
+     if (!IsInAq40(bot))
+@@ -58,19 +63,17 @@ TwinsSnapshot const& GetTwinsSnapshot(Player* bot)
+     uint32 const instanceId = bot->GetMap()->GetInstanceId();
+     uint32 const now = getMSTime();
+ 
++    std::lock_guard<std::mutex> lock(twinsSnapshotMutex);
+     auto it = twinsSnapshotByInstance.find(instanceId);
+-    if (it != twinsSnapshotByInstance.end() &&
+-        getMSTimeDiff(it->second.takenAtMs, now) < TWINS_SNAPSHOT_TTL_MS)
+-    {
+-        return it->second;
+-    }
+-
+     if (!IsTwinsEncounterActive(bot))
+     {
+         if (it != twinsSnapshotByInstance.end())
+             twinsSnapshotByInstance.erase(it);
+         return empty;
+     }
++    if (it != twinsSnapshotByInstance.end() &&
++        getMSTimeDiff(it->second.takenAtMs, now) < TWINS_SNAPSHOT_TTL_MS)
++        return it->second;
+ 
+     Creature* veklor = GetTwin(bot, AQT_DATA_VEKLOR);
+     Creature* veknilash = GetTwin(bot, AQT_DATA_VEKNILASH);
+@@ -82,11 +85,27 @@ TwinsSnapshot const& GetTwinsSnapshot(Player* bot)
+     }
+ 
+     TwinsSnapshot& snap = twinsSnapshotByInstance[instanceId];
++    if (!snap.valid)
++    {
++        snap.meleeAtCasterHome = veknilash->GetExactDist2d(&veklor->GetHomePosition()) <
++                                 veknilash->GetExactDist2d(&veknilash->GetHomePosition());
++    }
++    else if (veknilash->GetExactDist2d(&snap.meleePosition) > 10.0f &&
++             veklor->GetExactDist2d(&snap.casterPosition) > 10.0f &&
++             veknilash->GetExactDist2d(&snap.casterPosition) < 10.0f &&
++             veklor->GetExactDist2d(&snap.meleePosition) < 10.0f &&
++             (snap.separation > 40.0f ||
++              (veknilash->HasUnitState(UNIT_STATE_ROOT) && veklor->HasUnitState(UNIT_STATE_ROOT))))
++    {
++        snap.meleeAtCasterHome = !snap.meleeAtCasterHome;
++    }
++    snap.meleePosition.Relocate(veknilash->GetPositionX(), veknilash->GetPositionY(), veknilash->GetPositionZ());
++    snap.casterPosition.Relocate(veklor->GetPositionX(), veklor->GetPositionY(), veklor->GetPositionZ());
+     snap.takenAtMs = now;
+     snap.valid = true;
+     snap.veklorGuid = veklor->GetGUID();
+     snap.veknilashGuid = veknilash->GetGUID();
+-    // The only state the strategy needs: how far apart the twins are. The kite keys off it.
++    // Live separation drives recovery; station ownership above changes only on a swap.
+     snap.separation = veklor->GetExactDist2d(veknilash);
+     return snap;
+ }
+@@ -94,82 +113,11 @@ TwinsSnapshot const& GetTwinsSnapshot(Player* bot)
+ void TwinsEraseTrackers(Player* bot)
+ {
+     if (bot && bot->GetMap())
+-        twinsSnapshotByInstance.erase(bot->GetMap()->GetInstanceId());
+-}
+-
+-namespace
+-{
+-    bool TwinsIsHealer(Player* member, PlayerbotAI* /*botAI*/)
+     {
+-        // TwinsRankAmong takes bool(*)(Player*, PlayerbotAI*); PlayerbotAI::IsHeal is
+-        // bool(*)(Player*, bool), which does NOT convert. Wrappers, not member pointers.
+-        return member && PlayerbotAI::IsHeal(member);
+-    }
+-
+-    bool TwinsIsWarlockTankCandidate(Player* member)
+-    {
+-        if (!member || PlayerbotAI::IsTank(member) || PlayerbotAI::IsHeal(member))
+-            return false;
+-
+-        // Warlock first: Searing Pain carries spell_threat pctMod 2.0 and GetSpellThreatEntry
+-        // falls back to GetFirstSpellInChain, so every rank doubles threat. That is what lets a
+-        // cloth body hold a boss. Priest and mage are fallbacks with no such multiplier.
+-        switch (member->getClass())
+-        {
+-            case CLASS_WARLOCK:
+-            case CLASS_PRIEST:
+-            case CLASS_MAGE:
+-                return true;
+-            default:
+-                return false;
+-        }
+-    }
+-
+-    uint32 TwinsRankAmong(Player* bot, PlayerbotAI* botAI, bool (*wanted)(Player*, PlayerbotAI*))
+-    {
+-        Group* group = bot->GetGroup();
+-        if (!group)
+-            return 0;
+-
+-        // ONE pass. An O(n squared) role lookup here is ~10^6 member visits per world tick on a
+-        // 40-man raid; that has shipped twice in this codebase. Do not nest this.
+-        uint32 rank = 0;
+-        for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+-        {
+-            Player* member = ref->GetSource();
+-            if (!member || member == bot || !member->IsAlive() || !GET_PLAYERBOT_AI(member))
+-                continue;
+-            if (!wanted(member, botAI))
+-                continue;
+-            if (member->GetGUID() < bot->GetGUID())
+-                ++rank;
+-        }
+-        return rank;
+-    }
+-
+-    // Two of each tank, one pair per seat. Ranks 0 and 1 take seats A and B.
+-    uint32 TwinsTankRank(Player* bot, bool warlock)
+-    {
+-        Group* group = bot->GetGroup();
+-        if (!group)
+-            return 0;
+-
+-        uint32 rank = 0;
+-        for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+-        {
+-            Player* member = ref->GetSource();
+-            if (!member || member == bot || !member->IsAlive() || !GET_PLAYERBOT_AI(member))
+-                continue;
+-            bool const isCandidate =
+-                warlock ? TwinsIsWarlockTankCandidate(member) : PlayerbotAI::IsTank(member);
+-            if (!isCandidate)
+-                continue;
+-            if (member->GetGUID() < bot->GetGUID())
+-                ++rank;
+-        }
+-        return rank;
++        std::lock_guard<std::mutex> lock(twinsSnapshotMutex);
++        twinsSnapshotByInstance.erase(bot->GetMap()->GetInstanceId());
+     }
+-}  // namespace
++}
+ 
+ bool IsTwinsPhysicalGroup(Player* member, PlayerbotAI* /*botAI*/)
+ {
+@@ -205,11 +153,11 @@ TwinsRole GetTwinsRole(Player* bot, PlayerbotAI* botAI)
+     if (PlayerbotAI::IsHeal(bot))
+         return TwinsRole::Healer;
+ 
+-    // Only the first two of each kind tank. Spares fall through to DPS rather than fighting the
+-    // assigned pair for a position.
+-    if (PlayerbotAI::IsTank(bot) && TwinsTankRank(bot, false) < 2)
++    if (bot == GetTwinsTank(bot, AQT_DATA_VEKNILASH))
+         return TwinsRole::WarriorTank;
+-    if (TwinsIsWarlockTankCandidate(bot) && TwinsTankRank(bot, true) < 2)
++    if (bot == GetTwinsTank(bot, AQT_DATA_VEKNILASH, true))
++        return TwinsRole::PhysicalReserve;
++    if (bot == GetTwinsTank(bot, AQT_DATA_VEKLOR))
+         return TwinsRole::WarlockTank;
+ 
+     return TwinsRole::Dps;
+@@ -222,6 +170,7 @@ uint32 GetTwinsAssignedData(Player* bot, PlayerbotAI* botAI)
+         case TwinsRole::WarriorTank:
+             return AQT_DATA_VEKNILASH;
+         case TwinsRole::WarlockTank:
++        case TwinsRole::PhysicalReserve:
+             return AQT_DATA_VEKLOR;
+         default:
+             return IsTwinsPhysicalGroup(bot, botAI) ? AQT_DATA_VEKNILASH : AQT_DATA_VEKLOR;
+@@ -234,16 +183,9 @@ Creature* GetTwinsAssignedTwin(Player* bot, PlayerbotAI* botAI)
+ }
+ 
+ // ---------------------------------------------------------------------------------------------
+-// TANKS - boss-relative, no seats. Warriors own Vek'nilash (close to melee, hold, and the
+-// separation action drags him off Vek'lor); warlocks own Vek'lor (hold from range where he stands).
+-// Both twins are taunt-immune, so holding is pure threat, and nothing here depends on completing a
+-// move inside any particular window.
+-//
+-// Threat sorts itself out. After a teleport each twin wipes threat and gives +2000 to
+-// SelectNearestTarget(); whoever collects it, the tanks re-close and out-threat. Against Vek'lor the
+-// warrior's threat is frozen at exactly 2000 (he deals zero damage to a physical-immune boss) and
+-// Searing Pain doubles threat, so the warlock passes him in a handful of casts; on Vek'nilash the
+-// warrior just out-damages it. That is the handoff the encounter is designed around; it needs no code.
++// TANKS. One owner per boss. After teleport an old tank may temporarily hold the incoming twin.
++// Do not immediately drag it into the other group. The human off-tank can catch incoming melee
++// while the two bot primaries regain their own targets.
+ // ---------------------------------------------------------------------------------------------
+ bool GetTwinsTankSpot(Player* bot, PlayerbotAI* botAI, Position& spot)
+ {
+@@ -255,7 +197,7 @@ bool GetTwinsTankSpot(Player* bot, PlayerbotAI* botAI, Position& spot)
+         return false;
+ 
+     TwinsRole const role = GetTwinsRole(bot, botAI);
+-    if (role != TwinsRole::WarriorTank && role != TwinsRole::WarlockTank)
++    if (role != TwinsRole::WarriorTank && role != TwinsRole::WarlockTank && role != TwinsRole::PhysicalReserve)
+         return false;
+ 
+     Creature* veklor = GetTwin(bot, AQT_DATA_VEKLOR);
+@@ -263,23 +205,29 @@ bool GetTwinsTankSpot(Player* bot, PlayerbotAI* botAI, Position& spot)
+     if (!veklor || !veklor->IsAlive() || !veknilash || !veknilash->IsAlive())
+         return false;
+ 
+-    // NO SEATS. Twin Teleport swaps the two bodies, but Vek'lor settles wherever he lands and holds
+-    // (his 2.5s task stops him whenever a victim is within 45y), so the whole job is boss-relative:
+-    // warlocks hold Vek'lor from range where he stands, warriors hold Vek'nilash and drag him off
+-    // Vek'lor. The fixed-seat version oscillated the instant the twins got close - each tank's
+-    // "which seat is my twin on" flickered tick to tick and no warrior ever settled into melee, so
+-    // none held threat, so the kite never fired and the pair collapsed together.
++    // The other physical tank remains at this station, outside Arcane Burst, ready for the
++    // NEXT teleport. Chasing the melee emperor now would leave no tank waiting for its return.
++    if (role == TwinsRole::PhysicalReserve)
++        return GetTwinsRangedTankSpot(bot, veklor, spot);
+ 
+-    // Warlock tank: Vek'lor is a caster held on Searing Pain from range, and he does not move.
+-    // Native ranged movement parks the warlock in range on him; nothing to force here.
++    if (Creature* held = GetTwinsHeldWrongTwin(bot, botAI))
++    {
++        Player* casterTank = GetTwinsTank(bot, AQT_DATA_VEKLOR);
++        // Hold incoming caster until its tank takes over. Break a mutual wait if that tank
++        // caught the melee emperor: the physical tank must go rescue it instead.
++        if (held == veklor && casterTank && veknilash->GetVictim() != casterTank)
++            return GetTwinsRangedTankSpot(bot, held, spot);
++        if (held == veknilash)
++            return false;
++    }
+     if (role == TwinsRole::WarlockTank)
+-        return false;
++        return GetTwinsRangedTankSpot(bot, veklor, spot);
+ 
+     // Warrior tank owns Vek'nilash. The KITE - dragging him away from Vek'lor - is the separation
+     // action (higher relevance; only his victim can lead him). Here we only keep the warrior in
+     // melee so it builds and holds threat: a warrior out of melee deals no damage, holds none, and
+     // Vek'nilash is taunt-immune. Close along the current bearing, then hand off to native tanking.
+-    if (bot->GetExactDist2d(veknilash) <= TWINS_TANK_ENGAGE_RANGE + TWINS_STATION_TOLERANCE)
++    if (bot->IsWithinMeleeRange(veknilash))
+         return false;
+ 
+     float const dx = bot->GetPositionX() - veknilash->GetPositionX();
+@@ -295,8 +243,16 @@ bool GetTwinsTankSpot(Player* bot, PlayerbotAI* botAI, Position& spot)
+ 
+ bool TwinsShouldMoveTank(Player* bot, PlayerbotAI* botAI)
+ {
++    if (!IsTwinsEncounterActive(bot))
++        return false;
++    TwinsRole const role = GetTwinsRole(bot, botAI);
++    if (role != TwinsRole::WarriorTank && role != TwinsRole::WarlockTank && role != TwinsRole::PhysicalReserve)
++        return false;
++    if (TwinsShouldFixSeparation(bot, botAI) || TwinsShouldClearExplode(bot, botAI) ||
++        TwinsShouldClearBlizzard(bot, botAI) || TwinsShouldClearArcane(bot, botAI))
++        return false;
+     Position spot;
+-    return GetTwinsTankSpot(bot, botAI, spot);
++    return GetTwinsTankSpot(bot, botAI, spot) || bot->isMoving();
+ }
+ 
+ // ---------------------------------------------------------------------------------------------
+@@ -304,41 +260,18 @@ bool TwinsShouldMoveTank(Player* bot, PlayerbotAI* botAI)
+ // ---------------------------------------------------------------------------------------------
+ bool GetTwinsHealerSpot(Player* bot, PlayerbotAI* botAI, Position& spot)
+ {
+-    if (!IsTwinsEncounterActive(bot))
+-        return false;
+-
+-    if (GetTwinsRole(bot, botAI) != TwinsRole::Healer)
+-        return false;
+-
+-    // NO fixed zone. Split healers evenly between the twins by rank and ring each one around its
+-    // assigned LIVE twin, FOLLOWING it as it moves - Vek'nilash is kited around, Vek'lor settles
+-    // wherever he lands. Radius is outside Vek'nilash's melee and Vek'lor's ~11y Arcane Burst, and
+-    // inside HealDistance (38.5y) of the tanks on that twin. This is the fix for healers charging off
+-    // to the old fixed seat up the ramp when no boss was there.
+-    uint32 const rank = TwinsRankAmong(bot, botAI, &TwinsIsHealer);
+-    uint32 const bossData = (rank % 2 == 0) ? AQT_DATA_VEKNILASH : AQT_DATA_VEKLOR;
+-    Creature* boss = GetTwin(bot, bossData);
+-    if (!boss || !boss->IsAlive())
+-        return false;
+-
+-    uint32 const slot = (rank / 2) % TWINS_HEALER_SLOTS;
+-    float const bearing = float(slot) * 2.0f * float(M_PI) / float(TWINS_HEALER_SLOTS);
+-    float x = boss->GetPositionX() + std::cos(bearing) * TWINS_HEALER_RADIUS;
+-    float y = boss->GetPositionY() + std::sin(bearing) * TWINS_HEALER_RADIUS;
+-    float z = boss->GetPositionZ();
+-    bot->UpdateAllowedPositionZ(x, y, z);
+-
+-    if (bot->GetExactDist2d(x, y) <= TWINS_STATION_TOLERANCE)
+-        return false;
+-
+-    spot.Relocate(x, y, z);
+-    return true;
++    return GetTwinsCoverageSpot(bot, botAI, spot);
+ }
+ 
+ bool TwinsShouldHoldHealerSpot(Player* bot, PlayerbotAI* botAI)
+ {
++    if (!IsTwinsEncounterActive(bot) || GetTwinsRole(bot, botAI) != TwinsRole::Healer)
++        return false;
++    if (TwinsShouldFixSeparation(bot, botAI) || TwinsShouldClearExplode(bot, botAI) ||
++        TwinsShouldClearBlizzard(bot, botAI) || TwinsShouldClearArcane(bot, botAI))
++        return false;
+     Position spot;
+-    return GetTwinsHealerSpot(bot, botAI, spot);
++    return GetTwinsHealerSpot(bot, botAI, spot) || bot->isMoving();
+ }
+ 
+ // ---------------------------------------------------------------------------------------------
+@@ -380,18 +313,19 @@ Unit* GetTwinsAttackTarget(Player* bot, PlayerbotAI* botAI)
+     if (role == TwinsRole::None || role == TwinsRole::Healer)
+         return nullptr;  // no opinion
+ 
+-    // Mutated bugs first: +300% health and +1800% physical damage for 240s two-shots cloth.
+-    if (Creature* bug = FindTwinsMutatedBug(bot))
+-        return bug;
++    // Supporting DPS handle local bugs; neither primary tank abandons its emperor for adds.
++    if (role == TwinsRole::Dps || role == TwinsRole::PhysicalReserve)
++        if (Creature* bug = FindTwinsMutatedBug(bot))
++            if (Creature* mine = GetTwinsAssignedTwin(bot, botAI))
++                if (bug->GetExactDist2d(mine) <= 35.0f)
++                    return bug;
++    if (role == TwinsRole::PhysicalReserve)
++        return nullptr;  // waiting tank helps local adds but does not attack either emperor
+ 
+     Creature* mine = GetTwinsAssignedTwin(bot, botAI);
+     if (!mine || !mine->IsAlive() || !bot->IsValidAttackTarget(mine))
+         return nullptr;
+ 
+-    // No seats: every tank simply owns its twin and follows it - warriors chase Vek'nilash (and drag
+-    // him off Vek'lor), warlocks stay on Vek'lor where he stands. Both warriors on Vek'nilash and
+-    // both warlocks on Vek'lor is fine; more threat holds the boss faster, and there is no far seat
+-    // to leave empty.
+     return mine;
+ }
+ 
+@@ -419,7 +353,8 @@ bool TwinsShouldRetarget(Player* bot, PlayerbotAI* botAI)
+         }
+         return false;
+     }
+-    return bot->GetVictim() != want;
++    // A threat hold stops autoattack but retains selection: don't re-arm it every tick.
++    return botAI->GetAiObjectContext()->GetValue<Unit*>("current target")->Get() != want;
+ }
+ 
+ // ---------------------------------------------------------------------------------------------
+@@ -537,10 +472,8 @@ bool GetTwinsBlizzardClearSpot(Player* bot, Position& spot, uint32 attempt)
+ }
+ 
+ // ---------------------------------------------------------------------------------------------
+-// KITE. The whole separation mechanic: the warriors drag Vek'nilash straight away from Vek'lor to
+-// keep the twins past the 69y Heal Brother gate. Vek'nilash is the only thing that needs moving -
+-// Vek'lor settles wherever he lands and holds - and BOTH warriors do it, not just the one he is
+-// chasing, so he keeps moving off Vek'lor regardless of which warrior holds aggro.
++// MELEE SEPARATION. Only the actual victim leads Vek'nilash away. Caster-owner relocation is
++// handled separately, accounting for Vek'lor's 45y chase range rather than melee reach.
+ // ---------------------------------------------------------------------------------------------
+ bool TwinsShouldFixSeparation(Player* bot, PlayerbotAI* botAI)
+ {
+@@ -555,20 +488,11 @@ bool TwinsShouldFixSeparation(Player* bot, PlayerbotAI* botAI)
+     if (!veknilash || !veknilash->IsAlive())
+         return false;
+ 
+-    // Whoever Vek'nilash is actually chasing MUST kite him - only his victim can lead him, and if
+-    // that bot (the main tank, the OFF tank, or a DPS that pulled a threat bounce) just stands there,
+-    // he sits right on top of Vek'lor. That is the "one tank kited, the other didn't" we saw: the
+-    // off tank held aggro but never moved him. On top of that, ANY warrior tank already in melee
+-    // kites too, so the two designated tanks drag him out together instead of it falling to one.
+-    bool const iAmVictim = veknilash->GetVictim() == bot;
+-    bool const iAmEngagedWarrior =
+-        GetTwinsRole(bot, botAI) == TwinsRole::WarriorTank &&
+-        bot->GetExactDist2d(veknilash) <= TWINS_TANK_ENGAGE_RANGE + TWINS_STATION_TOLERANCE;
+-    if (!iAmVictim && !iAmEngagedWarrior)
++    // Only the victim can lead him. The assigned tank must acquire aggro before kiting away.
++    if (veknilash->GetVictim() != bot)
+         return false;
+-
+-    // Hazards outrank this, and their own predicates do not stand down for it.
+-    return !TwinsShouldClearExplode(bot, botAI) && !TwinsShouldClearBlizzard(bot, botAI);
++    return !TwinsShouldClearExplode(bot, botAI) && !TwinsShouldClearBlizzard(bot, botAI) &&
++           !TwinsShouldClearArcane(bot, botAI);
+ }
+ 
+ bool GetTwinsSeparationSpot(Player* bot, PlayerbotAI* /*botAI*/, Position& spot)
+@@ -583,8 +507,8 @@ bool GetTwinsSeparationSpot(Player* bot, PlayerbotAI* /*botAI*/, Position& spot)
+         return false;
+ 
+     // Kite straight away from Vek'lor, along the Vek'lor -> Vek'nilash line, out past Vek'nilash to
+-    // ~95y+ from Vek'lor. Both warriors aim at the SAME relative point - not a fixed zone - so
+-    // whoever holds aggro drags Vek'nilash the same way and the other follows. Snap the bearing so
++    // ~95y+ from Vek'lor. Only his actual victim leads this move. Crossing a room midpoint while
++    // kiting does NOT reassign the two physical stations. Snap the bearing so
+     // the destination is stable and MoveTo's duplicate-destination guard does not refuse it.
+     float const sector = 2.0f * float(M_PI) / float(TWINS_ESCAPE_SECTORS);
+     float bearing = std::atan2(veknilash->GetPositionY() - veklor->GetPositionY(),
+@@ -621,17 +545,19 @@ bool TwinsShouldSuppressGenericMovement(Player* bot, PlayerbotAI* botAI)
+     if (!IsTwinsEncounterActive(bot))
+         return false;
+ 
+-    // ONE predicate, shared with the movement multiplier, so the veto and the moves cannot
+-    // disagree about whether a move is owed. Note what is NOT here: DPS. Their assigned twin is
+-    // their target and native movement walks them to it, across the room if need be - so generic
+-    // movement is exactly what we want for them and must never be vetoed.
+-    if (TwinsShouldClearExplode(bot, botAI) || TwinsShouldClearBlizzard(bot, botAI))
++    // Tanks/healers use encounter movement even when already settled. DPS may reach their
++    // assigned target unless they owe a hazard escape or are temporarily holding the other twin.
++    // Raid-wide follow/formation is blocked independently for EVERY role by the multiplier.
++    if (TwinsShouldClearExplode(bot, botAI) || TwinsShouldClearBlizzard(bot, botAI) ||
++        TwinsShouldClearArcane(bot, botAI))
+         return true;
+ 
+     if (TwinsShouldFixSeparation(bot, botAI))
+         return true;
+ 
+-    return TwinsShouldMoveTank(bot, botAI) || TwinsShouldHoldHealerSpot(bot, botAI);
++    TwinsRole const role = GetTwinsRole(bot, botAI);
++    return role == TwinsRole::WarriorTank || role == TwinsRole::WarlockTank || role == TwinsRole::PhysicalReserve ||
++           role == TwinsRole::Healer || GetTwinsHeldWrongTwin(bot, botAI);
+ }
+ 
+ }  // namespace TempleOfAhnQirajHelpers
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Helpers.h b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Helpers.h
+index b6f164c..9940b1c 100644
+--- a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Helpers.h
++++ b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Helpers.h
+@@ -39,14 +39,9 @@ constexpr uint32 SPELL_MUTATE_BUG = 802;   // +300% health, +1800% physical dama
+ constexpr uint32 SPELL_EXPLODE_BUG = 804;  // 3s fuse, then ~3000 fire in 15y
+ constexpr uint32 SPELL_BLIZZARD = 26607;   // 10y patch, ~1500 per 2s, -30% speed
+ 
+-// ---------------------------------------------------------------------------------------------
+-// POSITIONS. There are NO fixed seats. Twin Teleport swaps the two bodies around the room, so every
+-// position the strategy cares about is relative to a LIVE twin: warriors kite Vek'nilash off
+-// Vek'lor, warlocks/casters hold on Vek'lor where he settles, healers ring whichever twin they are
+-// assigned. The only hard number is the gap - Heal Brother fires whenever the twins are within 69y
+-// (the script's IsWithinDist(twin, 60) plus both 4.5 combat reaches) and restores 30,000 every
+-// 3.6s, which no bot raid can out-damage.
+-// ---------------------------------------------------------------------------------------------
++// Two encounter groups, independent of the human master's location. The melee tank and caster
++// tank own one emperor each; support follows those assignments, not raid-wide follow/formation.
++// The script's Heal Brother check is 60y plus object sizes; keep a generous separation margin.
+ 
+ // The separation the warrior kites Vek'nilash out to. 95y against a 69y gate: round, generous slack.
+ constexpr float TWINS_SEAT_SEPARATION = 95.0f;
+@@ -61,11 +56,8 @@ constexpr float TWINS_SEPARATION_GUARD = 90.0f;
+ // are taunt-immune.
+ constexpr float TWINS_TANK_ENGAGE_RANGE = 5.0f;
+ 
+-// Healers ring their assigned LIVE twin at this radius and follow it - no fixed zone. Outside
+-// Vek'nilash's melee and Vek'lor's ~11y Arcane Burst, inside HealDistance (38.5y) of the tanks on
+-// that twin. Spread by slot so they do not stack.
+-constexpr float TWINS_HEALER_RADIUS = 18.0f;
+-constexpr uint32 TWINS_HEALER_SLOTS = 6;
++// Clear the incoming caster after teleport before resuming ordinary melee reach.
++constexpr float TWINS_ARCANE_CLEARANCE = 16.0f;
+ 
+ constexpr float TWINS_EXPLODE_RADIUS = 15.0f;
+ constexpr float TWINS_BLIZZARD_RADIUS = 10.0f;
+@@ -90,11 +82,12 @@ enum class TwinsRole : uint8
+     WarriorTank,  // owns Vek'nilash: hold in melee, kite him off Vek'lor
+     WarlockTank,  // owns Vek'lor: hold from range where he stands
+     Healer,
+-    Dps
++    Dps,
++    PhysicalReserve  // waits at the caster-side station for the next incoming melee emperor
+ };
+ 
+-// Per-instance, half-second snapshot. Nothing here is latched and nothing is timed: the only thing
+-// the strategy asks of it is how far apart the twins are (the kite's trigger).
++// Per-instance, half-second snapshot. Camp ownership flips on observed simultaneous position
++// swaps, NOT on whichever boss happens to drift across the room's midpoint while being kited.
+ struct TwinsSnapshot
+ {
+     uint32 takenAtMs = 0;
+@@ -102,6 +95,9 @@ struct TwinsSnapshot
+     ObjectGuid veklorGuid;
+     ObjectGuid veknilashGuid;
+     float separation = 0.0f;
++    Position meleePosition;
++    Position casterPosition;
++    bool meleeAtCasterHome = false;
+ };
+ 
+ extern std::unordered_map<uint32, TwinsSnapshot> twinsSnapshotByInstance;
+@@ -112,16 +108,21 @@ bool IsInAq40(Player* bot);
+ bool IsTwinsEncounterActive(Player* bot);
+ // InstanceScript::GetCreature - no grid search, which matters at a 95y spread.
+ Creature* GetTwin(Player* bot, uint32 dataId);
+-TwinsSnapshot const& GetTwinsSnapshot(Player* bot);
++// Return a copy: another map's update/reset must not invalidate a reference after unlocking.
++TwinsSnapshot GetTwinsSnapshot(Player* bot);
+ void TwinsEraseTrackers(Player* bot);
+ 
+ // ---- assignment ----
+-// Deterministic, derived independently by every bot from group state, no shared mutable state:
+-// lowest GUID among alive playerbots of each kind. Humans excluded - they would be "picked" and
+-// never comply.
++// Physical tanks occupy opposite stations (bot first, then another bot/human). The observed
++// teleport selects which station currently owns melee. One primary caster follows Vek'lor.
++// reserve=true selects the other physical station; it never selects a second caster tank.
++Player* GetTwinsTank(Player* bot, uint32 dataId, bool reserve = false);
++bool IsTwinsBossTarget(Player* bot, Unit* target);
++bool IsTwinsAssignedTank(Player* bot, Unit* target);
++Creature* GetTwinsHeldWrongTwin(Player* bot, PlayerbotAI* botAI);
+ TwinsRole GetTwinsRole(Player* bot, PlayerbotAI* botAI);
+-// AQT_DATA_VEKLOR or AQT_DATA_VEKNILASH - which twin this bot can actually hurt, by damage school.
+-// Never changes for the whole fight.
++// DPS groups use damage school. A waiting physical reserve belongs to the caster-side station
++// until the next teleport, but does not attack that emperor.
+ uint32 GetTwinsAssignedData(Player* bot, PlayerbotAI* botAI);
+ Creature* GetTwinsAssignedTwin(Player* bot, PlayerbotAI* botAI);
+ bool IsTwinsPhysicalGroup(Player* member, PlayerbotAI* botAI);
+@@ -135,16 +136,22 @@ Unit* GetTwinsAttackTarget(Player* bot, PlayerbotAI* botAI);
+ bool IsTwinsHoldingFire(Player* bot, PlayerbotAI* botAI);
+ bool TwinsShouldRetarget(Player* bot, PlayerbotAI* botAI);
+ 
+-// ---- tanks: the entire swap ----
+-// Toward the twin I hold if it is on my seat, away from the other twin if that is what is there.
++// ---- tanks and teleport handoff ----
++// Catch the assigned boss, but do not drag an emperor across the room while it still targets us.
+ bool GetTwinsTankSpot(Player* bot, PlayerbotAI* botAI, Position& spot);
+ bool TwinsShouldMoveTank(Player* bot, PlayerbotAI* botAI);
+ 
++bool GetTwinsRangedTankSpot(Player* bot, Creature* boss, Position& spot);
++
+ // ---- healers ----
++Player* GetTwinsHealerTank(Player* bot, PlayerbotAI* botAI);
++bool GetTwinsCoverageSpot(Player* bot, PlayerbotAI* botAI, Position& spot);
+ bool GetTwinsHealerSpot(Player* bot, PlayerbotAI* botAI, Position& spot);
+ bool TwinsShouldHoldHealerSpot(Player* bot, PlayerbotAI* botAI);
+ 
+ // ---- hazards ----
++bool TwinsShouldClearArcane(Player* bot, PlayerbotAI* botAI);
++bool GetTwinsArcaneClearSpot(Player* bot, Position& spot);
+ Creature* FindTwinsExplodingBug(Player* bot);
+ bool TwinsShouldClearExplode(Player* bot, PlayerbotAI* botAI);
+ bool GetTwinsExplodeClearSpot(Player* bot, Position& spot, uint32 attempt = 0);
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Multipliers.cpp b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Multipliers.cpp
+index 82ba54b..5511198 100644
+--- a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Multipliers.cpp
++++ b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Multipliers.cpp
+@@ -10,6 +10,9 @@
+ #include "AttackAction.h"
+ #include "ChooseTargetActions.h"
+ #include "FollowActions.h"
++#include "GenericActions.h"
++#include "GenericSpellActions.h"
++#include "RaidThreatUtils.h"
+ #include "MovementActions.h"
+ #include "Playerbots.h"
+ #include "ReachTargetActions.h"
+@@ -24,16 +27,28 @@ float TwinEmperorsMovementMultiplier::GetValue(Action* action)
+     // NAME EXEMPTIONS FIRST. Every one of these IS a MovementAction, so without this the veto
+     // would silence the very moves it exists to protect.
+     std::string const& name = action->getName();
++    if (name.find("chat shortcut") != std::string::npos)
++        return 1.0f;  // explicit follow/stay/flee orders, notably retreat's passive mode
+     if (name == "aq40 twins clear explode" || name == "aq40 twins clear blizzard" ||
++        name == "aq40 twins clear arcane" ||
+         name == "aq40 twins position tank" || name == "aq40 twins hold healer spot" ||
+         name == "aq40 twins separate twins")
+     {
+         return 1.0f;
+     }
+ 
+-    if (!bot->IsInCombat())
++    if (!IsTwinsEncounterActive(bot))
+         return 1.0f;
+ 
++    // Settled groups must STAY independent of the human. The old predicate only blocked follow
++    // while a scripted move was owed, so follow immediately undid every successfully reached spot.
++    if (dynamic_cast<FollowAction*>(action) || dynamic_cast<CombatFormationMoveAction*>(action) ||
++        dynamic_cast<FleeAction*>(action) || dynamic_cast<FleeWithPetAction*>(action) ||
++        dynamic_cast<FleeToGroupLeaderAction*>(action) || dynamic_cast<RunAwayAction*>(action) ||
++        dynamic_cast<MoveOutOfEnemyContactAction*>(action) ||
++        name == "move from group")
++        return 0.0f;
++
+     // TYPE TEST BEFORE THE PREDICATE: these three kinds are the only actions this can veto, so
+     // everything else returns early without evaluating a chain that reaches grid searches.
+     //
+@@ -54,6 +69,26 @@ float TwinEmperorsTargetHoldMultiplier::GetValue(Action* action)
+     if (!action || bot->GetMapId() != AQ40_MAP_ID)
+         return 1.0f;
+ 
++    if (IsTwinsEncounterActive(bot) && PlayerbotAI::IsTank(bot) &&
++        GetTwinsRole(bot, botAI) == TwinsRole::PhysicalReserve &&
++        IsTwinsBossTarget(bot, AI_VALUE(Unit*, "current target")))
++    {
++        bool support = dynamic_cast<CastHealingSpellAction*>(action) != nullptr;
++        if (auto* spell = dynamic_cast<CastSpellAction*>(action))
++            if (Unit* recipient = spell->GetTarget())
++                support = support || !bot->IsValidAttackTarget(recipient);
++        if (!support && (action->getThreatType() != Action::ActionThreatType::None ||
++                         dynamic_cast<AttackAction*>(action) || dynamic_cast<PetAttackAction*>(action)))
++        {
++            ai::threat::StopDirectDamage(botAI, AI_VALUE(Unit*, "current target"));
++            return 0.0f;
++        }
++    }
++
++    if (IsTwinsEncounterActive(bot) && dynamic_cast<PetAttackAction*>(action) &&
++        !IsTwinsPhysicalGroup(bot, botAI))
++        return 0.0f;
++
+     // Type test first: it is the only cheap test here, and this runs for every queued action of
+     // every bot on every tick. Matched by EXACT class, never by AttackAction - MeleeAction derives
+     // from it and so does this fight's own focus action.
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Strategy.cpp b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Strategy.cpp
+index 1a1d17a..93b998b 100644
+--- a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Strategy.cpp
++++ b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Strategy.cpp
+@@ -12,6 +12,12 @@
+ 
+ // Relevances are set against how OFTEN each competitor fires, not just how urgent it is: an
+ // always-active action starves anything ranked under it. ACTION_RAID is 60, ACTION_EMERGENCY 90.
++std::vector<NextAction> RaidAq40Strategy::getDefaultActions()
++{
++    return {NextAction("aq40 twins clear arcane", ACTION_EMERGENCY + 2),
++            NextAction("aq40 twins caster tank", 26.0f)};
++}
++
+ void RaidAq40Strategy::InitTriggers(std::vector<TriggerNode*>& triggers)
+ {
+     // Housekeeping, and harmless: only fires out of combat with the encounter not running.
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Strategy.h b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Strategy.h
+index 259c868..7308d11 100644
+--- a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Strategy.h
++++ b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Strategy.h
+@@ -14,6 +14,7 @@ class RaidAq40Strategy : public Strategy
+ public:
+     RaidAq40Strategy(PlayerbotAI* botAI) : Strategy(botAI) {}
+     std::string const getName() override { return "aq40"; }
++    std::vector<NextAction> getDefaultActions() override;
+     void InitTriggers(std::vector<TriggerNode*>& triggers) override;
+     void InitMultipliers(std::vector<Multiplier*>& multipliers) override;
+ };
