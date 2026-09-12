@@ -2,10 +2,12 @@
 
 ## Status
 
-**September 12 follow-up:** real attempts reached roughly 50%, but the user reported missing tank
-heals through swaps. A [fixed-station healer correction](twins-station-healers.md) is prepared and
-offline-tested, **not deployed yet**. The original role-following assignments documented below
-remain historical/current deployed behavior until that correction is deployed.
+**September 12 follow-up:** after attempts at 50% and 190k remaining, the user reported a legitimate
+kill on the existing live build. [Fixed-station healing](twins-station-healers.md) and the
+[actual caster-victim follow-up](twins-caster-victim-coverage.md) are strategy improvements learned
+from those attempts, with combined deployment now authorized. The original role-following
+assignments documented below are historical; the follow-up uses Meliah→Ari, Keilmere→Redshift,
+and Ailina→the actual caster victim.
 
 **Deployed September 11, 2026, with explicit permission.** The native image build passed and only
 worldserver was recreated; six AQ40 kills, all ten binds and reset deadlines were preserved.

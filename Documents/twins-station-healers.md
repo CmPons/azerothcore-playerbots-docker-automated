@@ -2,9 +2,10 @@
 
 ## Status
 
-Prepared and offline-tested September 12, 2026. **Not built or deployed yet.** User reported tanks
-receiving no heals through teleports and explicitly requested a healer in range on each side.
-Further build/deployment permission is required; no server interruption or live command was used.
+Prepared and offline-tested September 12, 2026. This intermediate allocation was **not deployed
+by itself**. The [0029 follow-up](twins-caster-victim-coverage.md) keeps Meliah on Ari, puts Keilmere
+on Redshift, and has Ailina cover the actual caster victim. The user reported a legitimate kill
+before either update was deployed, then authorized deploying both strategy improvements together.
 
 ## Change
 
@@ -13,7 +14,7 @@ Canonical incremental patch: `patches/0028-playerbot-twins-station-healers.patch
 The file was already untracked in the nested module, so the patch is derived against the preserved
 pre-edit working source, not against nested HEAD. Unrelated nested work is retained.
 
-With the usual roster, the new healing/movement anchors are:
+With the usual roster, the intermediate 0028 healing/movement anchors were (superseded by 0029):
 
 | Healer | Stable coverage |
 |---|---|

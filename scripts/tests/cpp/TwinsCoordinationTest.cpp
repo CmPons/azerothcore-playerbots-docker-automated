@@ -247,17 +247,17 @@ void IndependentMovementAndTargets()
 void HealerCoverageAndTriage()
 {
     Raid r;Position spot;
-    r.red->Relocate(90,0);
-    assert(GetTwinsHealerTank(r.mel,r.mel->ai)==r.ari);
-    assert(GetTwinsHealerTank(r.ail,r.ail->ai)==r.red);
-    assert(GetTwinsHealerTank(r.keil,r.keil->ai)==r.bel);
-    r.mel->alive=false;
-    assert(GetTwinsHealerTank(r.ail,r.ail->ai)==r.red);
-    assert(GetTwinsHealerTank(r.keil,r.keil->ai)==r.ari);
-    r.mel->alive=true;r.ail->alive=false;
+    r.red->Relocate(90,0);r.keil->Relocate(72,20);
     assert(GetTwinsHealerTank(r.mel,r.mel->ai)==r.ari);
     assert(GetTwinsHealerTank(r.keil,r.keil->ai)==r.red);
-    r.ail->alive=true;
+    assert(GetTwinsHealerTank(r.ail,r.ail->ai)==r.bel);
+    r.mel->alive=false;
+    assert(GetTwinsHealerTank(r.keil,r.keil->ai)==r.red);
+    assert(GetTwinsHealerTank(r.ail,r.ail->ai)==r.ari);
+    r.mel->alive=true;r.keil->alive=false;
+    assert(GetTwinsHealerTank(r.mel,r.mel->ai)==r.ari);
+    assert(GetTwinsHealerTank(r.ail,r.ail->ai)==r.red);
+    r.keil->alive=true;
     r.vn.Relocate(10,0);r.Fresh();
     assert(!GetTwinsHealerSpot(r.mel,r.mel->ai,spot)); // boss motion alone doesn't move healer
     r.ari->Relocate(40,0);
@@ -274,8 +274,7 @@ void HealerCoverageAndTriage()
     r.mel->Relocate(-40,0);r.mel->casting=true;r.mel->ai->moves.clear();
     hold.Execute({});assert(r.mel->casting && r.mel->ai->moves.empty());
 
-    r.keil->Relocate(72,20);
-    PartyMemberToHeal choose(r.keil->ai,"heal");
+    PartyMemberToHeal choose(r.ail->ai,"heal");
     r.bel->hp=80;r.mage->hp=70;r.red->hp=5;r.red->Relocate(500,500);
     assert(choose.Calculate()==r.bel);
     r.mage->hp=10;
@@ -290,12 +289,12 @@ void HealerCoverageAndTriage()
     r.red->Relocate(130,20);assert(!choose.Check(r.red));
     r.red->Relocate(90,0);r.red->alive=false;
     assert(GetTwinsHealerTank(r.mel,r.mel->ai)==r.ari);
-    assert(GetTwinsHealerTank(r.ail,r.ail->ai)==r.ari); // surviving station, not a dead anchor
+    assert(GetTwinsHealerTank(r.keil,r.keil->ai)==r.ari); // surviving station, not a dead anchor
     r.ari->alive=false;
     assert(GetTwinsHealerTank(r.mel,r.mel->ai)==r.bel); // no physical tank survives
     r.red->alive=r.ari->alive=true;
     r.bel->alive=false;
-    assert(GetTwinsHealerTank(r.keil,r.keil->ai)==r.mage); // caster fallback still covered
+    assert(GetTwinsHealerTank(r.ail,r.ail->ai)==r.mage); // caster fallback still covered
     r.bel->alive=true;r.red->Relocate(130,20);
     r.map.script.state=DONE;
     assert(choose.Check(r.red)); // original up-to-two-heal-ranges behavior elsewhere
@@ -315,17 +314,20 @@ void TeleportHandoffAndSeparation()
     r.ari->moving=true;
     assert(!TwinsShouldMoveTank(r.ari,r.ari->ai)); // must not settle/cancel a separation move
     assert(GetTwinsRangedTankSpot(r.bel,&r.vl,spot));
-    assert(spot.GetExactDist2d(&r.vn)>TWINS_SEAT_SEPARATION+45);
+    assert(spot.GetExactDist2d(&r.vl)<=40); // never deliberately drag the caster to separate bosses
 
     r.ari->moving=false;r.vl.Relocate(95,0);r.Fresh();GetTwinsSnapshot(r.ari);
     r.vn.Relocate(95,0);r.vl.Relocate(0,0);r.red->Relocate(83,0);r.Fresh();
     r.vn.victim=r.red;r.vl.victim=r.ari;
     assert(TwinsShouldClearArcane(r.ari,r.ari->ai));
-    assert(GetTwinsArcaneClearSpot(r.ari,spot));
-    assert(spot.GetExactDist2d(&r.vl)>=TWINS_ARCANE_CLEARANCE);
-    // Sideways exit permits a subsequent direct path toward the far melee emperor.
-    assert(std::abs(spot.y)>=TWINS_ARCANE_CLEARANCE && std::abs(spot.x)<0.01f);
-    r.ari->Relocate(spot.x,spot.y);
+    for(int step=0;TwinsShouldClearArcane(r.ari,r.ari->ai) && step<8;++step)
+    {
+        assert(GetTwinsArcaneClearSpot(r.ari,spot));
+        assert(spot.GetExactDist2d(r.ari)<=6.01f && spot.GetExactDist2d(&r.vl)<=40);
+        r.ari->Relocate(spot.x,spot.y);
+    }
+    assert(!TwinsShouldClearArcane(r.ari,r.ari->ai));
+    r.keil->Relocate(72,20);
     assert(!GetTwinsTankSpot(r.ari,r.ari->ai,spot)); // holds incoming caster, doesn't drag it
     assert(GetTwinsTankSpot(r.bel,r.bel->ai,spot));
     assert(spot.GetExactDist2d(&r.vl)<=27);
@@ -335,12 +337,12 @@ void TeleportHandoffAndSeparation()
     assert(previousCoverage::GetTwinsHealerTank(r.mel,r.mel->ai)==r.red);
     assert(previousCoverage::GetTwinsHealerTank(r.ail,r.ail->ai)==r.bel);
     assert(GetTwinsHealerTank(r.mel,r.mel->ai)==r.ari); // incoming Shadow Bolts retain dedicated coverage
-    assert(GetTwinsHealerTank(r.ail,r.ail->ai)==r.red); // incoming melee retains dedicated coverage
-    assert(GetTwinsHealerTank(r.keil,r.keil->ai)==r.bel);
+    assert(GetTwinsHealerTank(r.keil,r.keil->ai)==r.red); // incoming melee retains dedicated coverage
+    assert(GetTwinsHealerTank(r.ail,r.ail->ai)==r.ari); // flexible coverage follows actual caster victim
     assert(!GetTwinsHealerSpot(r.mel,r.mel->ai,spot));
-    assert(!GetTwinsHealerSpot(r.ail,r.ail->ai,spot));
+    assert(!GetTwinsHealerSpot(r.keil,r.keil->ai,spot));
     r.ari->hp=20;r.red->hp=35;
-    PartyMemberToHeal left(r.mel->ai,"heal"),right(r.ail->ai,"heal");
+    PartyMemberToHeal left(r.mel->ai,"heal"),right(r.keil->ai,"heal");
     assert(left.Calculate()==r.ari && right.Calculate()==r.red);
     r.ari->hp=r.red->hp=100;
     r.vl.victim=r.bel;
@@ -354,8 +356,8 @@ void TeleportHandoffAndSeparation()
     r.vn.Relocate(0,0);r.vl.Relocate(95,0);r.vn.victim=r.ari;r.vl.victim=r.red;r.Fresh();
     assert(GetTwinsTank(r.ari,AQT_DATA_VEKNILASH)==r.ari);
     assert(GetTwinsHealerTank(r.mel,r.mel->ai)==r.ari);
-    assert(GetTwinsHealerTank(r.ail,r.ail->ai)==r.red);
-    assert(GetTwinsHealerTank(r.keil,r.keil->ai)==r.bel);
+    assert(GetTwinsHealerTank(r.keil,r.keil->ai)==r.red);
+    assert(GetTwinsHealerTank(r.ail,r.ail->ai)==r.red); // next incoming caster targets the other station
     assert(GetTwinsRole(r.ari,r.ari->ai)==TwinsRole::WarriorTank);
     assert(GetTwinsTankSpot(r.ari,r.ari->ai,spot));
     assert(spot.GetExactDist2d(&r.vn)<=TWINS_TANK_ENGAGE_RANGE+0.01f);
@@ -388,7 +390,7 @@ void CastingPetsAndDiagnostics()
     Aq40TwinsStatusAction status(r.ail->ai);
     assert(status.Execute({}));
     assert(r.ail->ai->messages.back().find("caster tank=Beliona")!=std::string::npos);
-    assert(r.ail->ai->messages.back().find("healing=Redshift")!=std::string::npos);
+    assert(r.ail->ai->messages.back().find("healing=Beliona")!=std::string::npos);
     r.map.script.state=DONE;assert(!tank.Execute({}));assert(!pets.Execute({}));
 }
 
@@ -413,6 +415,98 @@ void HazardMovesAndCastInterruption()
     r.mel->Relocate(-100,0);r.map.searches=0;
     GetTwinsHealerSpot(r.mel,r.mel->ai,spot);
     assert(r.map.searches<=2);
+}
+
+void ActualCasterVictimCoverage()
+{
+    Raid r;Position spot;
+    r.mel->Relocate(-20,0);r.keil->Relocate(170,0);r.ail->Relocate(25,0);
+    for(Player* victim : {r.rogue,r.shaman,r.mage})
+    {
+        victim->Relocate(65,0);r.vl.victim=victim;
+        assert(GetTwinsCasterVictim(r.mel)==victim);
+        assert(GetTwinsHealerTank(r.ail,r.ail->ai)==victim);
+        assert(GetTwinsHealerTank(r.mel,r.mel->ai)==r.ari);
+        assert(GetTwinsHealerTank(r.keil,r.keil->ai)==r.red);
+        assert(GetTwinsTankSpot(victim,victim->ai,spot)); // not restricted to the assigned caster tank
+        assert(spot.GetExactDist2d(victim)<=6.01f && spot.GetExactDist2d(&r.vl)<=40);
+        assert(spot.GetExactDist2d(r.ail)<=34.01f);
+        assert(TwinsShouldSuppressGenericMovement(victim,victim->ai));
+        Aq40TwinsPositionTankAction move(victim->ai);
+        move.Execute({});assert(!victim->ai->moves.empty() && victim->ai->exactWaypoint);
+        victim->Relocate(spot.x,spot.y);victim->moving=true;
+        move.Execute({});assert(!victim->moving); // settle rather than finish an old DPS chase
+        r.vl.victim=r.bel;
+        assert(!GetTwinsCasterVictimSpot(victim,spot));
+        assert(!TwinsShouldSuppressGenericMovement(victim,victim->ai));
+    }
+    r.vl.victim=r.rogue;r.rogue->Relocate(59,0);
+    r.mel->Relocate(58,20);r.ari->Relocate(58,18);
+    PartyMemberToHeal choose(r.mel->ai,"heal");
+    r.ari->hp=80;r.rogue->hp=70;
+    assert(choose.Calculate()==r.rogue); // temporary caster victim gets tank-like local triage
+    r.ari->hp=10;assert(choose.Calculate()==r.ari); // immediate station emergency still wins
+    r.vl.victim=r.red;
+    assert(GetTwinsCasterVictim(r.ail)==r.red);
+    assert(!GetTwinsCasterVictimSpot(r.red,spot)); // no automation of the human player's movement
+    r.vl.victim=nullptr;
+    assert(GetTwinsHealerTank(r.ail,r.ail->ai)==r.bel); // preferred tank remains fallback, not a guarantee
+}
+
+void CasterVictimSafetyGuards()
+{
+    Raid r;Position spot;
+    r.vl.victim=r.rogue;r.rogue->Relocate(65,0);
+    r.mel->Relocate(-100,0);r.keil->Relocate(200,0);r.ail->Relocate(25,0);
+    assert(GetTwinsCasterVictimSpot(r.rogue,spot));
+    r.map.pathType=PATHFIND_SHORTCUT;assert(!GetTwinsCasterVictimSpot(r.rogue,spot));r.map.pathType=PATHFIND_NORMAL;
+    Position detour;detour.Relocate(145,0);r.map.pathDetour.push_back(detour);
+    assert(!GetTwinsCasterVictimSpot(r.rogue,spot));r.map.pathDetour.clear();
+    r.rogue->ai->pathAllowed=false;assert(!GetTwinsCasterVictimSpot(r.rogue,spot));r.rogue->ai->pathAllowed=true;
+    r.rogue->ai->passive=true;assert(!GetTwinsCasterVictimSpot(r.rogue,spot));r.rogue->ai->passive=false;
+    r.rogue->ai->canMove=false;assert(!GetTwinsCasterVictimSpot(r.rogue,spot));r.rogue->ai->canMove=true;
+    r.rogue->ai->real=true;assert(!GetTwinsCasterVictimSpot(r.rogue,spot));r.rogue->ai->real=false;
+    r.rogue->los=false;assert(!GetTwinsCasterVictimSpot(r.rogue,spot));r.rogue->los=true;
+    r.ail->ai->passive=true;assert(!GetTwinsCasterVictimSpot(r.rogue,spot));r.ail->ai->passive=false;
+    r.ail->ai->healRange=10;assert(!GetTwinsCasterVictimSpot(r.rogue,spot));r.ail->ai->healRange=38.5f;
+    r.ail->charmed=true;assert(!GetTwinsCasterVictimSpot(r.rogue,spot));r.ail->charmed=false;
+    r.ail->Relocate(230,0);
+    assert(!GetTwinsCasterVictimSpot(r.rogue,spot)); // no safe healing overlap: do not chase a remote healer
+    auto& last=r.rogue->ai->ctx.GetValue<LastMovement&>("last movement")->Get();
+    r.rogue->moving=true;last.priority=MovementPriority::MOVEMENT_COMBAT;last.lastMoveShort.Relocate(250,0);
+    Aq40TwinsPositionTankAction position(r.rogue->ai);
+    assert(TwinsShouldMoveTank(r.rogue,r.rogue->ai));position.Execute({});assert(!r.rogue->moving);
+    r.rogue->moving=true;last.priority=MovementPriority::MOVEMENT_FORCED;last.msTime=clockMs;last.lastdelayTime=5000;
+    position.Execute({});assert(r.rogue->moving); // explicit movement order is not cancelled
+    r.ail->Relocate(25,0);r.rogue->casting=true;
+    size_t const moves=r.rogue->ai->moves.size();
+    position.Execute({});assert(r.rogue->casting && r.rogue->ai->moves.size()==moves);
+    clockMs+=5001;position.Execute({});
+    assert(!r.rogue->casting && r.rogue->ai->moves.size()>moves); // expired manual lease doesn't disable AI forever
+    last.clear();r.rogue->casting=false;r.ail->Relocate(230,0);
+    r.rogue->Relocate(145,0); // aggro was already acquired beyond the native chase threshold
+    for(int step=0;GetTwinsCasterVictimSpot(r.rogue,spot) && step<10;++step)
+    {
+        assert(spot.GetExactDist2d(&r.vl)<=std::max(40.0f,r.rogue->GetExactDist2d(&r.vl))+0.01f);
+        r.rogue->Relocate(spot.x,spot.y);
+    }
+    assert(r.rogue->GetExactDist2d(&r.vl)<=40); // return inward, never move farther out after acquiring aggro
+    r.vn.Relocate(60,0);r.vn.victim=r.rogue;r.Fresh();
+    assert(!TwinsShouldFixSeparation(r.rogue,r.rogue->ai));
+    assert(!GetTwinsSeparationSpot(r.rogue,r.rogue->ai,spot)); // do not drag both bosses together
+    r.vn.Relocate(0,0);r.vn.victim=r.ari;r.rogue->Relocate(95,0);r.ail->Relocate(72,20);r.Fresh();
+    assert(GetTwinsArcaneClearSpot(r.rogue,spot));
+    assert(spot.GetExactDist2d(&r.vl)>r.rogue->GetExactDist2d(&r.vl));
+    r.rogue->Relocate(65,0);r.bug.Relocate(65,0);r.bug.auras.insert(SPELL_EXPLODE_BUG);r.map.bugs.push_back(&r.bug);
+    assert(GetTwinsExplodeClearSpot(r.rogue,spot));
+    assert(spot.GetExactDist2d(&r.bug)>0 && spot.GetExactDist2d(&r.vl)<=40);
+    r.map.bugs.clear();DynamicObject blizzard;blizzard.Relocate(65,0);r.vl.blizzard=&blizzard;
+    assert(GetTwinsBlizzardClearSpot(r.rogue,spot));
+    assert(spot.GetExactDist2d(&blizzard)>0 && spot.GetExactDist2d(&r.vl)<=40);
+    r.rogue->group=nullptr;assert(!GetTwinsCasterVictim(r.rogue));r.rogue->group=&r.group;
+    r.rogue->phase=2;assert(!GetTwinsCasterVictim(r.mel));r.rogue->phase=1;
+    r.rogue->alive=false;assert(!GetTwinsCasterVictim(r.mel));r.rogue->alive=true;
+    r.map.script.state=DONE;assert(!GetTwinsCasterVictim(r.rogue));assert(!GetTwinsCasterVictimSpot(r.rogue,spot));
 }
 
 void CampTrackingAndIsolation()
@@ -441,6 +535,7 @@ void CampTrackingAndIsolation()
 int main()
 {
     ReproduceLegacyFailures();RolesAndFallbacks();ThreatOwnership();IndependentMovementAndTargets();HealerCoverageAndTriage();
-    TeleportHandoffAndSeparation();CastingPetsAndDiagnostics();HazardMovesAndCastInterruption();CampTrackingAndIsolation();
+    TeleportHandoffAndSeparation();CastingPetsAndDiagnostics();HazardMovesAndCastInterruption();
+    ActualCasterVictimCoverage();CasterVictimSafetyGuards();CampTrackingAndIsolation();
     std::cout<<"Twins production coordination regressions passed\n";
 }

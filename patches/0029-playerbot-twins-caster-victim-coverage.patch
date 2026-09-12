@@ -1,0 +1,366 @@
+diff --git a/modules/mod-playerbots/src/Ai/Base/Value/PartyMemberToHeal.cpp b/modules/mod-playerbots/src/Ai/Base/Value/PartyMemberToHeal.cpp
+--- a/modules/mod-playerbots/src/Ai/Base/Value/PartyMemberToHeal.cpp
++++ b/modules/mod-playerbots/src/Ai/Base/Value/PartyMemberToHeal.cpp
+@@ -74,6 +74,7 @@
+ 
+     // Resolve once, not once per candidate. Explicit focus-heal commands above retain priority.
+     Player* twinsTank = TempleOfAhnQirajHelpers::GetTwinsHealerTank(bot, botAI);
++    Player* twinsCasterVictim = TempleOfAhnQirajHelpers::GetTwinsCasterVictim(bot);
+     for (GroupReference* gref = group->GetFirstMember(); gref; gref = gref->next())
+     {
+         Player* player = gref->GetSource();
+@@ -93,7 +94,7 @@
+                 {
+                     probeValue = health + player->GetDistance2d(bot) / 10.0f;
+                 }
+-                if (twinsTank && health < 90.0f && player == twinsTank)
++                if (health < 90.0f && (player == twinsTank || player == twinsCasterVictim))
+                     probeValue -= 20.0f;
+                 // An assignment is a preference, not permission to ignore a nearby dying player.
+                 if (twinsTank && health < 30.0f)
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Actions_Coordination.cpp b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Actions_Coordination.cpp
+--- a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Actions_Coordination.cpp
++++ b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Actions_Coordination.cpp
+@@ -15,9 +15,11 @@
+ 
+ bool Aq40TwinsMovementAction::MoveTwins(Position const& spot)
+ {
+-    if (!botAI->CanMove())
++    if (botAI->IsRealPlayer() || !botAI->CanMove())
+         return false;
+     LastMovement& last = AI_VALUE(LastMovement&, "last movement");
++    if (last.priority > MovementPriority::MOVEMENT_COMBAT && IsWaitingForLastMove(MovementPriority::MOVEMENT_COMBAT))
++        return false;
+     // A teleport/hazard must be able to replace the previous five-second move lease. Do not
+     // continually restart an unchanged destination, and don't override controlled movement.
+     if (last.priority <= MovementPriority::MOVEMENT_COMBAT &&
+@@ -29,13 +31,18 @@
+     }
+     if (bot->IsNonMeleeSpellCast(true))
+         bot->InterruptNonMeleeSpells(false);
++    // The victim's short waypoint was already path-checked. Keep its exact coordinates rather
++    // than letting the generic endpoint search choose a different height/route around obstacles.
++    bool const checkedVictim = GetTwinsCasterVictim(bot) == bot;
+     return MoveTo(bot->GetMapId(), spot.GetPositionX(), spot.GetPositionY(), spot.GetPositionZ(),
+-                  false, false, false, false, MovementPriority::MOVEMENT_COMBAT, true);
++                  false, false, false, checkedVictim, MovementPriority::MOVEMENT_COMBAT, true);
+ }
+ 
+ void Aq40TwinsMovementAction::SettleTwins()
+ {
+-    if (bot->isMoving() && botAI->CanMove())
++    if (!botAI->IsRealPlayer() && bot->isMoving() && botAI->CanMove() &&
++        !(AI_VALUE(LastMovement&, "last movement").priority > MovementPriority::MOVEMENT_COMBAT &&
++          IsWaitingForLastMove(MovementPriority::MOVEMENT_COMBAT)))
+     {
+         bot->StopMovingOnCurrentPos();
+         AI_VALUE(LastMovement&, "last movement").clear();
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Coordination.cpp b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Coordination.cpp
+--- a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Coordination.cpp
++++ b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Coordination.cpp
+@@ -13,6 +13,7 @@
+ #include "Creature.h"
+ #include "Group.h"
+ #include "Playerbots.h"
++#include "PathGenerator.h"
+ 
+ namespace TempleOfAhnQirajHelpers
+ {
+@@ -35,7 +36,13 @@
+                 if (IsGroupMemberHere(bot, member) && GET_PLAYERBOT_AI(member) && PlayerbotAI::IsHeal(member))
+                     healers.push_back(member);
+             }
+-        std::sort(healers.begin(), healers.end(), [](Player* a, Player* b) { return a->GetGUID() < b->GetGUID(); });
++        std::sort(healers.begin(), healers.end(), [](Player* a, Player* b)
++        {
++            // Prefer priests for the two physical stations; deterministic within each class priority.
++            bool const aPriest = a->getClass() == CLASS_PRIEST;
++            bool const bPriest = b->getClass() == CLASS_PRIEST;
++            return aPriest != bPriest ? aPriest : a->GetGUID() < b->GetGUID();
++        });
+         Player* assigned[2] = {nullptr, nullptr};
+         for (size_t i = 0; i < healers.size(); ++i)
+         {
+@@ -185,6 +192,154 @@
+     return boss && boss->GetVictim() == bot ? boss : nullptr;
+ }
+ 
++Player* GetTwinsCasterVictim(Player* bot)
++{
++    if (!IsTwinsEncounterActive(bot) || !bot->GetGroup() || !bot->GetGroup()->isRaidGroup())
++        return nullptr;
++    Creature* caster = GetTwin(bot, AQT_DATA_VEKLOR);
++    Player* victim = caster && caster->IsAlive() && caster->GetVictim() ? caster->GetVictim()->ToPlayer() : nullptr;
++    return IsGroupMemberHere(bot, victim) && victim->IsAlive() ? victim : nullptr;
++}
++
++bool GetTwinsCasterVictimSpot(Player* bot, Position& spot)
++{
++    if (GetTwinsCasterVictim(bot) != bot)
++        return false;
++    PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
++    if (!botAI || botAI->IsRealPlayer() || !botAI->CanMove() || botAI->HasStrategy("passive", BOT_STATE_COMBAT))
++        return false;
++    Creature* caster = GetTwin(bot, AQT_DATA_VEKLOR);
++    // Vek'lor chases beyond 45y. Keep a margin, and use short, path-checked local moves only.
++    float const outer = GetTwinsTank(bot, AQT_DATA_VEKLOR) == bot ? 28.0f : 40.0f;
++    SupportHazards const hazards(bot);
++    std::vector<std::pair<Player*, float>> healers;
++    for (GroupReference* ref = bot->GetGroup()->GetFirstMember(); ref; ref = ref->next())
++    {
++        Player* healer = ref->GetSource();
++        if (!IsGroupMemberHere(bot, healer) || !healer->IsAlive() || healer->IsCharmed() ||
++            !PlayerbotAI::IsHeal(healer))
++            continue;
++        PlayerbotAI* ai = GET_PLAYERBOT_AI(healer);
++        if (ai && ai->HasStrategy("passive", BOT_STATE_COMBAT))
++            continue;
++        float const range = std::min({34.0f, (ai ? ai->GetRange("heal") : 40.0f) - 3.0f,
++                                      sPlayerbotAIConfig.healDistance - 3.0f});
++        if (range > 0.0f)
++            healers.emplace_back(healer, range);
++    }
++    auto covered = [&](Position const& p)
++    {
++        for (auto const& [healer, range] : healers)
++            if (healer->GetExactDist(p.GetPositionX(), p.GetPositionY(), p.GetPositionZ()) <= range &&
++                healer->IsWithinLOS(p.GetPositionX(), p.GetPositionY(), p.GetPositionZ()))
++                return true;
++        return false;
++    };
++    Position start;
++    start.Relocate(bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ());
++    bool const safe = caster->GetExactDist(start.GetPositionX(), start.GetPositionY(), start.GetPositionZ()) <= outer &&
++        hazards.Allows(start.GetPositionX(), start.GetPositionY()) && bot->IsWithinLOSInMap(caster);
++    if (safe && covered(start))
++        return false;
++
++    struct Candidate
++    {
++        Position position;
++        float score;
++        bool healing;
++    };
++    std::vector<Candidate> candidates;
++    float const bearing = std::atan2(start.GetPositionY() - caster->GetPositionY(),
++                                     start.GetPositionX() - caster->GetPositionX());
++    for (float radius : {20.0f, 28.0f, 36.0f})
++        if (radius <= outer)
++            for (uint32 sector = 0; sector < TWINS_ESCAPE_SECTORS; ++sector)
++            {
++                float const angle = bearing + float(sector) * 2.0f * float(M_PI) / float(TWINS_ESCAPE_SECTORS);
++                float x = caster->GetPositionX() + radius * std::cos(angle);
++                float y = caster->GetPositionY() + radius * std::sin(angle);
++                float z = bot->GetPositionZ();
++                bot->UpdateAllowedPositionZ(x, y, z);
++                if (!hazards.Allows(x, y) || caster->GetExactDist(x, y, z) > outer ||
++                    !caster->IsWithinLOS(x, y, z) || !bot->IsWithinLOS(x, y, z))
++                    continue;
++                Position p;
++                p.Relocate(x, y, z);
++                bool const healing = covered(p);
++                candidates.push_back({p, bot->GetExactDist(x, y, z) + (healing ? 0.0f : 1000.0f), healing});
++            }
++    std::sort(candidates.begin(), candidates.end(), [](Candidate const& a, Candidate const& b)
++    {
++        return a.score < b.score;
++    });
++    // Do not orbit an already-safe caster when healers are remote: the flexible healer comes to us.
++    if (candidates.empty() || (safe && !candidates.front().healing))
++        return false;
++
++    // Check the whole line segment, not just endpoints. Escape an existing hazard monotonically;
++    // never take a shortcut through Arcane Burst, a bomb, or Blizzard to reach a healer.
++    auto avoids = [](Position const& a, Position const& b, Position const& center, float radius)
++    {
++        float const ax = a.GetPositionX() - center.GetPositionX();
++        float const ay = a.GetPositionY() - center.GetPositionY();
++        float const dx = b.GetPositionX() - a.GetPositionX();
++        float const dy = b.GetPositionY() - a.GetPositionY();
++        float const dot = ax * dx + ay * dy;
++        if (ax * ax + ay * ay < radius * radius)
++            return dot >= -0.01f;
++        float const t = std::clamp(-dot / std::max(0.001f, dx * dx + dy * dy), 0.0f, 1.0f);
++        return std::hypot(ax + t * dx, ay + t * dy) + 0.01f >= radius;
++    };
++    uint32 attempts = 0;
++    for (Candidate const& candidate : candidates)
++    {
++        if (++attempts > 8)
++            break;
++        Position const& goal = candidate.position;
++        float const distance = bot->GetExactDist(goal.GetPositionX(), goal.GetPositionY(), goal.GetPositionZ());
++        if (distance <= TWINS_STATION_TOLERANCE)
++            continue;
++        float const fraction = std::min(1.0f, 6.0f / distance);
++        float x = start.GetPositionX() + (goal.GetPositionX() - start.GetPositionX()) * fraction;
++        float y = start.GetPositionY() + (goal.GetPositionY() - start.GetPositionY()) * fraction;
++        float z = start.GetPositionZ() + (goal.GetPositionZ() - start.GetPositionZ()) * fraction;
++        bot->UpdateAllowedPositionZ(x, y, z);
++        PathGenerator path(bot);
++        if (!path.CalculatePath(x, y, z) || path.GetPathType() != PATHFIND_NORMAL || path.GetPath().size() < 2)
++            continue;
++        Position previous = start;
++        float length = 0.0f;
++        bool allowed = true;
++        for (auto const& point : path.GetPath())
++        {
++            Position next;
++            next.Relocate(point.x, point.y, point.z);
++            float const oldRange = caster->GetExactDist(previous.GetPositionX(), previous.GetPositionY(),
++                                                       previous.GetPositionZ());
++            float const newRange = caster->GetExactDist(point.x, point.y, point.z);
++            length += previous.GetExactDist(point.x, point.y, point.z);
++            if (length > 12.0f || newRange > std::max(outer, oldRange) + 0.01f ||
++                !caster->IsWithinLOS(point.x, point.y, point.z) ||
++                !avoids(previous, next, *caster, TWINS_ARCANE_CLEARANCE) ||
++                (hazards.bug && !avoids(previous, next, *hazards.bug,
++                                        TWINS_EXPLODE_RADIUS + TWINS_STATION_TOLERANCE)) ||
++                (hazards.hasBlizzard && !avoids(previous, next, hazards.blizzard,
++                                                TWINS_BLIZZARD_RADIUS + TWINS_STATION_TOLERANCE)))
++            {
++                allowed = false;
++                break;
++            }
++            previous = next;
++        }
++        if (allowed && previous.GetExactDist(x, y, z) <= 1.0f)
++        {
++            spot.Relocate(x, y, z);
++            return true;
++        }
++    }
++    return false;
++}
++
+ Player* GetTwinsHealerTank(Player* bot, PlayerbotAI* botAI)
+ {
+     if (!IsTwinsEncounterActive(bot) || !bot->IsAlive() || !PlayerbotAI::IsHeal(bot))
+@@ -204,8 +359,10 @@
+         return firstStation ? firstStation : secondStation ? secondStation : caster;
+     }
+ 
+-    // The additional healer supports the travelling caster tank. Ordinary healing triage still
+-    // permits nearby emergencies, without making the two station healers cross the room.
++    // Cover whoever is actually taking Shadow Bolts, not an assumed future threat owner.
++    // Station healers retain their physical tanks; the extra healer covers the temporary victim.
++    if (Player* victim = GetTwinsCasterVictim(bot))
++        return victim;
+     if (caster)
+         return caster;
+ 
+@@ -252,22 +409,9 @@
+ {
+     if (!boss)
+         return false;
+-    Creature* melee = GetTwin(bot, AQT_DATA_VEKNILASH);
+-    // A caster who actually owns Vek'lor can also pull him away from a collapsed melee camp.
+-    // His chase stops at 45y plus reach, so stepping merely 25y away cannot relocate him.
+-    if (boss == GetTwin(bot, AQT_DATA_VEKLOR) && boss->GetVictim() == bot && melee &&
+-        boss->GetExactDist2d(melee) < TWINS_SEPARATION_GUARD)
+-    {
+-        float const bearing = std::atan2(boss->GetPositionY() - melee->GetPositionY(),
+-                                         boss->GetPositionX() - melee->GetPositionX());
+-        float const distance = TWINS_SEAT_SEPARATION + 55.0f;
+-        float x = melee->GetPositionX() + distance * std::cos(bearing);
+-        float y = melee->GetPositionY() + distance * std::sin(bearing);
+-        float z = bot->GetPositionZ();
+-        bot->UpdateAllowedPositionZ(x, y, z);
+-        spot.Relocate(x, y, z);
+-        return bot->GetExactDist2d(x, y) > TWINS_STATION_TOLERANCE;
+-    }
++    // Keep the caster in place. Separation is the physical tank's job, not a caster chase.
++    if (boss == GetTwin(bot, AQT_DATA_VEKLOR) && boss->GetVictim() == bot)
++        return GetTwinsCasterVictimSpot(bot, spot);
+     float const distance = bot->GetExactDist2d(boss);
+     if (distance >= TWINS_ARCANE_CLEARANCE && distance <= 27.0f && bot->IsWithinLOSInMap(boss))
+         return false;
+@@ -283,6 +427,8 @@
+ 
+ bool GetTwinsArcaneClearSpot(Player* bot, Position& spot)
+ {
++    if (GetTwinsCasterVictim(bot) == bot)
++        return GetTwinsCasterVictimSpot(bot, spot);
+     Creature* caster = GetTwin(bot, AQT_DATA_VEKLOR);
+     Creature* melee = GetTwin(bot, AQT_DATA_VEKNILASH);
+     if (!caster || !melee)
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Helpers.cpp b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Helpers.cpp
+--- a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Helpers.cpp
++++ b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Helpers.cpp
+@@ -191,6 +191,9 @@
+ {
+     if (!IsTwinsEncounterActive(bot))
+         return false;
++    // Any actual caster victim needs local healing coverage, including ordinary DPS.
++    if (GetTwinsCasterVictim(bot) == bot)
++        return GetTwinsCasterVictimSpot(bot, spot);
+ 
+     TwinsSnapshot const& snap = GetTwinsSnapshot(bot);
+     if (!snap.valid)
+@@ -246,7 +249,8 @@
+     if (!IsTwinsEncounterActive(bot))
+         return false;
+     TwinsRole const role = GetTwinsRole(bot, botAI);
+-    if (role != TwinsRole::WarriorTank && role != TwinsRole::WarlockTank && role != TwinsRole::PhysicalReserve)
++    if (GetTwinsCasterVictim(bot) != bot && role != TwinsRole::WarriorTank &&
++        role != TwinsRole::WarlockTank && role != TwinsRole::PhysicalReserve)
+         return false;
+     if (TwinsShouldFixSeparation(bot, botAI) || TwinsShouldClearExplode(bot, botAI) ||
+         TwinsShouldClearBlizzard(bot, botAI) || TwinsShouldClearArcane(bot, botAI))
+@@ -422,6 +426,8 @@
+ 
+ bool GetTwinsExplodeClearSpot(Player* bot, Position& spot, uint32 attempt)
+ {
++    if (GetTwinsCasterVictim(bot) == bot)
++        return GetTwinsCasterVictimSpot(bot, spot);
+     Creature* bug = FindTwinsExplodingBug(bot);
+     if (!bug)
+         return false;
+@@ -462,6 +468,8 @@
+ 
+ bool GetTwinsBlizzardClearSpot(Player* bot, Position& spot, uint32 attempt)
+ {
++    if (GetTwinsCasterVictim(bot) == bot)
++        return GetTwinsCasterVictimSpot(bot, spot);
+     Position center;
+     if (!GetTwinsBlizzardCenter(bot, center))
+         return false;
+@@ -477,7 +485,7 @@
+ // ---------------------------------------------------------------------------------------------
+ bool TwinsShouldFixSeparation(Player* bot, PlayerbotAI* botAI)
+ {
+-    if (!IsTwinsEncounterActive(bot))
++    if (!IsTwinsEncounterActive(bot) || GetTwinsCasterVictim(bot) == bot)
+         return false;
+ 
+     TwinsSnapshot const& snap = GetTwinsSnapshot(bot);
+@@ -497,6 +505,8 @@
+ 
+ bool GetTwinsSeparationSpot(Player* bot, PlayerbotAI* /*botAI*/, Position& spot)
+ {
++    if (GetTwinsCasterVictim(bot) == bot)
++        return false; // dragging both bosses together cannot separate them
+     TwinsSnapshot const& snap = GetTwinsSnapshot(bot);
+     if (!snap.valid)
+         return false;
+@@ -557,7 +567,7 @@
+ 
+     TwinsRole const role = GetTwinsRole(bot, botAI);
+     return role == TwinsRole::WarriorTank || role == TwinsRole::WarlockTank || role == TwinsRole::PhysicalReserve ||
+-           role == TwinsRole::Healer || GetTwinsHeldWrongTwin(bot, botAI);
++           role == TwinsRole::Healer || GetTwinsHeldWrongTwin(bot, botAI) || GetTwinsCasterVictim(bot) == bot;
+ }
+ 
+ }  // namespace TempleOfAhnQirajHelpers
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Helpers.h b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Helpers.h
+--- a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Helpers.h
++++ b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Helpers.h
+@@ -144,6 +144,8 @@
+ bool GetTwinsRangedTankSpot(Player* bot, Creature* boss, Position& spot);
+ 
+ // ---- healers ----
++Player* GetTwinsCasterVictim(Player* bot);
++bool GetTwinsCasterVictimSpot(Player* bot, Position& spot);
+ Player* GetTwinsHealerTank(Player* bot, PlayerbotAI* botAI);
+ bool GetTwinsCoverageSpot(Player* bot, PlayerbotAI* botAI, Position& spot);
+ bool GetTwinsHealerSpot(Player* bot, PlayerbotAI* botAI, Position& spot);

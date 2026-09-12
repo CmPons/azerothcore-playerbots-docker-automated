@@ -69,7 +69,8 @@ struct Map
     uint32 id=531,instance=1;
     InstanceScript script;
     std::vector<Creature*> bugs;
-    int searches=0;
+    int searches=0, pathType=1;
+    std::vector<Position> pathDetour;
     uint32 GetInstanceId(){return instance;}
 };
 struct SpellInfo {uint32 Id=0;};
@@ -206,12 +207,13 @@ public:
 inline uint32 clockMs=1000;
 inline uint32 getMSTime(){return clockMs;}
 inline uint32 getMSTimeDiff(uint32 from,uint32 to){return to-from;}
-enum class MovementPriority {MOVEMENT_NORMAL=0,MOVEMENT_COMBAT=20};
+enum class MovementPriority {MOVEMENT_NORMAL=0,MOVEMENT_COMBAT=20,MOVEMENT_FORCED=100};
 struct LastMovement
 {
     Position lastMoveShort;
     MovementPriority priority=MovementPriority::MOVEMENT_NORMAL;
-    void clear(){lastMoveShort={};priority=MovementPriority::MOVEMENT_NORMAL;}
+    uint32 msTime=0,lastdelayTime=0;
+    void clear(){lastMoveShort={};priority=MovementPriority::MOVEMENT_NORMAL;msTime=lastdelayTime=0;}
 };
 struct AnyValue {virtual ~AnyValue()=default;};
 template<class T> struct TestValue : AnyValue
@@ -232,7 +234,9 @@ public:
     Player* bot;
     Player* master=nullptr;
     AiObjectContext ctx;
-    bool real=false,canMove=true,castAllowed=true,focus=false,pathAllowed=true;
+    bool real=false,canMove=true,castAllowed=true,focus=false,pathAllowed=true,passive=false;
+    float healRange=38.5f;
+    bool exactWaypoint=false;
     std::set<std::string> known={"shadow ward","searing pain","frostbolt","smite"},buffs;
     std::vector<std::string> casts,messages;
     std::vector<Position> moves;
@@ -243,14 +247,33 @@ public:
     static bool IsTank(Player* p,bool=false){return p && p->tankSpec;}
     static bool IsHeal(Player* p,bool=false){return p && p->healer;}
     static bool IsMelee(Player* p){return p && p->melee;}
-    float GetRange(std::string const&) const{return 38.5f;}
-    bool HasStrategy(std::string const& name,int){return focus && name=="focus heal targets";}
+    float GetRange(std::string const&) const{return healRange;}
+    bool HasStrategy(std::string const& name,int)
+    {return (focus && name=="focus heal targets") || (passive && name=="passive");}
     bool CanMove() const{return canMove;}
     bool HasAura(std::string const& n,Unit*){return buffs.contains(n);}
     bool CanCastSpell(std::string const& n,Unit* t){return castAllowed && known.contains(n) && t && bot->GetDistance2d(t)<=34;}
     bool CastSpell(std::string const& n,Unit*){casts.push_back(n);if(n=="shadow ward")buffs.insert(n);return true;}
     void TellMaster(std::string const& s){messages.push_back(s);}
     Unit* GetUnit(ObjectGuid g){for(auto& [_,c]:bot->map->script.creatures)if(c->guid==g)return c;return nullptr;}
+};
+constexpr int PATHFIND_NORMAL=1, PATHFIND_SHORTCUT=2;
+class PathGenerator
+{
+public:
+    struct Point {float x,y,z;};
+    Player* owner;
+    std::vector<Point> points;
+    explicit PathGenerator(Player* p):owner(p) {}
+    bool CalculatePath(float x,float y,float z)
+    {
+        if(!owner->ai->pathAllowed)return false;
+        points={{owner->x,owner->y,owner->z}};
+        for(auto const& p:owner->map->pathDetour)points.push_back({p.x,p.y,p.z});
+        points.push_back({x,y,z});return true;
+    }
+    int GetPathType() const{return owner->map->pathType;}
+    auto const& GetPath() const{return points;}
 };
 #define AI_VALUE(type,name) (context->GetValue<type>(name)->Get())
 #define AI_VALUE2(type,name,q) (context->GetValue<type>(name,q)->Get())
@@ -273,8 +296,14 @@ class MovementAction : public Action
 public:
     using Action::Action;
 protected:
-    bool MoveTo(uint32,float x,float y,float z,bool,bool,bool,bool,MovementPriority p,bool=false,bool=false)
+    bool IsWaitingForLastMove(MovementPriority priority)
+    {
+        auto& last=AI_VALUE(LastMovement&,"last movement");
+        return priority<=last.priority && last.lastdelayTime+last.msTime>getMSTime();
+    }
+    bool MoveTo(uint32,float x,float y,float z,bool,bool,bool,bool exact,MovementPriority p,bool=false,bool=false)
     {if(!botAI->pathAllowed)return false;Position pos;pos.Relocate(x,y,z);botAI->moves.push_back(pos);bot->moving=true;
+        botAI->exactWaypoint=exact;
         auto& last=AI_VALUE(LastMovement&,"last movement");last.lastMoveShort=pos;last.priority=p;return true;}
 };
 class AttackAction : public MovementAction

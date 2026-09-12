@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 MODULE = ROOT / "azerothcore-wotlk/modules/mod-playerbots"
 PATCH = ROOT / "patches/0026-playerbot-twins-coordination.patch"
 STATION_PATCH = ROOT / "patches/0028-playerbot-twins-station-healers.patch"
+VICTIM_PATCH = ROOT / "patches/0029-playerbot-twins-caster-victim-coverage.patch"
 AQ = MODULE / "src/Ai/Raid/Aq40"
 
 
@@ -37,7 +38,7 @@ class TwinsCoordinationTests(unittest.TestCase):
             headers = """Define Common ObjectGuid Position Creature DynamicObject Group InstanceScript Map
                 ObjectAccessor Pet Playerbots SharedDefines Timer Action AttackAction MovementActions
                 CharmInfo CreatureAI Config AiObjectContext Player PlayerbotAI Spell SpellMgr ThreatManager
-                Unit CreatureData Strategy Multiplier GenericActions GenericSpellActions FollowActions
+                Unit CreatureData Strategy Multiplier GenericActions GenericSpellActions FollowActions PathGenerator
                 ChooseTargetActions ReachTargetActions""".split()
             for name in headers:
                 (temp / f"{name}.h").write_text(f'#include "{fixture}"\n')
@@ -49,6 +50,7 @@ class TwinsCoordinationTests(unittest.TestCase):
                 p = baseline / name
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_bytes((ROOT / "azerothcore-wotlk" / name).read_bytes())
+            run(["git", "apply", "--reverse", str(VICTIM_PATCH)], cwd=baseline)
             run(["git", "apply", "--reverse", str(STATION_PATCH)], cwd=baseline)
             previous = (baseline / "modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Coordination.cpp").read_text()
             previous_code = '#include "Aq40Helpers.h"\n#include "Playerbots.h"\n#include <algorithm>\n'
@@ -101,6 +103,8 @@ class TwinsCoordinationTests(unittest.TestCase):
                 p = temp / name
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_bytes((ROOT / "azerothcore-wotlk" / name).read_bytes())
+            run(["git", "apply", "--reverse", "--check", str(VICTIM_PATCH)], cwd=temp)
+            run(["git", "apply", "--reverse", str(VICTIM_PATCH)], cwd=temp)
             run(["git", "apply", "--reverse", "--check", str(STATION_PATCH)], cwd=temp)
             run(["git", "apply", "--reverse", str(STATION_PATCH)], cwd=temp)
             run(["git", "apply", "--reverse", "--check", str(PATCH)], cwd=temp)
@@ -114,6 +118,8 @@ class TwinsCoordinationTests(unittest.TestCase):
             run(["git", "apply", str(PATCH)], cwd=temp)
             run(["git", "apply", "--check", str(STATION_PATCH)], cwd=temp)
             run(["git", "apply", str(STATION_PATCH)], cwd=temp)
+            run(["git", "apply", "--check", str(VICTIM_PATCH)], cwd=temp)
+            run(["git", "apply", str(VICTIM_PATCH)], cwd=temp)
             for name in names:
                 self.assertEqual((temp / name).read_bytes(), (ROOT / "azerothcore-wotlk" / name).read_bytes())
 
