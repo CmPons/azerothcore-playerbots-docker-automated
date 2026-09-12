@@ -2,10 +2,11 @@
 
 ## Status
 
-Implemented and **deployed September 12, 2026**, with explicit build/deployment permission. See
-[deployment verification](twins-reset-deployment-20260912.md). The actual live reset is left for the
-user to run. No manual SQL edits, migration, database restore, loot/gear changes or instance-wide
-reset is part of this feature.
+Implemented and **deployed September 12, 2026**. The first deployment refused the real room's
+scarab/scorpion variants; the corrected version is now deployed with explicit permission. See the
+[initial deployment](twins-reset-deployment-20260912.md) and
+[variant correction / crash incident](twins-reset-variants-20260912.md). No manual SQL edits,
+migration, database restore, loot/gear changes or instance-wide reset is part of this feature.
 
 The saved Twins completion was from the user's `.damage` kill, not a legitimate kill or validation
 of the newly deployed bug scaling. Deployment must preserve that latest save until the user chooses
@@ -41,8 +42,10 @@ The new path is restricted to AQ40's Twins recipe. Other bosses' reset behavior 
 Canonical module files (mirrored to `azerothcore-wotlk/modules/mod-raid-scaling/src/`):
 
 - `RaidScalingMgr.cpp`: recipe status and targeted dispatcher.
-- `RaidScalingMgr.h`: private `ResetTwins` declaration.
-- `RaidScalingTwinsReset.cpp`: complete encounter recovery.
+- `RaidScalingMgr.h`: reset declarations and one-shot pending instance ID.
+- `RaidScalingTwinsReset.cpp`: complete encounter recovery and scoped console request handling.
+- `RaidScalingCommand.cpp`: confirmed console-only `raidtwinsreset` entry point.
+- `RaidScalingLoader.cpp`: consume a requested reset after instance script/scaling initialization.
 
 The root-managed module is already synchronized by setup/update; no core patch or SQL migration is
 needed. No setup/update is run against the live source for this change.
@@ -56,7 +59,9 @@ needed. No setup/update is run against the live source for this change.
 2. Find the full original spawn catalogue for this map/difficulty, including unloaded/despawned
    creatures: exactly one of each emperor, one Master's Eye, and the scarabs/scorpions whose native
    linked respawn points to Vek'lor. Require both bug species and both doors; reject ambiguous,
-   inactive, pooled or multi-entry creature data. Corridor bugs remain excluded.
+   inactive or pooled creature data. Bosses/controller remain single-entry. Linked room bugs may
+   have native alternate entries, but every alternate must be scarab 15316 or scorpion 15317.
+   Corridor bugs and all other alternate entries remain excluded.
 3. Load the selected room/door grids, recheck combat and reject controlled targets. Grid loading
    itself uses normal core behavior; a refusal at this stage may have loaded grids but has not
    changed encounter state or completion credit.
@@ -79,9 +84,11 @@ needed. No setup/update is run against the live source for this change.
    exit **180635 closed**, including repeat resets already in `NOT_STARTED`. Require one spawned
    object per selected door before success. The native instance script controls them on later pulls.
 
-Current world data has two emperors, one Eye, **50 linked scarabs and 50 linked scorpions**: 103
-creature spawns total, plus two doors. Counts are derived from data; their spawn GUIDs are not
-hardcoded. Other kills, binds, progression deadline, extension state and player inventory are not
+Current world data has two emperors, one Eye, and **100 linked room-bug spawn locations**: 103
+creature spawns total, plus two doors. Fifty bug records have scarab as their base entry and fifty
+have scorpion; all 100 allow the other species through `creature_multispawn`, so actual living
+species counts are random, not necessarily 50/50. Counts are derived from data; spawn GUIDs are
+not hardcoded. Other kills, binds, progression deadline, extension state and player inventory are not
 modified. Previously acquired `.damage` loot is not removed; unlooted old corpses are replaced.
 
 The reset is retryable/idempotent, not a claimed multi-statement SQL transaction. A native failure
@@ -91,7 +98,7 @@ after state changes is reported as incomplete rather than attempting an unsafe a
 
 `scripts/tests/test_twins_reset.py` compiles the actual reset implementation, dispatcher and header
 against offline map/API doubles, with C++20, warnings-as-errors and undefined-behavior sanitizer.
-Seven reset tests cover:
+Eleven reset tests cover:
 
 - Both emperors, unloaded Eye/dead bug, surviving mutated bug, original respawn order, intro/doors,
   one-live-spawn checks and repeat reset before old corpse objects have been removed.
@@ -107,10 +114,31 @@ These tests model map lifecycle APIs; they do not execute a live reset or prove 
 pathfinding, encounter difficulty or client behavior. Native compilation and startup checks are
 performed separately during the authorized deployment. No completed boss is reset just to test it.
 
-The full selected suite passed **85 tests, with one optional connection-local MySQL test skipped**
-(86 total). Scoped C++ style checks passed. The full native build passed after correcting this
+The corrected full selected suite passed **89 tests, with one optional connection-local MySQL test
+skipped** (90 total). Added coverage includes native bug variants, immediate spawn-store erasure,
+one-shot console requests and confirmation guards. The actual legacy native respawn loop fails
+under checked iterators in the offline reproduction; the corrected module's GUID snapshots pass.
+Scoped C++ style checks passed. The full native build passed after correcting this
 core's threat accessor spelling (`GetThreatMgr`, not `GetThreatManager`) and aligning the test
 double/header contract. A deferred native door-respawn test also verifies incomplete/retry behavior.
 
 Preparation backup: `backups/twins-reset-preparation-20260912-170514/`.
-Deployment preserved the existing seven-completion save exactly; the reset itself was not invoked.
+The first deployment preserved the existing seven-completion save; its reset attempt subsequently
+refused without mutation. The user's native state command then saved Twins as `NOT_STARTED`, but
+the native GUID respawn command crashed. The corrected deployment preserved that latest state,
+then an explicitly authorized one-shot reset was requested for instance 5670.
+
+## Console operation
+
+`raidtwinsreset <existing-AQ40-instance-id> confirm` is console-only. It runs the same guarded reset
+on a loaded AQ40 instance, or queues it once for that instance's next map creation (after script
+state and default scaling initialize, before player entry). A queued request **is not a completed
+reset**: check the `[RaidScaling] Twins reset for instance ... completed` log before pulling.
+Only one request may be pending; it is in memory and lost on restart. The request is consumed
+before execution even on refusal/failure, so it cannot later retry unexpectedly during combat.
+Unknown/unallocated IDs, malformed input and missing confirmation are rejected. Existing in-world
+`.raidinstance boss reset 7` remains available.
+
+Do not use the legacy `.respawn creature guid` workaround: that native command still has its
+iterator-invalidating loop. This correction uses the safe module path; it does not patch the core
+command.
