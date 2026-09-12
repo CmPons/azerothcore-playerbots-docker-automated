@@ -2,13 +2,16 @@
 
 ## Status / scope
 
-Prepared September 12, 2026; **not built or deployed**. The user reported that tank separation was
-mostly working, but mutated bugs were an excessive wall for ten players. They authorized fixing
-add scaling, **not** changing the encounter or mutation's native mechanics.
+Prepared and **deployed September 12, 2026**, alongside the
+[stockup reagent fix](raidroster-stockup-reagents.md). See the
+[worldserver-only deployment verification](twins-bug-scaling-deployment-20260912.md).
+The user reported that tank separation was mostly working, but mutated bugs were an excessive wall
+for ten players. They authorized fixing add scaling, **not** changing the encounter or mutation's
+native mechanics, then separately authorized deployment.
 
-No server interruption, live commands, inventory changes, SQL writes, resets, configuration changes
-or Pi generations were performed. Both this change and the separately prepared
-[stockup reagent fix](raidroster-stockup-reagents.md) need an authorized build/deployment.
+Source preparation did not interrupt services. Deployment used a fresh backup and clean worldserver
+restart; auth, database and Pi stayed running. No live bot commands, manual inventory/SQL edits,
+resets, configuration changes or Pi generations were performed.
 
 ## Findings
 
@@ -106,5 +109,6 @@ chatter/bridge, scaling/reset and statistics tests. Scoped official C++ style ch
 120-column checks passed.
 
 Preparation backup: `backups/twins-bug-scaling-preparation-20260912-160109/`.
-These tests do **not** substitute for a full server build or prove live pathfinding, add-switch
-latency, healing throughput or encounter difficulty. No current raid was interrupted to test them.
+The subsequent authorized full server build and startup verification also passed. Neither those
+checks nor these tests prove live pathfinding, add-switch latency, healing throughput or encounter
+difficulty. No live encounter was pulled or reset for validation.

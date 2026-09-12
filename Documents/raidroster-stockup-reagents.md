@@ -2,9 +2,10 @@
 
 ## Status
 
-Prepared September 12, 2026; **not built or deployed**. No live stockup, inventory edits, bot login,
-server interruption or configuration changes were performed. The previous durability deployment
-permission was already consumed; a new build/deployment needs permission.
+Prepared and **deployed September 12, 2026**, alongside the Twins bug-scaling fix with fresh explicit
+permission. See [deployment verification](twins-bug-scaling-deployment-20260912.md). Only worldserver
+was restarted; no live stockup, manual inventory edits, bot login or configuration changes were
+performed for validation.
 
 ## Behavior
 
@@ -65,9 +66,10 @@ with the real core creature-searcher phase logic. Tests cover:
 Validation: **72 tests passed, one optional connection-local MySQL test skipped**, including five
 new stockup tests and the existing durability, Twins/AQ40, pet, skull, chatter/bridge, scaling/reset
 and statistics suites. Scoped core C++ style checks and 120-column checks on added lines passed.
-These are offline sanitizer/API-double tests, **not** a complete server build or live command test.
+These are offline sanitizer/API-double tests, not a live command test. The subsequent full native
+server build and startup verification also passed; in-game stockup behavior still needs observation.
 Preparation backup: `backups/stockup-reagents-preparation-20260912-153047/`.
 
-Until deployment, the existing workaround is to bring **both bots themselves within interaction
-range of any usable vendor**, then run `.raidroster stockup`; the current build already includes
-Kings/candle replenishment there (its old added-item counter may not report those Misc items).
+The old workaround was to bring both bots themselves within vendor interaction range. That still
+allows full stockup; the new reagent-only route no longer requires each bot to stand at the vendor.
+The deployed added-item counter now includes Misc-class Kings/candles.

@@ -8,7 +8,7 @@ Worldserver is ready with `RaidScaling.DefaultTargetPlayers = 10`.
 The user explicitly approved this build and deployment; only worldserver was
 restarted. In-game validation on the next actual raid entry remains pending.
 
-**Prepared 2026-09-12, not yet deployed:** [Twin Emperors bug scaling](twins-bug-raid-scaling.md)
+**Deployed 2026-09-12:** [Twin Emperors bug scaling](twins-bug-raid-scaling.md)
 adds a narrow exception for their normal-rank, Vek'lor-linked bugs, with health scaling that survives
 mutation. Corridor bugs and other creatures retain their existing behavior.
 
