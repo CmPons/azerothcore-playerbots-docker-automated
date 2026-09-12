@@ -85,6 +85,7 @@ private:
     float ClampDamage(float value) const;
     uint32 ScaleHealth(uint32 value, float scale) const;
 
+    bool ResetTwins(ChatHandler* handler, InstanceMap* map);
     uint32 RespawnCreatureEntries(Map* map, std::vector<uint32> const& entries) const;
     uint32 RespawnGameObjectEntries(Map* map, std::vector<uint32> const& entries) const;
     bool IsGroupMemberInMap(Player* leader, uint32 mapId, uint32 instanceId) const;

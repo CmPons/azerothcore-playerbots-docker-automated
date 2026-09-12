@@ -106,7 +106,7 @@ namespace
             {4, 4, "Fankriss", "respawnable", {15510}, {}},
             {5, 5, "Viscidus", "partial/splits", {15299, 15667}, {}, true},
             {6, 6, "Princess Huhuran", "respawnable", {15509}, {}},
-            {7, 7, "Twin Emperors", "partial/shared health", {15275, 15276, 15963}, {180634, 180635}, true},
+            {7, 7, "Twin Emperors", "respawnable/linked bugs", {15275, 15276, 15963}, {180634, 180635}},
             {8, 8, "Ouro", "partial/submerge", {15517, 15957}, {} , true},
             {9, 9, "C'Thun", "partial/multi-phase", {15589, 15727, 15809, 15725, 15726, 15728, 15334}, {180745}, true},
         };
@@ -744,6 +744,9 @@ bool RaidScalingMgr::ResetBoss(ChatHandler* handler, InstanceMap* map, uint32 bo
         handler->PSendSysMessage("Boss '{}' recipe encounter id {} is outside this instance encounter count {}.", boss.name, boss.encounterId, instance->GetEncounterCount());
         return false;
     }
+
+    if (map->GetId() == 531 && boss.encounterId == 7)
+        return ResetTwins(handler, map);
 
     instance->SetBossState(boss.encounterId, NOT_STARTED);
     uint32 creatures = RespawnCreatureEntries(map, boss.creatureEntries);
