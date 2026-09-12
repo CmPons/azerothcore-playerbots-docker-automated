@@ -132,8 +132,8 @@ public:
     void ProcessGameObjectRespawn(uint32 i)
     {
         auto bounds = gos.equal_range(i);
-        for (auto j = bounds.first; j != bounds.second; ++j)
-            if (j->second->spawned) return;
+        // Native ProcessGameObjectRespawn leaves even an inactive loaded object to its own update.
+        if (bounds.first != bounds.second) return;
         auto go = std::make_unique<GameObject>();
         go->entry = objectMgr.doors.at(i).id; go->spawnId = i;
         gos.emplace(i, go.get()); ownedGos.push_back(std::move(go));
@@ -342,6 +342,12 @@ int main(int argc,char** argv)
         assert(s.map.script.mask==(127u & ~16u));
         assert(s.handler.message.find("incomplete")!=std::string::npos);
         s.map.failSpawn=0; s.Reset(); s.Untouched();
+        GameObject* exit=s.map.gos.find(11)->second;
+        exit->spawned=false;
+        assert(!s.mgr.ResetBoss(&s.handler,&s.map,7));
+        assert(s.handler.message.find("door is not ready")!=std::string::npos);
+        exit->spawned=true; // native GO update completes the scheduled respawn on the next tick
+        s.Reset(); s.Untouched();
     }
     else if (mode=="generic")
     {
