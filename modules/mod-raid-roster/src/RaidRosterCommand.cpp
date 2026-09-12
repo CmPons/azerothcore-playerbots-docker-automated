@@ -21,6 +21,10 @@
 #include "InstanceSaveMgr.h"
 #include "AiObjectContext.h"
 #include "Bag.h"
+#include "CellImpl.h"
+#include "Creature.h"
+#include "GridNotifiers.h"
+#include "GridNotifiersImpl.h"
 #include "DatabaseEnv.h"
 #include "Field.h"
 #include "Item.h"
@@ -104,18 +108,31 @@ ObjectGuid FindNearbyVendor(Player* bot, PlayerbotAI* botAI)
     return ObjectGuid();
 }
 
+ObjectGuid FindNearbyVendor(Player* player)
+{
+    if (!player || !player->IsInWorld())
+        return ObjectGuid();
+
+    // The caller need not have playerbot AI or select the vendor. Search nearby loaded creatures,
+    // then let the core enforce actual interaction distance, vendor flag, life and friendliness.
+    Creature* vendor = nullptr;
+    auto canInteract = [player](Creature* creature)
+    {
+        return player->GetNPCIfCanInteractWith(creature->GetGUID(), UNIT_NPC_FLAG_VENDOR) != nullptr;
+    };
+    Acore::CreatureSearcher<decltype(canInteract)> searcher(player, vendor, canInteract);
+    Cell::VisitObjects(player, searcher, INTERACTION_DISTANCE + 20.0f);
+    return vendor ? vendor->GetGUID() : ObjectGuid();
+}
+
 uint32 CountRaidStockItems(Player* bot)
 {
     uint32 total = 0;
+    // Count carried item units around replenishment, AFTER selling. Candles and Symbols of Kings
+    // are ITEM_CLASS_MISC, not ITEM_CLASS_REAGENT; a class filter would hide their refill count.
     ForEachBagItem(bot, [&](Item* item)
     {
-        ItemTemplate const* proto = item->GetTemplate();
-        if (!proto)
-            return;
-
-        if (proto->Class == ITEM_CLASS_CONSUMABLE || proto->Class == ITEM_CLASS_REAGENT ||
-            proto->Class == ITEM_CLASS_PROJECTILE)
-            total += item->GetCount();
+        total += item->GetCount();
     });
     return total;
 }
@@ -656,8 +673,10 @@ bool RaidRosterCommand::HandleStockUp(ChatHandler* handler)
         return true;
     }
 
+    ObjectGuid const masterVendor = FindNearbyVendor(master);
     uint32 checked = 0;
     uint32 stocked = 0;
+    uint32 reagentOnly = 0;
     uint32 skippedNoVendor = 0;
     uint32 soldStacks = 0;
     uint32 stockItemsAdded = 0;
@@ -669,27 +688,36 @@ bool RaidRosterCommand::HandleStockUp(ChatHandler* handler)
             continue;
 
         PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
-        if (!botAI)
+        if (!botAI || botAI->IsRealPlayer())
             continue;
 
         ++checked;
 
         ObjectGuid vendorGuid = FindNearbyVendor(bot, botAI);
-        if (!vendorGuid)
+        if (!vendorGuid && !masterVendor)
         {
             ++skippedNoVendor;
             continue;
         }
 
-        soldStacks += SellVendorItems(bot, botAI, vendorGuid);
+        // Your usable vendor authorizes reagent delivery to online group bots, even when the
+        // bots cannot interact with that vendor. It does NOT authorize remote inventory sales.
+        if (vendorGuid)
+            soldStacks += SellVendorItems(bot, botAI, vendorGuid);
         uint32 const beforeStock = CountRaidStockItems(bot);
 
         PlayerbotFactory factory(bot, bot->GetLevel());
-        factory.InitAmmo();
+        if (vendorGuid)
+            factory.InitAmmo();
         factory.InitReagents();
-        factory.InitConsumables();
-        factory.InitPotions();
-        TopOffPotions(bot);
+        if (vendorGuid)
+        {
+            factory.InitConsumables();
+            factory.InitPotions();
+            TopOffPotions(bot);
+        }
+        else
+            ++reagentOnly;
 
         uint32 const afterStock = CountRaidStockItems(bot);
         if (afterStock > beforeStock)
@@ -707,10 +735,12 @@ bool RaidRosterCommand::HandleStockUp(ChatHandler* handler)
 
     std::string skippedMessage;
     if (skippedNoVendor)
-        skippedMessage = " Skipped " + std::to_string(skippedNoVendor) + " bot(s) not close enough to a normal vendor.";
+        skippedMessage = " Skipped " + std::to_string(skippedNoVendor) +
+            " bot(s): neither they nor you are close enough to a usable vendor.";
 
-    handler->PSendSysMessage("Stocked {} bot(s): sold {} vendor stack(s), added/topped {} consumable/reagent/ammo item(s).{}",
-        stocked, soldStacks, stockItemsAdded, skippedMessage.c_str());
+    handler->PSendSysMessage("Stocked {} bot(s) ({} reagents-only): sold {} vendor stack(s), "
+        "added/topped {} consumable/reagent/ammo item(s).{}",
+        stocked, reagentOnly, soldStacks, stockItemsAdded, skippedMessage.c_str());
     return true;
 }
 
