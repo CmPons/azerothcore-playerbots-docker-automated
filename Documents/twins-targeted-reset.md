@@ -2,9 +2,10 @@
 
 ## Status
 
-Implemented September 12, 2026; build/deployment authorized and pending. The actual live reset is
-left for the user to run. No manual SQL edits, migration, database restore, loot/gear changes or
-instance-wide reset is part of this feature.
+Implemented and **deployed September 12, 2026**, with explicit build/deployment permission. See
+[deployment verification](twins-reset-deployment-20260912.md). The actual live reset is left for the
+user to run. No manual SQL edits, migration, database restore, loot/gear changes or instance-wide
+reset is part of this feature.
 
 The saved Twins completion was from the user's `.damage` kill, not a legitimate kill or validation
 of the newly deployed bug scaling. Deployment must preserve that latest save until the user chooses
@@ -90,7 +91,7 @@ after state changes is reported as incomplete rather than attempting an unsafe a
 
 `scripts/tests/test_twins_reset.py` compiles the actual reset implementation, dispatcher and header
 against offline map/API doubles, with C++20, warnings-as-errors and undefined-behavior sanitizer.
-Seven tests cover:
+Seven reset tests cover:
 
 - Both emperors, unloaded Eye/dead bug, surviving mutated bug, original respawn order, intro/doors,
   one-live-spawn checks and repeat reset before old corpse objects have been removed.
@@ -106,4 +107,10 @@ These tests model map lifecycle APIs; they do not execute a live reset or prove 
 pathfinding, encounter difficulty or client behavior. Native compilation and startup checks are
 performed separately during the authorized deployment. No completed boss is reset just to test it.
 
+The full selected suite passed **85 tests, with one optional connection-local MySQL test skipped**
+(86 total). Scoped C++ style checks passed. The full native build passed after correcting this
+core's threat accessor spelling (`GetThreatMgr`, not `GetThreatManager`) and aligning the test
+double/header contract. A deferred native door-respawn test also verifies incomplete/retry behavior.
+
 Preparation backup: `backups/twins-reset-preparation-20260912-170514/`.
+Deployment preserved the existing seven-completion save exactly; the reset itself was not invoked.
