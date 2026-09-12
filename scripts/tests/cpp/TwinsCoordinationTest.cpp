@@ -467,6 +467,8 @@ void CasterVictimSafetyGuards()
     r.rogue->ai->canMove=false;assert(!GetTwinsCasterVictimSpot(r.rogue,spot));r.rogue->ai->canMove=true;
     r.rogue->ai->real=true;assert(!GetTwinsCasterVictimSpot(r.rogue,spot));r.rogue->ai->real=false;
     r.rogue->los=false;assert(!GetTwinsCasterVictimSpot(r.rogue,spot));r.rogue->los=true;
+    r.map.fixedHeight=true;r.map.groundZ=10;
+    assert(!GetTwinsCasterVictimSpot(r.rogue,spot));r.map.fixedHeight=false;
     r.ail->ai->passive=true;assert(!GetTwinsCasterVictimSpot(r.rogue,spot));r.ail->ai->passive=false;
     r.ail->ai->healRange=10;assert(!GetTwinsCasterVictimSpot(r.rogue,spot));r.ail->ai->healRange=38.5f;
     r.ail->charmed=true;assert(!GetTwinsCasterVictimSpot(r.rogue,spot));r.ail->charmed=false;
@@ -500,9 +502,11 @@ void CasterVictimSafetyGuards()
     r.rogue->Relocate(65,0);r.bug.Relocate(65,0);r.bug.auras.insert(SPELL_EXPLODE_BUG);r.map.bugs.push_back(&r.bug);
     assert(GetTwinsExplodeClearSpot(r.rogue,spot));
     assert(spot.GetExactDist2d(&r.bug)>0 && spot.GetExactDist2d(&r.vl)<=40);
+    r.map.searches=0;assert(!GetTwinsExplodeClearSpot(r.rogue,spot,1));assert(r.map.searches==0);
     r.map.bugs.clear();DynamicObject blizzard;blizzard.Relocate(65,0);r.vl.blizzard=&blizzard;
     assert(GetTwinsBlizzardClearSpot(r.rogue,spot));
     assert(spot.GetExactDist2d(&blizzard)>0 && spot.GetExactDist2d(&r.vl)<=40);
+    r.map.searches=0;assert(!GetTwinsBlizzardClearSpot(r.rogue,spot,1));assert(r.map.searches==0);
     r.rogue->group=nullptr;assert(!GetTwinsCasterVictim(r.rogue));r.rogue->group=&r.group;
     r.rogue->phase=2;assert(!GetTwinsCasterVictim(r.mel));r.rogue->phase=1;
     r.rogue->alive=false;assert(!GetTwinsCasterVictim(r.mel));r.rogue->alive=true;

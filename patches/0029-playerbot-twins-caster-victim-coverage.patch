@@ -81,7 +81,7 @@ diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Coordination.cpp b/modu
          Player* assigned[2] = {nullptr, nullptr};
          for (size_t i = 0; i < healers.size(); ++i)
          {
-@@ -185,6 +192,154 @@
+@@ -185,6 +192,156 @@
      return boss && boss->GetVictim() == bot ? boss : nullptr;
  }
  
@@ -197,6 +197,8 @@ diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Coordination.cpp b/modu
 +        float y = start.GetPositionY() + (goal.GetPositionY() - start.GetPositionY()) * fraction;
 +        float z = start.GetPositionZ() + (goal.GetPositionZ() - start.GetPositionZ()) * fraction;
 +        bot->UpdateAllowedPositionZ(x, y, z);
++        if (bot->GetExactDist(x, y, z) > 6.01f)
++            continue; // a terrain-height correction must not turn the short waypoint into a long jump
 +        PathGenerator path(bot);
 +        if (!path.CalculatePath(x, y, z) || path.GetPathType() != PATHFIND_NORMAL || path.GetPath().size() < 2)
 +            continue;
@@ -236,7 +238,7 @@ diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Coordination.cpp b/modu
  Player* GetTwinsHealerTank(Player* bot, PlayerbotAI* botAI)
  {
      if (!IsTwinsEncounterActive(bot) || !bot->IsAlive() || !PlayerbotAI::IsHeal(bot))
-@@ -204,8 +359,10 @@
+@@ -204,8 +361,10 @@
          return firstStation ? firstStation : secondStation ? secondStation : caster;
      }
  
@@ -249,7 +251,7 @@ diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Coordination.cpp b/modu
      if (caster)
          return caster;
  
-@@ -252,22 +409,9 @@
+@@ -252,22 +411,9 @@
  {
      if (!boss)
          return false;
@@ -275,7 +277,7 @@ diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Coordination.cpp b/modu
      float const distance = bot->GetExactDist2d(boss);
      if (distance >= TWINS_ARCANE_CLEARANCE && distance <= 27.0f && bot->IsWithinLOSInMap(boss))
          return false;
-@@ -283,6 +427,8 @@
+@@ -283,6 +429,8 @@
  
  bool GetTwinsArcaneClearSpot(Player* bot, Position& spot)
  {
@@ -312,7 +314,7 @@ diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Helpers.cpp b/modules/m
  bool GetTwinsExplodeClearSpot(Player* bot, Position& spot, uint32 attempt)
  {
 +    if (GetTwinsCasterVictim(bot) == bot)
-+        return GetTwinsCasterVictimSpot(bot, spot);
++        return attempt == 0 && GetTwinsCasterVictimSpot(bot, spot);
      Creature* bug = FindTwinsExplodingBug(bot);
      if (!bug)
          return false;
@@ -321,7 +323,7 @@ diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Helpers.cpp b/modules/m
  bool GetTwinsBlizzardClearSpot(Player* bot, Position& spot, uint32 attempt)
  {
 +    if (GetTwinsCasterVictim(bot) == bot)
-+        return GetTwinsCasterVictimSpot(bot, spot);
++        return attempt == 0 && GetTwinsCasterVictimSpot(bot, spot);
      Position center;
      if (!GetTwinsBlizzardCenter(bot, center))
          return false;

@@ -71,6 +71,8 @@ struct Map
     std::vector<Creature*> bugs;
     int searches=0, pathType=1;
     std::vector<Position> pathDetour;
+    bool fixedHeight=false;
+    float groundZ=0;
     uint32 GetInstanceId(){return instance;}
 };
 struct SpellInfo {uint32 Id=0;};
@@ -111,7 +113,7 @@ public:
     bool IsWithinMeleeRange(Unit const* p) const{return GetExactDist2d(p)<=7.33f;}
     float GetHealthPct() const{return hp;}
     bool isMoving() const{return moving;}
-    void UpdateAllowedPositionZ(float,float,float&){}
+    void UpdateAllowedPositionZ(float,float,float& z){if(map && map->fixedHeight)z=map->groundZ;}
     bool HasAura(uint32 aura) const{return auras.contains(aura);}
     ThreatManager& GetThreatMgr(){return tm;}
     bool IsCharmed() const{return charmed;}
