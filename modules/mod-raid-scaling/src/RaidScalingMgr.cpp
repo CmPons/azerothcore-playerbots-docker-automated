@@ -27,6 +27,22 @@
 
 namespace
 {
+    bool IsTwinsEncounterBug(Creature const* creature)
+    {
+        if (!creature || !creature->GetMap() || creature->GetMapId() != 531 ||
+            (creature->GetEntry() != 15316 && creature->GetEntry() != 15317))
+            return false;
+
+        // Match npc_ahnqiraji_critter's own identification of the Twins' room bugs.
+        // The same normal-rank entries also occur in corridors and must stay untouched.
+        CreatureData const* spawn = creature->GetCreatureData();
+        if (!spawn)
+            return false;
+
+        ObjectGuid const guid = ObjectGuid::Create<HighGuid::Unit>(spawn->id, creature->GetSpawnId());
+        return sObjectMgr->GetLinkedRespawnGuid(guid).GetEntry() == 15276;
+    }
+
     std::vector<RaidBossResetRecipe> const EmptyBosses;
 
     std::vector<RaidBossResetRecipe> const& BossesForMap(uint32 mapId)
@@ -305,7 +321,9 @@ bool RaidScalingMgr::IsScalableCreature(Creature const* creature) const
     if (!proto)
         return false;
 
-    return creature->IsDungeonBoss() || creature->isWorldBoss() || proto->rank == CREATURE_ELITE_ELITE ||
+    // Scale before mutation: waiting for aura 802 would miss the spawn-time health scaling.
+    return IsTwinsEncounterBug(creature) || creature->IsDungeonBoss() || creature->isWorldBoss() ||
+        proto->rank == CREATURE_ELITE_ELITE ||
         proto->rank == CREATURE_ELITE_RAREELITE || proto->rank == CREATURE_ELITE_WORLDBOSS;
 }
 
@@ -404,12 +422,27 @@ void RaidScalingMgr::ApplyToCreature(Creature* creature)
             cached.createHealth = creature->GetCreateHealth();
             cached.maxHealth = creature->GetMaxHealth();
             cached.health = creature->GetHealth();
+            cached.baseHealth = creature->GetFlatModifierValue(UNIT_MOD_HEALTH, BASE_VALUE);
         }
         original = cached;
     }
 
     float scale = HealthScaleFor(creature, *settings);
     uint32 newCreate = ScaleHealth(original.createHealth ? original.createHealth : original.maxHealth, scale);
+    if (IsTwinsEncounterBug(creature))
+    {
+        // Mutation rebuilds max health from UNIT_MOD_HEALTH, not CreateHealth. Keep its native
+        // +300% aura intact and scale the cached base once, retaining current HP% and aura state.
+        float const pct = creature->GetMaxHealth() ?
+            std::min(1.0f, float(creature->GetHealth()) / float(creature->GetMaxHealth())) : 1.0f;
+        creature->SetCreateHealth(newCreate);
+        creature->SetStatFlatModifier(UNIT_MOD_HEALTH, BASE_VALUE, original.baseHealth * scale);
+        creature->UpdateMaxHealth();
+        creature->SetHealth(std::max<uint32>(1, uint32(std::round(float(creature->GetMaxHealth()) * pct))));
+        creature->ResetPlayerDamageReq();
+        return;
+    }
+
     uint32 newMax = ScaleHealth(original.maxHealth, scale);
     float pct = original.maxHealth ? std::min(1.0f, float(creature->GetHealth()) / float(creature->GetMaxHealth())) : 1.0f;
     if (creature->GetMaxHealth() == original.maxHealth)
@@ -441,6 +474,17 @@ void RaidScalingMgr::RestoreCreature(Creature* creature)
     float pct = creature->GetMaxHealth() ? std::min(1.0f, float(creature->GetHealth()) / float(creature->GetMaxHealth())) : 1.0f;
 
     creature->SetCreateHealth(original.createHealth);
+    if (IsTwinsEncounterBug(creature))
+    {
+        // Scaling off must restore the base, not remove an active mutation or restore a stale aura.
+        creature->SetStatFlatModifier(UNIT_MOD_HEALTH, BASE_VALUE, original.baseHealth);
+        creature->UpdateMaxHealth();
+        creature->SetHealth(creature->isDead() ? 0 :
+            std::max<uint32>(1, uint32(std::round(float(creature->GetMaxHealth()) * pct))));
+        creature->ResetPlayerDamageReq();
+        return;
+    }
+
     creature->SetMaxHealth(original.maxHealth);
     creature->SetHealth(std::max<uint32>(1, uint32(std::round(float(original.maxHealth) * pct))));
     creature->ResetPlayerDamageReq();

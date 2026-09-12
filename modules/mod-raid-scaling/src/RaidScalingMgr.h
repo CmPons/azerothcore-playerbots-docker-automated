@@ -71,6 +71,7 @@ private:
         uint32 createHealth = 0;
         uint32 maxHealth = 0;
         uint32 health = 0;
+        float baseHealth = 0.0f;
     };
 
     uint64 MakeKey(Map const* map) const;
