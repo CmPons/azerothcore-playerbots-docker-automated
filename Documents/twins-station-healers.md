@@ -6,6 +6,7 @@ Prepared and offline-tested September 12, 2026. This intermediate allocation was
 by itself**. The [0029 follow-up](twins-caster-victim-coverage.md) keeps Meliah on Ari, puts Keilmere
 on Redshift, and has Ailina cover the actual caster victim. The user reported a legitimate kill
 before either update was deployed, then authorized deploying both strategy improvements together.
+Both are now [deployed and verified](twins-learning-deployment-20260912.md); no encounter reset was performed.
 
 ## Change
 
@@ -58,8 +59,8 @@ and selects the injured physical tanks using actual production healing triage. H
 physical tank deaths, caster fallback, local emergencies, range/LOS behavior, other raid policy
 and updated status output are also covered.
 
-Offline tests do not prove live pathfinding, reaction latency or healing throughput. Deployment and
-a real pull are still needed to validate those. This is a positioning/assignment correction, not
+Offline tests do not prove live pathfinding, reaction latency or healing throughput. Deployment is
+complete; a subsequent real pull is still needed to validate those. This is a positioning/assignment correction, not
 another encounter nerf.
 
 Preparation backup: `backups/twins-station-healers-preparation-20260912-200547/`.

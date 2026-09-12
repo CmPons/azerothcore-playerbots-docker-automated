@@ -6,9 +6,10 @@ September 12, 2026: the user reported a **legitimate Twin Emperors kill on the e
 before either 0028 or this follow-up was deployed. Earlier attempts reached 50% and 190k remaining.
 The strategy improvements are learning from those attempts, not prerequisites credited for that kill.
 
-The user authorized deployment while taking a break, with Ouro planned for tomorrow. Native build,
-backup/save verification and a logged-out gate must pass before the worldserver-only restart.
-No encounter reset, database repair, gear change or additional difficulty reduction is authorized.
+**Deployed September 12 at 21:20 CEST**, after the user approved deployment while taking a break
+before Ouro. Native build, backup/save/inventory verification and the logout gate passed; only
+worldserver was restarted. See [deployment evidence](twins-learning-deployment-20260912.md).
+No encounter reset, database repair, gear change or additional difficulty reduction was performed.
 
 Canonical incremental patch: `patches/0029-playerbot-twins-caster-victim-coverage.patch`, after 0028.
 Five production files in the core's playerbots tree: `Aq40Coordination.cpp`, `Aq40Helpers.{cpp,h}`,

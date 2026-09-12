@@ -5,8 +5,8 @@
 **September 12 follow-up:** after attempts at 50% and 190k remaining, the user reported a legitimate
 kill on the existing live build. [Fixed-station healing](twins-station-healers.md) and the
 [actual caster-victim follow-up](twins-caster-victim-coverage.md) are strategy improvements learned
-from those attempts, with combined deployment now authorized. The original role-following
-assignments documented below are historical; the follow-up uses Meliah→Ari, Keilmere→Redshift,
+from those attempts, [deployed together at 21:20 CEST](twins-learning-deployment-20260912.md).
+The original role-following assignments documented below are historical; the follow-up uses Meliah→Ari, Keilmere→Redshift,
 and Ailina→the actual caster victim.
 
 **Deployed September 11, 2026, with explicit permission.** The native image build passed and only
