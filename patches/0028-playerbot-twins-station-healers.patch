@@ -1,0 +1,41 @@
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Coordination.cpp b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Coordination.cpp
+--- a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Coordination.cpp
++++ b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Coordination.cpp
+@@ -190,18 +190,29 @@
+     if (!IsTwinsEncounterActive(bot) || !bot->IsAlive() || !PlayerbotAI::IsHeal(bot))
+         return nullptr;
+     uint32 const assignment = DedicatedHealerData(bot);
+-    Player* melee = GetTwinsTank(bot, AQT_DATA_VEKNILASH);
++    // Undo the boss-ownership swap when selecting the two physical station anchors.
++    // Each dedicated healer stays with the SAME physical tank through melee/Shadow Bolt handoffs.
++    bool const swapped = GetTwinsSnapshot(bot).meleeAtCasterHome;
++    Player* firstStation = GetTwinsTank(bot, AQT_DATA_VEKNILASH, swapped);
++    Player* secondStation = GetTwinsTank(bot, AQT_DATA_VEKNILASH, !swapped);
+     Player* caster = GetTwinsTank(bot, AQT_DATA_VEKLOR);
+-    if (!melee || !caster)
+-        return melee ? melee : caster;
+     if (assignment)
+-        return assignment == AQT_DATA_VEKNILASH ? melee : caster;
+-
+-    // Floating coverage includes the actual victims: the stationary physical tank may be
+-    // holding incoming Shadow Bolts while the warlock travels. Do not leave that handoff unhealed.
++    {
++        Player* station = assignment == AQT_DATA_VEKNILASH ? firstStation : secondStation;
++        if (station)
++            return station;
++        return firstStation ? firstStation : secondStation ? secondStation : caster;
++    }
++
++    // The additional healer supports the travelling caster tank. Ordinary healing triage still
++    // permits nearby emergencies, without making the two station healers cross the room.
++    if (caster)
++        return caster;
++
++    // If no caster tank survives, cover remaining stations and actual temporary victims.
+     Creature* vn = GetTwin(bot, AQT_DATA_VEKNILASH);
+     Creature* vl = GetTwin(bot, AQT_DATA_VEKLOR);
+-    Player* candidates[] = {melee, caster,
++    Player* candidates[] = {firstStation, secondStation,
+         vn && vn->GetVictim() ? vn->GetVictim()->ToPlayer() : nullptr,
+         vl && vl->GetVictim() ? vl->GetVictim()->ToPlayer() : nullptr};
+     float const range = std::min(botAI->GetRange("heal"), sPlayerbotAIConfig.healDistance);

@@ -88,6 +88,10 @@ namespace legacy
     bool GetTwinsTankSpot(Player*, PlayerbotAI*, Position&);
     bool GetTwinsHealerSpot(Player*, PlayerbotAI*, Position&);
 }
+namespace previousCoverage
+{
+    Player* GetTwinsHealerTank(Player*, PlayerbotAI*);
+}
 namespace legacyThreat
 {
     bool ShouldHoldDamageOnTauntImmuneBoss(PlayerbotAI*, Unit*, uint8);
@@ -243,15 +247,16 @@ void IndependentMovementAndTargets()
 void HealerCoverageAndTriage()
 {
     Raid r;Position spot;
+    r.red->Relocate(90,0);
     assert(GetTwinsHealerTank(r.mel,r.mel->ai)==r.ari);
-    assert(GetTwinsHealerTank(r.ail,r.ail->ai)==r.bel);
-    assert(GetTwinsHealerTank(r.keil,r.keil->ai)==r.ari);
+    assert(GetTwinsHealerTank(r.ail,r.ail->ai)==r.red);
+    assert(GetTwinsHealerTank(r.keil,r.keil->ai)==r.bel);
     r.mel->alive=false;
-    assert(GetTwinsHealerTank(r.ail,r.ail->ai)==r.bel);
+    assert(GetTwinsHealerTank(r.ail,r.ail->ai)==r.red);
     assert(GetTwinsHealerTank(r.keil,r.keil->ai)==r.ari);
     r.mel->alive=true;r.ail->alive=false;
     assert(GetTwinsHealerTank(r.mel,r.mel->ai)==r.ari);
-    assert(GetTwinsHealerTank(r.keil,r.keil->ai)==r.bel);
+    assert(GetTwinsHealerTank(r.keil,r.keil->ai)==r.red);
     r.ail->alive=true;
     r.vn.Relocate(10,0);r.Fresh();
     assert(!GetTwinsHealerSpot(r.mel,r.mel->ai,spot)); // boss motion alone doesn't move healer
@@ -269,7 +274,8 @@ void HealerCoverageAndTriage()
     r.mel->Relocate(-40,0);r.mel->casting=true;r.mel->ai->moves.clear();
     hold.Execute({});assert(r.mel->casting && r.mel->ai->moves.empty());
 
-    PartyMemberToHeal choose(r.ail->ai,"heal");
+    r.keil->Relocate(72,20);
+    PartyMemberToHeal choose(r.keil->ai,"heal");
     r.bel->hp=80;r.mage->hp=70;r.red->hp=5;r.red->Relocate(500,500);
     assert(choose.Calculate()==r.bel);
     r.mage->hp=10;
@@ -282,6 +288,15 @@ void HealerCoverageAndTriage()
     assert(!choose.Check(r.red));r.red->map=&r.map;r.red->phase=2;
     assert(!choose.Check(r.red));r.red->phase=1;
     r.red->Relocate(130,20);assert(!choose.Check(r.red));
+    r.red->Relocate(90,0);r.red->alive=false;
+    assert(GetTwinsHealerTank(r.mel,r.mel->ai)==r.ari);
+    assert(GetTwinsHealerTank(r.ail,r.ail->ai)==r.ari); // surviving station, not a dead anchor
+    r.ari->alive=false;
+    assert(GetTwinsHealerTank(r.mel,r.mel->ai)==r.bel); // no physical tank survives
+    r.red->alive=r.ari->alive=true;
+    r.bel->alive=false;
+    assert(GetTwinsHealerTank(r.keil,r.keil->ai)==r.mage); // caster fallback still covered
+    r.bel->alive=true;r.red->Relocate(130,20);
     r.map.script.state=DONE;
     assert(choose.Check(r.red)); // original up-to-two-heal-ranges behavior elsewhere
 }
@@ -316,7 +331,18 @@ void TeleportHandoffAndSeparation()
     assert(spot.GetExactDist2d(&r.vl)<=27);
     assert(GetTwinsTank(r.ari,AQT_DATA_VEKNILASH)==r.red);
     assert(GetTwinsRole(r.ari,r.ari->ai)==TwinsRole::PhysicalReserve);
-    assert(GetTwinsHealerTank(r.keil,r.keil->ai)==r.ari); // floating healer covers incoming Shadow Bolts
+    // Reproduce the previous role-following hole: Meliah abandoned Ari at the teleport.
+    assert(previousCoverage::GetTwinsHealerTank(r.mel,r.mel->ai)==r.red);
+    assert(previousCoverage::GetTwinsHealerTank(r.ail,r.ail->ai)==r.bel);
+    assert(GetTwinsHealerTank(r.mel,r.mel->ai)==r.ari); // incoming Shadow Bolts retain dedicated coverage
+    assert(GetTwinsHealerTank(r.ail,r.ail->ai)==r.red); // incoming melee retains dedicated coverage
+    assert(GetTwinsHealerTank(r.keil,r.keil->ai)==r.bel);
+    assert(!GetTwinsHealerSpot(r.mel,r.mel->ai,spot));
+    assert(!GetTwinsHealerSpot(r.ail,r.ail->ai,spot));
+    r.ari->hp=20;r.red->hp=35;
+    PartyMemberToHeal left(r.mel->ai,"heal"),right(r.ail->ai,"heal");
+    assert(left.Calculate()==r.ari && right.Calculate()==r.red);
+    r.ari->hp=r.red->hp=100;
     r.vl.victim=r.bel;
     assert(!GetTwinsTankSpot(r.ari,r.ari->ai,spot)); // Ari waits for the next incoming melee boss
     assert(GetTwinsAttackTarget(r.ari,r.ari->ai)==nullptr);
@@ -327,6 +353,9 @@ void TeleportHandoffAndSeparation()
     // A second full teleport gives Ari the local melee emperor without a cross-room tank race.
     r.vn.Relocate(0,0);r.vl.Relocate(95,0);r.vn.victim=r.ari;r.vl.victim=r.red;r.Fresh();
     assert(GetTwinsTank(r.ari,AQT_DATA_VEKNILASH)==r.ari);
+    assert(GetTwinsHealerTank(r.mel,r.mel->ai)==r.ari);
+    assert(GetTwinsHealerTank(r.ail,r.ail->ai)==r.red);
+    assert(GetTwinsHealerTank(r.keil,r.keil->ai)==r.bel);
     assert(GetTwinsRole(r.ari,r.ari->ai)==TwinsRole::WarriorTank);
     assert(GetTwinsTankSpot(r.ari,r.ari->ai,spot));
     assert(spot.GetExactDist2d(&r.vn)<=TWINS_TANK_ENGAGE_RANGE+0.01f);
@@ -359,7 +388,7 @@ void CastingPetsAndDiagnostics()
     Aq40TwinsStatusAction status(r.ail->ai);
     assert(status.Execute({}));
     assert(r.ail->ai->messages.back().find("caster tank=Beliona")!=std::string::npos);
-    assert(r.ail->ai->messages.back().find("healing=Beliona")!=std::string::npos);
+    assert(r.ail->ai->messages.back().find("healing=Redshift")!=std::string::npos);
     r.map.script.state=DONE;assert(!tank.Execute({}));assert(!pets.Execute({}));
 }
 

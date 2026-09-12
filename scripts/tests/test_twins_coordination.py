@@ -8,6 +8,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 MODULE = ROOT / "azerothcore-wotlk/modules/mod-playerbots"
 PATCH = ROOT / "patches/0026-playerbot-twins-coordination.patch"
+STATION_PATCH = ROOT / "patches/0028-playerbot-twins-station-healers.patch"
 AQ = MODULE / "src/Ai/Raid/Aq40"
 
 
@@ -48,6 +49,15 @@ class TwinsCoordinationTests(unittest.TestCase):
                 p = baseline / name
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_bytes((ROOT / "azerothcore-wotlk" / name).read_bytes())
+            run(["git", "apply", "--reverse", str(STATION_PATCH)], cwd=baseline)
+            previous = (baseline / "modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Coordination.cpp").read_text()
+            previous_code = '#include "Aq40Helpers.h"\n#include "Playerbots.h"\n#include <algorithm>\n'
+            previous_code += '#include <vector>\n#include <limits>\nnamespace previousCoverage {\n'
+            previous_code += 'using namespace TempleOfAhnQirajHelpers;\n'
+            for signature in ("    bool IsGroupMemberHere(", "    uint32 DedicatedHealerData(",
+                              "Player* GetTwinsHealerTank("):
+                previous_code += block(previous, signature) + '\n'
+            (temp / "previous_coverage.cpp").write_text(previous_code + '}\n')
             run(["git", "apply", "--reverse", str(PATCH)], cwd=baseline)
             old = baseline / "modules/mod-playerbots/src"
             legacy_helpers = (old / "Ai/Raid/Aq40/Aq40Helpers.cpp").read_text().replace(
@@ -69,12 +79,12 @@ class TwinsCoordinationTests(unittest.TestCase):
             sources = [AQ / name for name in (
                 "Aq40Helpers.cpp", "Aq40Coordination.cpp", "Aq40Multipliers.cpp",
                 "Aq40Actions_Twins.cpp", "Aq40Actions_Coordination.cpp")]
-            sources += [temp / "legacy_helpers.cpp", temp / "legacy_threat.cpp",
+            sources += [temp / "legacy_helpers.cpp", temp / "legacy_threat.cpp", temp / "previous_coverage.cpp",
                         MODULE / "src/Ai/Base/Util/RaidThreatUtils.cpp",
                         MODULE / "src/Ai/Base/Strategy/ThreatStrategy.cpp"]
             binary = temp / "test"
             run([os.environ.get("CXX", "g++"), "-std=c++20", "-Wall", "-Wextra", "-Werror",
-                 f"-I{temp}", f"-I{AQ}", f"-I{MODULE / 'src/Ai/Base/Util'}",
+                 "-fsanitize=undefined", "-fno-sanitize-recover=all", "-pthread", f"-I{temp}", f"-I{AQ}", f"-I{MODULE / 'src/Ai/Base/Util'}",
                  f"-I{MODULE / 'src/Ai/Base/Strategy'}", str(temp / "test.cpp"),
                  *map(str, sources), "-o", str(binary)])
             self.assertIn("Twins production coordination regressions passed", run([str(binary)]))
@@ -91,6 +101,8 @@ class TwinsCoordinationTests(unittest.TestCase):
                 p = temp / name
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_bytes((ROOT / "azerothcore-wotlk" / name).read_bytes())
+            run(["git", "apply", "--reverse", "--check", str(STATION_PATCH)], cwd=temp)
+            run(["git", "apply", "--reverse", str(STATION_PATCH)], cwd=temp)
             run(["git", "apply", "--reverse", "--check", str(PATCH)], cwd=temp)
             run(["git", "apply", "--reverse", str(PATCH)], cwd=temp)
             # The prior role picker selected both the mage and the warlock; the old movement
@@ -100,6 +112,8 @@ class TwinsCoordinationTests(unittest.TestCase):
             self.assertIn("if (role == TwinsRole::WarlockTank)\n        return false;", old)
             run(["git", "apply", "--check", str(PATCH)], cwd=temp)
             run(["git", "apply", str(PATCH)], cwd=temp)
+            run(["git", "apply", "--check", str(STATION_PATCH)], cwd=temp)
+            run(["git", "apply", str(STATION_PATCH)], cwd=temp)
             for name in names:
                 self.assertEqual((temp / name).read_bytes(), (ROOT / "azerothcore-wotlk" / name).read_bytes())
 

@@ -2,6 +2,11 @@
 
 ## Status
 
+**September 12 follow-up:** real attempts reached roughly 50%, but the user reported missing tank
+heals through swaps. A [fixed-station healer correction](twins-station-healers.md) is prepared and
+offline-tested, **not deployed yet**. The original role-following assignments documented below
+remain historical/current deployed behavior until that correction is deployed.
+
 **Deployed September 11, 2026, with explicit permission.** The native image build passed and only
 worldserver was recreated; six AQ40 kills, all ten binds and reset deadlines were preserved.
 See [deployment evidence and rollback](twins-deployment-20260911.md). No gear, saved raid-role/subgroup,
