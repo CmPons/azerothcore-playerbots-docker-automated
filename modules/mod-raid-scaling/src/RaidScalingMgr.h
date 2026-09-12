@@ -4,6 +4,7 @@
 #include "Define.h"
 #include "ObjectGuid.h"
 #include "RaidScalingState.h"
+#include <atomic>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -63,6 +64,8 @@ public:
     std::vector<RaidBossResetRecipe> const& GetBosses(uint32 mapId) const;
     void SendBossList(ChatHandler* handler, InstanceMap* map) const;
     bool ResetBoss(ChatHandler* handler, InstanceMap* map, uint32 bossDisplayId);
+    bool RequestTwinsReset(ChatHandler* handler, uint32 instanceId);
+    bool ProcessPendingTwinsReset(Map* map);
     bool ResetGroupBinds(ChatHandler* handler, Player* player, bool confirm);
 
 private:
@@ -90,6 +93,7 @@ private:
     uint32 RespawnGameObjectEntries(Map* map, std::vector<uint32> const& entries) const;
     bool IsGroupMemberInMap(Player* leader, uint32 mapId, uint32 instanceId) const;
 
+    std::atomic<uint32> _pendingTwinsReset{0};
     bool _enabled = true;
     bool _blizzardLikeDefault = true;
     uint32 _commandSecurity = 2;

@@ -181,6 +181,20 @@ int main(int argc, char** argv)
     }
     else if (scenario == "damage")
     {
+        // A native multispawn can instantiate the other species while retaining the base DB link identity.
+        for (uint32 entry : {15316u, 15317u})
+        {
+            Creature variant(&map);
+            variant.entry = entry;
+            variant.spawnId = entry + 200000;
+            Link(variant);
+            variant.entry = entry == 15316 ? 15317 : 15316;
+            mgr.OnCreatureAddWorld(&variant);
+            assert(variant.GetMaxHealth() == 763);
+            Mutate(variant);
+            assert(variant.GetMaxHealth() == 3052);
+            assert(std::fabs(mgr.GetDamageScale(&variant, &player) - std::pow(.25f, .6f)) < .00001f);
+        }
         RaidScalingUnitScript hook;
         assert(std::fabs(mgr.GetDamageScale(&bug, &player) - std::pow(.25f, .6f)) < .00001f);
         // Feed already-mutated physical damage into the real outgoing-damage hook, just once.

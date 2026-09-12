@@ -35,9 +35,16 @@ class TwinsResetTests(unittest.TestCase):
         source = (MODULE / "src/RaidScalingTwinsReset.cpp").read_text()
         production = "\n".join(line for line in source.splitlines() if not line.startswith("#include"))
         dispatcher = block((MODULE / "src/RaidScalingMgr.cpp").read_text(), "bool RaidScalingMgr::ResetBoss(")
+        commands = (MODULE / "src/RaidScalingCommand.cpp").read_text()
+        native_commands = (ROOT / "azerothcore-wotlk/src/server/scripts/Commands/cs_misc.cpp").read_text()
+        native_respawn = block(native_commands, "    static bool HandleRespawnCreatureByGuidCommand(")
+        legacy_loop = block(native_respawn[native_respawn.index("// Second pass"):],
+                            "        for (auto itr = creBounds.first;")
         harness = (ROOT / "scripts/tests/cpp/TwinsResetTest.cpp").read_text()
         (tmp / "test.cpp").write_text(harness.replace("/* PRODUCTION */", production).replace(
-            "/* DISPATCHER */", dispatcher))
+            "/* DISPATCHER */", dispatcher).replace("/* TOKENIZER */", block(commands,
+            "    std::vector<std::string> Tokenize(")).replace("/* CONSOLE_COMMAND */", block(commands,
+            "    static bool HandleTwinsReset(")).replace("/* LEGACY_ITERATION */", legacy_loop))
         (tmp / "RaidScalingMgr.h").write_text((MODULE / "src/RaidScalingMgr.h").read_text().replace(
             "private:", "public:"))
         (tmp / "Define.h").write_text("#pragma once\n#include <cstdint>\nusing uint8=std::uint8_t; "
@@ -62,7 +69,7 @@ namespace std { template<> struct hash<ObjectGuid>
 ''')
         cls.binary = tmp / "test"
         run([os.environ.get("CXX", "g++"), "-std=c++20", "-Wall", "-Wextra", "-Werror", "-pthread",
-             "-fsanitize=undefined", "-fno-sanitize-recover=all", "-I" + str(tmp),
+             "-D_GLIBCXX_DEBUG", "-fsanitize=undefined", "-fno-sanitize-recover=all", "-I" + str(tmp),
              "-I" + str(MODULE / "src"), str(tmp / "test.cpp"), "-o", str(cls.binary)])
 
     def test_full_original_spawns_bugs_doors_intro_and_repeat(self):
@@ -80,11 +87,28 @@ namespace std { template<> struct hash<ObjectGuid>
     def test_resolved_mask_and_native_failure_reporting_retry(self):
         self.assertIn("Passed", run([str(self.binary), "mask-failure"]))
 
+    def test_native_scarab_scorpion_variants_and_compatibility(self):
+        self.assertIn("Passed", run([str(self.binary), "variants"]))
+
+    def test_one_shot_console_request_scoped_to_instance_and_consumed_on_failure(self):
+        self.assertIn("Passed", run([str(self.binary), "queue"]))
+
+    def test_console_confirmation_and_input_guards(self):
+        self.assertIn("Passed", run([str(self.binary), "console"]))
+
+    def test_legacy_native_command_iterator_failure_is_reproduced_offline(self):
+        import resource
+        result = subprocess.run([str(self.binary), "legacy-iterator"], capture_output=True, text=True,
+                                timeout=10, preexec_fn=lambda: resource.setrlimit(resource.RLIMIT_CORE, (0, 0)))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("singular iterator", result.stderr)
+
     def test_other_boss_reset_path_unchanged(self):
         self.assertIn("Passed", run([str(self.binary), "generic"]))
 
     def test_source_sync_and_native_only_contracts(self):
-        for name in ("RaidScalingMgr.cpp", "RaidScalingMgr.h", "RaidScalingTwinsReset.cpp"):
+        for name in ("RaidScalingMgr.cpp", "RaidScalingMgr.h", "RaidScalingTwinsReset.cpp",
+                     "RaidScalingCommand.cpp", "RaidScalingLoader.cpp"):
             self.assertEqual((MODULE / "src" / name).read_bytes(),
                              (ROOT / "azerothcore-wotlk/modules/mod-raid-scaling/src" / name).read_bytes())
         source = (MODULE / "src/RaidScalingTwinsReset.cpp").read_text()
@@ -107,6 +131,15 @@ namespace std { template<> struct hash<ObjectGuid>
         identity = block((core / "Instances/InstanceScript.cpp").read_text(),
                          "void InstanceScript::AddObject(WorldObject*")
         self.assertIn("i->second == obj->GetGUID()", identity)
+        loader = (MODULE / "src/RaidScalingLoader.cpp").read_text()
+        self.assertLess(loader.index("sRaidScalingMgr.OnMapCreate(map)"),
+                        loader.index("sRaidScalingMgr.ProcessPendingTwinsReset(map)"))
+        create = block((core / "Maps/MapInstanced.cpp").read_text(),
+                       "InstanceMap* MapInstanced::CreateInstance(")
+        self.assertLess(create.index("map->CreateInstanceScript("), create.index("map->OnCreateMap()"))
+        cleanup = block((core / "Entities/Unit/Unit.cpp").read_text(),
+                        "void Unit::CleanupBeforeRemoveFromMap(")
+        self.assertIn("RemoveFromWorld()", cleanup)
 
 
 if __name__ == "__main__":

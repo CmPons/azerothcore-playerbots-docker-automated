@@ -6,6 +6,7 @@
 #include "Player.h"
 #include "ScriptMgr.h"
 #include <cstdlib>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -59,8 +60,33 @@ public:
         {
             { "raidscale", HandleRaidScale, sRaidScalingMgr.CommandSecurity(), Console::No },
             { "raidinstance", HandleRaidInstance, sRaidScalingMgr.CommandSecurity(), Console::No },
+            { "raidtwinsreset", HandleTwinsReset, sRaidScalingMgr.CommandSecurity(), Console::Yes },
         };
         return root;
+    }
+
+    static bool HandleTwinsReset(ChatHandler* handler, char const* args)
+    {
+        if (handler->GetSession())
+        {
+            handler->SendSysMessage("Use .raidinstance boss reset 7 in-world; raidtwinsreset is console-only.");
+            return true;
+        }
+        std::vector<std::string> tokens = Tokenize(args);
+        if (tokens.size() != 2 || tokens[1] != "confirm" || tokens[0].empty() ||
+            tokens[0].find_first_not_of("0123456789") != std::string::npos || tokens[0].size() > 10)
+        {
+            handler->SendSysMessage("Usage: raidtwinsreset <existing-AQ40-instance-id> confirm");
+            return true;
+        }
+        unsigned long id = std::strtoul(tokens[0].c_str(), nullptr, 10);
+        if (!id || id > std::numeric_limits<uint32>::max())
+        {
+            handler->SendSysMessage("Twins reset refused: invalid instance ID.");
+            return true;
+        }
+        sRaidScalingMgr.RequestTwinsReset(handler, uint32(id));
+        return true;
     }
 
     static bool HandleRaidScale(ChatHandler* handler, char const* args)

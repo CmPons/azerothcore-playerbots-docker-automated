@@ -6,7 +6,9 @@
 #include "GameObject.h"
 #include "GameTime.h"
 #include "InstanceScript.h"
+#include "Log.h"
 #include "Map.h"
+#include "MapMgr.h"
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "PoolMgr.h"
@@ -36,13 +38,65 @@ namespace
         return false;
     }
 
+    bool IsTwinsResetBugEntry(uint32 entry)
+    {
+        return entry == 15316 || entry == 15317;
+    }
+
     bool IsTwinsResetBug(ObjectGuid::LowType spawnId, CreatureData const& data)
     {
-        if (data.id != 15316 && data.id != 15317)
+        if (!IsTwinsResetBugEntry(data.id))
             return false;
         ObjectGuid const guid = ObjectGuid::Create<HighGuid::Unit>(data.id, spawnId);
         return sObjectMgr->GetLinkedRespawnGuid(guid).GetEntry() == Veklor;
     }
+}
+
+bool RaidScalingMgr::RequestTwinsReset(ChatHandler* handler, uint32 instanceId)
+{
+    if (!handler || !instanceId)
+        return false;
+    auto ids = sMapMgr->GetInstanceIDs();
+    if (instanceId >= ids.size() || !ids[instanceId])
+    {
+        handler->SendSysMessage("Twins reset refused: instance ID is not allocated.");
+        return false;
+    }
+    uint32 expected = 0;
+    if (!_pendingTwinsReset.compare_exchange_strong(expected, instanceId))
+    {
+        handler->PSendSysMessage("Twins reset refused: instance {} already has a pending request.", expected);
+        return false;
+    }
+    if (Map* map = sMapMgr->FindMap(TwinsMap, instanceId))
+    {
+        bool success = ProcessPendingTwinsReset(map);
+        handler->PSendSysMessage("Twins reset for instance {}: {}. See RaidScaling log for details.",
+            instanceId, success ? "completed" : "failed; do not pull");
+        return success;
+    }
+    handler->PSendSysMessage("Twins reset queued once for AQ40 instance {} on its next load. "
+        "Not reset yet; request is lost on server restart. See RaidScaling log before pulling.", instanceId);
+    return true;
+}
+
+bool RaidScalingMgr::ProcessPendingTwinsReset(Map* map)
+{
+    if (!map || map->GetId() != TwinsMap || !map->GetInstanceId() || !map->ToInstanceMap() ||
+        !map->ToInstanceMap()->GetInstanceScript())
+        return false;
+    uint32 expected = map->GetInstanceId();
+    if (!_pendingTwinsReset.compare_exchange_strong(expected, 0))
+        return false;
+    // Consume before callbacks: no automatic retry on combat/refusal or after a partial recovery.
+    CliHandler handler(nullptr, [](void*, std::string_view message)
+    {
+        LOG_INFO("module", "[RaidScaling] Twins reset: {}", message);
+    });
+    bool success = ResetTwins(&handler, map->ToInstanceMap());
+    LOG_INFO("module", "[RaidScaling] Twins reset for instance {} {}.", map->GetInstanceId(),
+        success ? "completed" : "failed; do not pull, inspect the preceding message");
+    return success;
 }
 
 bool RaidScalingMgr::ResetTwins(ChatHandler* handler, InstanceMap* map)
@@ -87,10 +141,24 @@ bool RaidScalingMgr::ResetTwins(ChatHandler* handler, InstanceMap* map)
         bool const bug = IsTwinsResetBug(spawnId, data);
         if (!bug && data.id != Veknilash && data.id != Veklor && data.id != MastersEye)
             continue;
-        if (sPoolMgr->IsPartOfAPool<Creature>(spawnId) || !map->IsSpawnGroupActive(data.spawnGroupId) ||
-            data.id2 || data.id3)
+        if (sPoolMgr->IsPartOfAPool<Creature>(spawnId))
         {
-            handler->SendSysMessage("Twins reset refused: an encounter spawn is pooled, inactive or multi-entry.");
+            handler->PSendSysMessage("Twins reset refused: spawn {} (entry {}) is pooled.", spawnId, data.id);
+            return false;
+        }
+        if (!map->IsSpawnGroupActive(data.spawnGroupId))
+        {
+            handler->PSendSysMessage("Twins reset refused: spawn {} (entry {}) has inactive group {}.",
+                spawnId, data.id, data.spawnGroupId);
+            return false;
+        }
+        // Native room spawns randomly choose scarab or scorpion from creature_multispawn.
+        // Permit that pair only on Vek'lor-linked bugs; bosses/controller remain single-entry.
+        if ((data.id2 && (!bug || !IsTwinsResetBugEntry(data.id2))) ||
+            (data.id3 && (!bug || !IsTwinsResetBugEntry(data.id3))))
+        {
+            handler->PSendSysMessage("Twins reset refused: spawn {} has unsupported entries {}/{}/{}.",
+                spawnId, data.id, data.id2, data.id3);
             return false;
         }
         if (bug)

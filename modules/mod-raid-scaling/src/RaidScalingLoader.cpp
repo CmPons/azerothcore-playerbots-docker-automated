@@ -32,6 +32,7 @@ public:
     void OnCreateMap(Map* map) override
     {
         sRaidScalingMgr.OnMapCreate(map);
+        sRaidScalingMgr.ProcessPendingTwinsReset(map);
     }
 
     void OnDestroyMap(Map* map) override

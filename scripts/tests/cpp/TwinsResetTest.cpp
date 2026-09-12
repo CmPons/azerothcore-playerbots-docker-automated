@@ -3,7 +3,11 @@
 #include <array>
 #include <cassert>
 #include <iostream>
+#include <cstdlib>
+#include <limits>
 #include <list>
+#include <sstream>
+#include <string_view>
 #include <map>
 #include <memory>
 #include <set>
@@ -58,9 +62,19 @@ class ChatHandler
 {
 public:
     std::string message;
-    void SendSysMessage(char const* text) { message = text; }
-    template<class... Args> void PSendSysMessage(char const* text, Args...) { message = text; }
+    bool session = false;
+    virtual ~ChatHandler() = default;
+    void* GetSession() { return session ? this : nullptr; }
+    virtual void SendSysMessage(char const* text) { message = text; }
+    template<class... Args> void PSendSysMessage(char const* text, Args...) { SendSysMessage(text); }
 };
+class CliHandler : public ChatHandler
+{
+public:
+    CliHandler(void*, void (*)(void*, std::string_view)) {}
+};
+template<class... Args> void TestLog(char const*, char const*, Args const&...) {}
+#define LOG_INFO TestLog
 class Player
 {
 public:
@@ -104,7 +118,7 @@ class Map
 {
 public:
     uint32 id = 531, instance = 5670, mode = 0, failSpawn = 0, generic = 0;
-    bool activeGroup = true, combatOnLoad = false;
+    bool activeGroup = true, combatOnLoad = false, pickAlternate = false, eraseOnRespawn = true;
     InstanceScript script;
     Player player;
     std::vector<PlayerReference> players{{&player}};
@@ -120,6 +134,7 @@ public:
     uint32 GetDifficulty() const { return mode; }
     uint32 GetSpawnMode() const { return mode; }
     InstanceScript* GetInstanceScript() { return &script; }
+    InstanceMap* ToInstanceMap();
     auto const& GetPlayers() const { return players; }
     auto& GetCreatureBySpawnIdStore() { return creatures; }
     auto& GetGameObjectBySpawnIdStore() { return gos; }
@@ -142,6 +157,16 @@ public:
     uint32 AliveCount(uint32 i);
 };
 class InstanceMap : public Map {};
+InstanceMap* Map::ToInstanceMap() { return id == 531 ? static_cast<InstanceMap*>(this) : nullptr; }
+struct MapMgr
+{
+    Map* loaded = nullptr;
+    std::vector<bool> ids;
+    auto GetInstanceIDs() { return ids; }
+    Map* FindMap(uint32 id, uint32 instance)
+    { return loaded && loaded->id == id && loaded->instance == instance ? loaded : nullptr; }
+} mapMgr;
+#define sMapMgr (&mapMgr)
 struct Events
 {
     bool scheduled = true;
@@ -159,11 +184,12 @@ public:
     uint32 spawnId = 0, entry = 0, hp = 12208;
     ObjectGuid guid, owner;
     bool alive = true, compat = false, combat = false, aura = true, casting = true, staleIntro = true;
-    bool aiFailure = false;
+    bool aiFailure = false, inWorld = true;
     Events m_Events;
     ThreatManager threat;
     bool IsInCombat() const { return combat; }
     bool IsAlive() const { return alive; }
+    bool isDead() const { return !alive; }
     ObjectGuid GetGUID() const { return guid; }
     ObjectGuid GetCharmerOrOwnerGUID() const { return owner; }
     void InterruptNonMeleeSpells(bool all) { assert(all); casting = false; }
@@ -174,8 +200,23 @@ public:
         assert(force && !casting && !m_Events.scheduled && threat.threat == 0 && !aura);
         // Models native Respawn(true): compat reinitializes in place; non-compat removes/queues.
         alive = compat;
-        if (compat) hp = 3052;
-        else map->timers[spawnId] = 100;
+        if (compat)
+        {
+            hp = 3052;
+            if (map->pickAlternate && objectMgr.data.at(spawnId).id2)
+                entry = objectMgr.data.at(spawnId).id2;
+        }
+        else
+        {
+            map->timers[spawnId] = 100;
+            if (map->eraseOnRespawn)
+            {
+                auto bounds = map->creatures.equal_range(spawnId);
+                for (auto it = bounds.first; it != bounds.second; ++it)
+                    if (it->second == this) { map->creatures.erase(it); break; }
+                inWorld = false; // native cleanup removes from stores now, deletes the object later
+            }
+        }
     }
     bool AIM_Initialize() { staleIntro = false; return !aiFailure; }
 };
@@ -183,12 +224,13 @@ Creature* Map::Add(uint32 i, bool alive, bool compat)
 {
     auto c = std::make_unique<Creature>();
     c->map = this; c->entry = objectMgr.data.at(i).id; c->spawnId = i; c->alive = alive; c->compat = compat;
+    if (pickAlternate && objectMgr.data.at(i).id2) c->entry = objectMgr.data.at(i).id2;
     c->guid = ObjectGuid::Create<HighGuid::Unit>(c->entry, ++guidCounter);
     Creature* raw = c.get(); creatures.emplace(i, raw); owned.push_back(std::move(c)); return raw;
 }
 Creature* Map::GetCreature(ObjectGuid guid)
 {
-    for (auto const& c : owned) if (c->guid == guid) return c.get();
+    for (auto const& c : owned) if (c->inWorld && c->guid == guid) return c.get();
     return nullptr;
 }
 uint32 Map::AliveCount(uint32 i)
@@ -238,6 +280,11 @@ std::vector<RaidBossResetRecipe> const& RaidScalingMgr::GetBosses(uint32) const
 }
 /* PRODUCTION */
 /* DISPATCHER */
+RaidScalingMgr* commandManager = nullptr;
+#undef sRaidScalingMgr
+#define sRaidScalingMgr (*commandManager)
+/* TOKENIZER */
+/* CONSOLE_COMMAND */
 
 struct Scene
 {
@@ -251,12 +298,15 @@ struct Scene
     {
         objectMgr.data.clear(); objectMgr.doors.clear(); objectMgr.links.clear(); poolMgr.pooled.clear();
         objectMgr.encounters = {&encounter};
+        mapMgr.loaded = nullptr; mapMgr.ids.assign(10000, false); mapMgr.ids[5670] = true;
+        commandManager = &mgr;
         for (auto [spawn, entry] : std::map<uint32, uint32>{{1,15275},{2,15276},{3,15963},{4,15316},
                                                           {5,15317},{6,15316},{7,15509}})
             objectMgr.data[spawn].id = entry;
         for (uint32 i : {4u,5u})
             objectMgr.links[ObjectGuid::Create<HighGuid::Unit>(objectMgr.data[i].id,i)] =
                 ObjectGuid::Create<HighGuid::Unit>(15276,2);
+        objectMgr.data[4].id2=15317; objectMgr.data[5].id2=15316;
         objectMgr.doors[10].id=180634; objectMgr.doors[11].id=180635;
         map.script.states.fill(DONE); map.script.states[0]=NOT_STARTED;
         map.timers={{1,90000},{2,90000},{3,90000},{5,90000},{7,99999}};
@@ -294,7 +344,8 @@ int main(int argc,char** argv)
             assert(s.map.AliveCount(i)==1 && s.map.Alive(i)->hp==763);
             assert(!s.map.Alive(i)->aura && !s.map.Alive(i)->staleIntro && !s.map.timers.contains(i));
         }
-        s.Reset(); s.Untouched(); // idempotent, including dead objects not yet removed from the map store
+        s.map.eraseOnRespawn=false;
+        s.Reset(); s.Untouched(); // also cover deferred store removal as well as immediate native removal
         for (uint32 i=1;i<=5;++i) assert(s.map.AliveCount(i)==1);
     }
     else if (mode=="compatibility")
@@ -329,6 +380,10 @@ int main(int argc,char** argv)
         poolMgr.pooled.insert(4); assert(!s.mgr.ResetBoss(&s.handler,&s.map,7)); poolMgr.pooled.clear();
         s.map.activeGroup=false; assert(!s.mgr.ResetBoss(&s.handler,&s.map,7)); s.map.activeGroup=true;
         objectMgr.data[1].id2=999; assert(!s.mgr.ResetBoss(&s.handler,&s.map,7)); objectMgr.data[1].id2=0;
+        objectMgr.data[1].id2=15316; assert(!s.mgr.ResetBoss(&s.handler,&s.map,7)); objectMgr.data[1].id2=0;
+        objectMgr.data[3].id3=15317; assert(!s.mgr.ResetBoss(&s.handler,&s.map,7)); objectMgr.data[3].id3=0;
+        objectMgr.data[4].id2=999; assert(!s.mgr.ResetBoss(&s.handler,&s.map,7)); objectMgr.data[4].id2=15317;
+        objectMgr.data[5].id3=15275; assert(!s.mgr.ResetBoss(&s.handler,&s.map,7)); objectMgr.data[5].id3=0;
         auto exit=objectMgr.doors.at(11);
         objectMgr.doors.erase(11); assert(!s.mgr.ResetBoss(&s.handler,&s.map,7)); objectMgr.doors[11]=exit;
         objectMgr.data[2].mapid=1; assert(!s.mgr.ResetBoss(&s.handler,&s.map,7)); objectMgr.data[2].mapid=531;
@@ -348,6 +403,63 @@ int main(int argc,char** argv)
         assert(s.handler.message.find("door is not ready")!=std::string::npos);
         exit->spawned=true; // native GO update completes the scheduled respawn on the next tick
         s.Reset(); s.Untouched();
+    }
+    else if (mode=="variants")
+    {
+        s.map.pickAlternate=true;
+        objectMgr.data[4].id3=15316; objectMgr.data[5].id3=15317;
+        s.Reset(); s.Untouched();
+        assert(s.map.Alive(4)->entry==15317 && s.map.Alive(5)->entry==15316);
+        assert(s.map.Alive(4)->hp==763 && s.map.Alive(5)->hp==763);
+        s.map.Alive(4)->compat=true; s.map.Alive(5)->compat=true;
+        s.Reset(); s.Untouched();
+        assert(s.map.AliveCount(4)==1 && s.map.AliveCount(5)==1);
+        assert(s.map.Alive(4)->entry==15317 && s.map.Alive(5)->entry==15316);
+    }
+    else if (mode=="queue")
+    {
+        assert(!s.mgr.RequestTwinsReset(&s.handler,0));
+        assert(!s.mgr.RequestTwinsReset(&s.handler,99999));
+        assert(!s.mgr.RequestTwinsReset(&s.handler,123));
+        assert(s.mgr.RequestTwinsReset(&s.handler,5670));
+        assert(s.map.script.mask==127 && s.map.processed.empty());
+        assert(!s.mgr.RequestTwinsReset(&s.handler,5670));
+        InstanceMap other; other.instance=5671;
+        assert(!s.mgr.ProcessPendingTwinsReset(&other));
+        other.instance=5670; other.id=1;
+        assert(!s.mgr.ProcessPendingTwinsReset(&other));
+        assert(!s.mgr.ProcessPendingTwinsReset(nullptr));
+        assert(s.mgr.ProcessPendingTwinsReset(&s.map)); s.Untouched();
+        assert(s.map.script.mask==63);
+        auto count=s.map.processed.size();
+        assert(!s.mgr.ProcessPendingTwinsReset(&s.map) && s.map.processed.size()==count);
+        mapMgr.loaded=&s.map;
+        assert(s.mgr.RequestTwinsReset(&s.handler,5670)); s.Untouched();
+        s.map.player.combat=true;
+        assert(!s.mgr.RequestTwinsReset(&s.handler,5670));
+        s.map.player.combat=false;
+        assert(!s.mgr.ProcessPendingTwinsReset(&s.map)); // failed request consumed, not retried mid-pull
+    }
+    else if (mode=="console")
+    {
+        for (char const* args : {"", "5670", "5670 yes", "0 confirm", "-1 confirm", "x confirm",
+                                "4294967296 confirm", "99999999999999999999 confirm", "5670 confirm extra"})
+        {
+            HandleTwinsReset(&s.handler,args);
+            assert(s.mgr._pendingTwinsReset.load()==0);
+        }
+        s.handler.session=true;
+        HandleTwinsReset(&s.handler,"5670 confirm"); assert(s.mgr._pendingTwinsReset.load()==0);
+        s.handler.session=false;
+        HandleTwinsReset(&s.handler,"5670 confirm"); assert(s.mgr._pendingTwinsReset.load()==5670);
+        assert(s.map.script.mask==127 && s.map.processed.empty());
+    }
+    else if (mode=="legacy-iterator")
+    {
+        Creature* c=s.map.creatures.find(1)->second;
+        c->casting=c->aura=c->m_Events.scheduled=false; c->threat.threat=0;
+        auto creBounds=s.map.creatures.equal_range(1);
+        /* LEGACY_ITERATION */
     }
     else if (mode=="generic")
     {
