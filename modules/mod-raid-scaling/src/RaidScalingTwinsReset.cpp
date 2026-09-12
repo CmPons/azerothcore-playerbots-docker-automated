@@ -186,7 +186,7 @@ bool RaidScalingMgr::ResetTwins(ChatHandler* handler, InstanceMap* map)
             {
                 creature->InterruptNonMeleeSpells(true);
                 creature->m_Events.KillAllEvents(false);
-                creature->GetThreatManager().ClearAllThreat();
+                creature->GetThreatMgr().ClearAllThreat();
                 creature->RemoveAllAuras();
                 // Native forced respawn, NOT Unit::Kill: no new kill reward or shared-health death callback.
                 creature->Respawn(true);

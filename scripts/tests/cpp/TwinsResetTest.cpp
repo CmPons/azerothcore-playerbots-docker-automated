@@ -167,7 +167,7 @@ public:
     ObjectGuid GetGUID() const { return guid; }
     ObjectGuid GetCharmerOrOwnerGUID() const { return owner; }
     void InterruptNonMeleeSpells(bool all) { assert(all); casting = false; }
-    ThreatManager& GetThreatManager() { return threat; }
+    ThreatManager& GetThreatMgr() { return threat; }
     void RemoveAllAuras() { aura = false; }
     void Respawn(bool force)
     {

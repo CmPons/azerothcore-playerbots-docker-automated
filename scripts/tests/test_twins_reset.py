@@ -97,6 +97,8 @@ namespace std { template<> struct hash<ObjectGuid>
         self.assertIn("ResetAreaTriggerDone(TwinsIntroTrigger)", source)
         # The preexisting Twin evade override can recurse through a dead peer, so use native respawn instead.
         core = ROOT / "azerothcore-wotlk/src/server/game"
+        self.assertIn("ThreatManager& GetThreatMgr()", (core / "Entities/Unit/Unit.h").read_text())
+        self.assertIn("creature->GetThreatMgr().ClearAllThreat()", source)
         native = (core / "Entities/Creature/Creature.cpp").read_text()
         respawn = block(native, "void Creature::Respawn(bool force)")
         self.assertIn("SaveCreatureRespawnTime", respawn)
