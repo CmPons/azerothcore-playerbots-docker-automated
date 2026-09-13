@@ -42,7 +42,7 @@ accepted image. Startup and a separate verification script both passed.
 Evidence includes `STOPPED-SHA256SUMS`, final database dump, `shutdown.log`, `startup.log`,
 `managed-saves-after-{stop,start}.tsv`, `roster-items-after-{stop,start}.tsv`,
 `saves-and-aq-respawns-after-{stop,start}.tsv`, `ouro-startup-respawn-comparison.txt`, container
-snapshots, `running-binary.sha256` and deployment/verification scripts and logs in the backup.
+snapshots, `binaries.sha256` and deployment/verification scripts and logs in the backup.
 Backups contain secrets and gameplay data and must not be published.
 
 ## Limits and rollback
