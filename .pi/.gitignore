@@ -1,0 +1,6 @@
+# Pi-managed package installations; versions are declared in settings.json.
+/npm/
+/git/
+
+# Local subagent runs, schedules, transcripts, and other generated artifacts.
+/subagents/
