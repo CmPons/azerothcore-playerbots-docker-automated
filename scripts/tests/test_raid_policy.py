@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import resource
+import shutil
 import subprocess
 import tempfile
 import time
@@ -13,6 +14,7 @@ from test_cthun_positioning import lua_layer
 ROOT = Path(__file__).resolve().parents[2]
 CORE = ROOT / "azerothcore-wotlk"
 PATCH = ROOT / "patches/0033-playerbot-cthun-lua-policy.patch"
+AUTOMATIC_PATCH = ROOT / "patches/0034-playerbot-automatic-policy-default.patch"
 POLICY = ROOT / "raid-policies/aq40/cthun/policy.lua"
 
 
@@ -52,6 +54,68 @@ class RaidPolicyTests(unittest.TestCase):
     def test_real_runtime_budgets_and_forbidden_apis(self):
         self.assertIn("real Lua sandbox", run([self.build / "policy-runtime-test"]).stdout)
         run([self.build / "policy-runtime-test", POLICY])
+
+    def test_automatic_default_lifecycle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = run([self.build / "policy-Default-test", directory])
+            self.assertIn("default lifecycle precedence/failure/quarantine/recreation passed", result.stdout)
+            status = run(["python3", ROOT / "scripts/playerbot_policy.py", "status",
+                          "--status-directory", Path(directory) / "status", "--scope", "531-3-3"])
+            self.assertEqual(json.loads(status.stdout)["diagnostic_error"],
+                             "diagnostic expired: default publication changed")
+
+    def test_automatic_current_native_adapter(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = run([self.build / "policy-integration-test", directory, POLICY, "automatic"])
+            self.assertIn("automatic actual adapter fresh/combat/recreated/eligibility passed", result.stdout)
+
+    def test_automatic_start_fails_original_0033(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run([self.build / "policy-AutomaticStart-test", root / "current"])
+            names = [line.split(" b/", 1)[1] for line in AUTOMATIC_PATCH.read_text().splitlines()
+                     if line.startswith("diff --git ")]
+            for name in names:
+                target = root / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes((CORE / name).read_bytes())
+            run(["git", "apply", "--reverse", AUTOMATIC_PATCH], cwd=root)
+            scope = root / "modules/mod-playerbots/src/Ai/Raid/Policy"
+            self.assertEqual(hashlib.sha256((scope / "CthunPolicyScope.cpp").read_bytes()).hexdigest(),
+                             "94666a0ccd75af5c6f5960e00b3505ea5e71a6b5319bdee9116b4128b57345bb")
+            cache = (self.build / "CMakeCache.txt").read_text().splitlines()
+            crypto = next(line.split("=", 1)[1] for line in cache
+                          if line.startswith("OPENSSL_CRYPTO_LIBRARY:"))
+            includes = next(line.split("=", 1)[1] for line in cache
+                            if line.startswith("OPENSSL_INCLUDE_DIR:"))
+            run([os.environ.get("CXX", "g++"), "-std=c++20", "-Wall", "-Wextra", "-Werror",
+                 "-fsanitize=undefined", f"-I{scope}", f"-I{includes}",
+                 f"-I{CORE}/modules/mod-playerbots/src/Ai/Raid/Policy",
+                 f"-I{CORE}/src/common/Utilities", ROOT / "scripts/tests/cpp/CthunPolicyAutomaticStartTest.cpp",
+                 scope / "CthunPolicyScope.cpp", self.build / "libpolicy-core.a",
+                 self.build / "lua/libplayerbot_lua.a", crypto, "-o", root / "original"])
+            result = run([root / "original", root / "original-files"], success=False)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("scope.active && scope.revision == revision", result.stderr)
+            print("Expected original0033 automatic-start failure:", result.stderr.strip())
+
+    def test_automatic_incremental_patch_roundtrip(self):
+        names = [line.split(" b/", 1)[1] for line in AUTOMATIC_PATCH.read_text().splitlines()
+                 if line.startswith("diff --git ")]
+        self.assertEqual(set(names), {"modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyScope." + suffix
+                                     for suffix in ("h", "cpp")})
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in names:
+                target = root / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes((CORE / name).read_bytes())
+            run(["git", "apply", "--check", "--reverse", AUTOMATIC_PATCH], cwd=root)
+            run(["git", "apply", "--reverse", AUTOMATIC_PATCH], cwd=root)
+            run(["git", "apply", "--check", AUTOMATIC_PATCH], cwd=root)
+            run(["git", "apply", AUTOMATIC_PATCH], cwd=root)
+            for name in names:
+                self.assertEqual((root / name).read_bytes(), (CORE / name).read_bytes(), name)
 
     def test_two_instance_transaction_lifecycle(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -119,11 +183,81 @@ class RaidPolicyTests(unittest.TestCase):
                 target = temp / name
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes((CORE / name).read_bytes())
+            run(["git", "apply", "--reverse", AUTOMATIC_PATCH], cwd=temp)
             run(["git", "apply", "--reverse", PATCH], cwd=temp)
             run(["git", "apply", "--check", PATCH], cwd=temp)
             run(["git", "apply", PATCH], cwd=temp)
+            run(["git", "apply", AUTOMATIC_PATCH], cwd=temp)
             for name in names:
                 self.assertEqual((temp / name).read_bytes(), (CORE / name).read_bytes(), name)
+
+    def test_host_installed_default_atomic_cas_and_diagnostic_binding(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            policies = root / "policies"
+            status = root / "status"
+            status.mkdir()
+            cli = ["python3", ROOT / "scripts/playerbot_policy.py"]
+            common = ["--directory", policies, "--checker", self.build / "policy-runtime-test"]
+            result = run(cli + ["publish-default", POLICY, "--expect-default", "none"] + common)
+            installed = json.loads(result.stdout)
+            manifest = policies / "defaults/raid.txt"
+            initial = manifest.read_bytes()
+            self.assertTrue(initial.startswith(b"1 1 "))
+            self.assertTrue((policies / "requests").is_dir())
+            self.assertEqual(list((policies / "requests").iterdir()), [])
+            self.assertNotEqual(run(cli + ["publish-default", POLICY, "--expect-default", "none"] + common,
+                                    success=False).returncode, 0)
+            self.assertEqual(manifest.read_bytes(), initial)
+            bad = root / "bad.lua"
+            for source in (b"return os.execute('false')", b" " * 32769):
+                bad.write_bytes(source)
+                self.assertNotEqual(run(cli + ["publish-default", bad] + common, success=False).returncode, 0)
+                self.assertEqual(manifest.read_bytes(), initial)
+            scope = "531-1-999"
+            record = {"scope": scope, "updated": int(time.time()), "active": "native", "queued": "",
+                      "destroyed": False, "default_publication": installed["publication"]}
+            (status / (scope + ".json")).write_text(json.dumps(record))
+            diagnostic = ["--status-directory", status, "--scope", scope, "--expect-active", "native"]
+            run(cli + ["publish", POLICY] + common + diagnostic)
+            request = (policies / "requests" / (scope + ".txt")).read_text().split()
+            self.assertEqual(request[3], installed["publication"])
+            self.assertLessEqual(len(" ".join(request)), 256)
+            # Cooperating concurrent writers are serialized; CAS admits exactly one winner.
+            args = list(map(str, cli + ["publish-default", POLICY, "--expect-default", installed["publication"]]
+                            + common))
+            children = [subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                        for _ in range(2)]
+            for child in children:
+                child.communicate(timeout=20)
+            self.assertEqual(sorted(child.returncode for child in children), [0, 1])
+            fields = manifest.read_text().split()
+            self.assertEqual(len(fields), 4)
+            self.assertEqual(fields[3], hashlib.sha256(POLICY.read_bytes()).hexdigest())
+            self.assertNotEqual(run(cli + ["publish", POLICY] + common + diagnostic,
+                                    success=False).returncode, 0)  # Scope has not observed new default.
+            self.assertFalse(list(policies.rglob("*.tmp")))
+            manifest.write_text("invalid")
+            run(cli + ["publish-default", POLICY] + common)  # Explicit checked repair, no per-scope commands.
+
+    def test_default_installer_preserves_inherited_mapped_reader_acl(self):
+        if not shutil.which("setfacl") or not shutil.which("getfacl"):
+            self.skipTest("POSIX ACL tools unavailable; mapped container identity remains a deployment gate")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run(["setfacl", "-m", "u:100999:r-x,d:u::rwx,d:u:100999:r-x,d:g::---,d:m::r-x,d:o::---", root])
+            before = run(["getfacl", "-cpn", root]).stdout
+            cli = ["python3", ROOT / "scripts/playerbot_policy.py", "publish-default", POLICY,
+                   "--directory", root, "--checker", self.build / "policy-runtime-test"]
+            run(cli)
+            run(cli)  # Atomic replacement must inherit read ACL again, not lose it after first install.
+            self.assertEqual(run(["getfacl", "-cpn", root]).stdout, before)
+            for path in [root / "defaults", root / "defaults/raid.txt", *list((root / "revisions").glob("*.lua"))]:
+                acl = run(["getfacl", "-cpn", path]).stdout
+                self.assertIn("user:100999:r-x", acl)
+                self.assertNotIn("effective:---", acl)
+                self.assertNotIn("effective:-", acl)
+            # ACL metadata test only: this process did not impersonate the deployed container UID.
 
     def test_host_publish_status_revert_check(self):
         with tempfile.TemporaryDirectory() as directory:

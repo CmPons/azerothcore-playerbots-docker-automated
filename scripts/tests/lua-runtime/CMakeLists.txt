@@ -17,6 +17,12 @@ target_compile_options(policy-core PRIVATE -Wall -Wextra -Werror -fsanitize=unde
 add_executable(policy-scope-test ../cpp/CthunPolicyScopeTest.cpp)
 target_link_libraries(policy-scope-test PRIVATE policy-core)
 target_link_options(policy-scope-test PRIVATE -fsanitize=undefined)
+foreach(TEST AutomaticStart Default)
+  add_executable(policy-${TEST}-test ../cpp/CthunPolicy${TEST}Test.cpp)
+  target_link_libraries(policy-${TEST}-test PRIVATE policy-core)
+  target_compile_options(policy-${TEST}-test PRIVATE -Wall -Wextra -Werror -fsanitize=undefined -fno-sanitize-recover=all)
+  target_link_options(policy-${TEST}-test PRIVATE -fsanitize=undefined)
+endforeach()
 
 set(FIXTURE "${ROOT}/scripts/tests/fixtures/twins/Framework.h")
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/doubles")

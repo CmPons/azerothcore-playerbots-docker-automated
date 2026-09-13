@@ -1,0 +1,345 @@
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyScope.h b/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyScope.h
+--- a/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyScope.h
++++ b/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyScope.h
+@@ -21,7 +21,10 @@
+     void Acknowledge(std::string const& guid);
+ 
+     std::string id, directory, statusDirectory;
+-    std::string revision = "native", queued, error;
++    std::string revision = "native", queued, error, diagnosticError;
++    std::string defaultPublication, defaultRevision, defaultError, desired, desiredSource = "default";
++    std::string activeSource = "native", faultedRevision, faultError;
++    bool diagnosticOverride = false;
+     uint64_t generation = 1;
+     uint32_t plannedAt = 0, elapsed = 0, pollElapsed = 1000;
+     unsigned paths = 0, adopted = 0, excluded = 0;
+@@ -30,7 +33,12 @@
+     Plan plan;
+ private:
+     std::unique_ptr<Runtime> _runtime;
+-    std::string _seen, _expected;
++    void PollDefault();
++    void SelectDefault();
++    void ClearQueue();
++    std::string _seen, _expected, _queuedPublication, _attemptedDefault;
++    bool _queuedDiagnostic = false, _retrySource = false, _safeBoundary = false;
++    uint32_t _retrySince = 0;
+     std::array<std::string, MAX_MEMBERS> _adopted;
+     struct FailedRoutes
+     {
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyScope.cpp b/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyScope.cpp
+--- a/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyScope.cpp
++++ b/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyScope.cpp
+@@ -6,6 +6,7 @@
+ #include <unistd.h>
+ #include <algorithm>
+ #include <chrono>
++#include <cerrno>
+ #include <cmath>
+ #include <sstream>
+ 
+@@ -22,8 +23,12 @@
+         return text.size() == size && text.find_first_not_of("0123456789abcdef") == std::string::npos;
+     }
+     // Trusted local host mailbox only. No symlinks, nonregular files, unbounded reads or scans.
+-    std::string Read(std::string const& root, char const* folder, std::string const& name, std::size_t maximum)
+-    {
++    enum class ReadState { Unavailable, Invalid, Valid };
++    std::string Read(std::string const& root, char const* folder, std::string const& name, std::size_t maximum,
++                     ReadState* result = nullptr)
++    {
++        if (result)
++            *result = ReadState::Unavailable;
+         int const parent = open(root.c_str(), O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+         if (parent < 0)
+             return {};
+@@ -32,9 +37,16 @@
+         if (dir < 0)
+             return {};
+         int const file = openat(dir, name.c_str(), O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC);
++        int const openError = errno;
+         close(dir);
+         if (file < 0)
++        {
++            if (result && openError == ELOOP)
++                *result = ReadState::Invalid;
+             return {};
++        }
++        if (result)
++            *result = ReadState::Invalid;
+         struct stat info{};
+         std::string bytes;
+         if (!fstat(file, &info) && S_ISREG(info.st_mode) && info.st_size > 0 &&
+@@ -43,9 +55,17 @@
+             bytes.resize(maximum + 1);
+             ssize_t const count = read(file, bytes.data(), bytes.size());
+             if (count == info.st_size)
++            {
+                 bytes.resize(static_cast<std::size_t>(count));
++                if (result)
++                    *result = ReadState::Valid;
++            }
+             else
++            {
+                 bytes.clear();
++                if (result && count < 0)
++                    *result = ReadState::Unavailable;
++            }
+         }
+         close(file);
+         return bytes;
+@@ -86,28 +106,104 @@
+     if (adopted < MAX_MEMBERS)
+         _adopted[adopted++] = guid;
+ }
++void Scope::ClearQueue()
++{
++    queued.clear();
++    _retrySource = false;
++}
++void Scope::PollDefault()
++{
++    std::string const manifest = Read(directory, "defaults", "raid.txt", 256);
++    std::istringstream input(manifest);
++    std::string format, api, nonce, next, extra;
++    input >> format >> api >> nonce >> next;
++    bool const valid = format == "1" && api == "1" && Hex(nonce, 16) && Hex(next, 64) && !(input >> extra);
++    std::string const publication = valid ? nonce + ":" + next : "";
++    defaultError = valid ? "" : manifest.empty() ?
++        "default missing/unreadable/byte budget" : "invalid default manifest";
++    if (publication != defaultPublication)
++    {
++        if (diagnosticOverride || (!queued.empty() && _queuedDiagnostic))
++            error = diagnosticError = "diagnostic expired: default publication changed";
++        diagnosticOverride = false;
++        ClearQueue();
++        defaultPublication = publication;
++    }
++    defaultRevision = valid ? next : "";
++    if (!diagnosticOverride && (queued.empty() || !_queuedDiagnostic))
++    {
++        desired = defaultRevision;
++        desiredSource = "default";
++    }
++}
++void Scope::SelectDefault()
++{
++    if (diagnosticOverride || (!queued.empty() && _queuedDiagnostic))
++        return;
++    desiredSource = "default";
++    desired = defaultRevision;
++    if (desired.empty())
++        return;
++    if (desired == faultedRevision)
++    {
++        error = "default revision quarantined after active fault";
++        return;
++    }
++    if (active && revision == desired)
++    {
++        activeSource = "default";
++        return; // No replacement or Lua-state reset for identical good bytes.
++    }
++    if (queued.empty() && _attemptedDefault != defaultPublication)
++    {
++        queued = desired;
++        _expected = revision;
++        _queuedPublication = defaultPublication;
++        _queuedDiagnostic = false;
++    }
++}
+ void Scope::Poll()
+ {
++    PollDefault();
++    SelectDefault();
+     std::string const request = Read(directory, "requests", id + ".txt", 256);
+     if (request.empty() || request == _seen)
+         return;
+     _seen = request;
+     std::istringstream input(request);
+-    std::string nonce, expected, next, extra;
++    std::string nonce, expected, next, publication, extra;
+     input >> nonce >> expected >> next;
++    input >> publication; // Legacy three-field requests are diagnostic only without an installed default.
+     if (!Hex(nonce, 16) || (expected != "native" && !Hex(expected, 64)) ||
+         !Hex(next, 64) || (input >> extra))
+     {
+-        error = "invalid request";
++        error = diagnosticError = "invalid request";
++        return;
++    }
++    std::string const observed = defaultPublication.empty() ? "none" : defaultPublication;
++    if ((publication.empty() && !defaultPublication.empty()) ||
++        (!publication.empty() && publication != observed))
++    {
++        error = diagnosticError = "diagnostic default publication mismatch";
+         return;
+     }
+     if (expected != revision)
+     {
+-        error = "expected revision mismatch";
+-        return;
+-    }
++        error = diagnosticError = "expected revision mismatch";
++        return;
++    }
++    if (next == faultedRevision)
++    {
++        error = diagnosticError = "requested revision quarantined after active fault";
++        return;
++    }
++    ClearQueue();
+     _expected = expected;
+-    queued = next;
++    queued = desired = next;
++    desiredSource = "diagnostic";
++    _queuedPublication = defaultPublication;
++    _queuedDiagnostic = true;
++    diagnosticError.clear();
+     error.clear();
+ }
+ bool Scope::SpendPath(std::string const& guid)
+@@ -158,6 +254,7 @@
+ }
+ void Scope::Update(Snapshot const& current, bool safeBoundary, uint32_t now)
+ {
++    _safeBoundary = safeBoundary;
+     paths = 0;
+     _pathUses = {};
+     auto const previousFailures = _failedRoutes;
+@@ -208,34 +305,70 @@
+                 break;
+             }
+     adopted = retained;
+-    if (!queued.empty() && safeBoundary)
+-    {
+-        if (_expected != revision)
+-            error = "queued expected revision mismatch";
+-        else
+-        {
+-            std::string const source = Read(directory, "revisions", queued + ".lua", MAX_SOURCE);
+-            std::unique_ptr<Runtime> candidate = std::make_unique<Runtime>();
+-            Plan checked;
+-            if (Digest(source) != queued)
+-                error = "missing/invalid source hash or byte budget";
+-            else if (!candidate->Load(source) || !candidate->Evaluate(current, checked))
+-                error = "reload rejected: " + candidate->Error();
++    if (!queued.empty() && safeBoundary && (!_retrySource || uint32_t(now - _retrySince) >= 30000))
++    {
++        // One extra bounded manifest read per candidate attempt, not a per-tick filesystem poll.
++        // Publication after this observation is seen next poll; filesystem revocation is not a lock.
++        PollDefault();
++        if (!queued.empty())
++        {
++            bool retry = false;
++            if (_queuedDiagnostic && _expected != revision)
++                error = "queued expected revision mismatch";
++            else if (queued == faultedRevision)
++                error = "queued revision quarantined after active fault";
+             else
+             {
+-                _runtime = std::move(candidate);
+-                revision = queued;
+-                ++generation;
+-                adopted = 0;
+-                active = true;
+-                plan = checked;
+-                plannedAt = now;
+-                committed = true;
+-                _failedRoutes = {};
+-                error.clear();
+-            }
+-        }
+-        queued.clear();
++                ReadState state;
++                std::string const source = Read(directory, "revisions", queued + ".lua", MAX_SOURCE, &state);
++                if (state == ReadState::Unavailable)
++                {
++                    error = "source unavailable; retry after 30s at safe boundary";
++                    retry = true;
++                    _retrySince = now;
++                }
++                else if (state != ReadState::Valid || Digest(source) != queued)
++                    error = "missing/invalid source hash or byte budget";
++                else
++                {
++                    std::unique_ptr<Runtime> candidate = std::make_unique<Runtime>();
++                    Plan checked;
++                    if (!candidate->Load(source) || !candidate->Evaluate(current, checked))
++                        error = "reload rejected: " + candidate->Error();
++                    else
++                    {
++                        _runtime = std::move(candidate);
++                        revision = queued;
++                        faultedRevision.clear(); // Only adoption of distinct verified bytes ends quarantine.
++                        faultError.clear();
++                        diagnosticOverride = _queuedDiagnostic;
++                        activeSource = _queuedDiagnostic ? "diagnostic" : "default";
++                        ++generation;
++                        adopted = 0;
++                        active = true;
++                        plan = checked;
++                        plannedAt = now;
++                        committed = true;
++                        _failedRoutes = {};
++                        error.clear();
++                    }
++                }
++            }
++            _retrySource = retry;
++            if (_queuedDiagnostic)
++                diagnosticError = committed ? "" : error;
++            if (!retry)
++            {
++                if (!_queuedDiagnostic && !committed)
++                    _attemptedDefault = _queuedPublication;
++                ClearQueue();
++                if (!diagnosticOverride)
++                {
++                    desired = defaultRevision;
++                    desiredSource = "default";
++                }
++            }
++        }
+     }
+     snapshot = committed ? current : available;
+     if (active && !committed)
+@@ -254,10 +387,21 @@
+         }
+         else
+         {
+-            error = "active policy failed: " + _runtime->Error();
++            error = faultError = "active policy failed: " + _runtime->Error();
++            if (activeSource == "diagnostic")
++                diagnosticError = error;
+             active = false;
+             adopted = 0;
++            faultedRevision = revision;
+             revision = "native";
++            activeSource = "native";
++            diagnosticOverride = false;
++            // A pending diagnostic still describes the requested revision until its CAS is rejected.
++            if (queued.empty() || !_queuedDiagnostic)
++            {
++                desired = defaultRevision;
++                desiredSource = "default";
++            }
+             ++generation;
+             plan = {};
+             _failedRoutes = {};
+@@ -277,6 +421,15 @@
+         << ",\"destroyed\":" << (destroyed ? "true" : "false")
+         << ",\"active\":\"" << (active && !destroyed ? revision : "native")
+         << "\",\"queued\":\"" << queued << "\",\"generation\":" << generation
++        << ",\"default_publication\":\"" << defaultPublication << "\",\"default_revision\":\"" << defaultRevision
++        << "\",\"default_error\":\"" << Escape(defaultError) << "\",\"desired\":\"" << desired
++        << "\",\"desired_source\":\"" << desiredSource << "\",\"active_source\":\""
++        << (destroyed ? "native" : activeSource) << "\",\"diagnostic_override\":"
++        << (diagnosticOverride && !destroyed ? "true" : "false")
++        << ",\"faulted_revision\":\"" << faultedRevision << "\",\"retry_source\":"
++        << (_retrySource ? "true" : "false") << ",\"safe_boundary\":" << (_safeBoundary ? "true" : "false")
++        << ",\"fault_error\":\"" << Escape(faultError) << "\""
++        << ",\"diagnostic_error\":\"" << Escape(diagnosticError) << "\""
+         << ",\"adopted\":" << adopted << ",\"excluded\":" << excluded
+         << ",\"members\":" << snapshot.count << ",\"error\":\"" << Escape(error) << "\"}\n";
+     std::string const text = out.str();

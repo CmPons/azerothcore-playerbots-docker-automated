@@ -98,6 +98,47 @@ int main(int argc, char** argv)
     fs::create_directories(std::string(argv[1]) + "/status");
     std::ifstream input(argv[2]);
     std::string source((std::istreambuf_iterator<char>(input)), {});
+    if (argc == 4 && std::string(argv[3]) == "automatic")
+    {
+        fs::create_directories(std::string(argv[1]) + "/defaults");
+        std::string const digest = CthunPolicy::Digest(source);
+        std::ofstream(std::string(argv[1]) + "/revisions/" + digest + ".lua") << source;
+        std::ofstream(std::string(argv[1]) + "/defaults/raid.txt") << "1 1 0123456789abcdef " << digest << '\n';
+        {
+            Raid unrelated(argv[1], 2);
+            unrelated.ais[0]->real = false;
+            unrelated.Plan();
+            assert(!unrelated.Scope()); // Random-bot-only raids do not create a VM.
+        }
+        {
+            Raid distant(argv[1], 2);
+            distant.players[1]->Relocate(0, 0, 0);
+            distant.Plan();
+            assert(!distant.Scope()); // Phase1 deliberately retains Cthun approach eligibility.
+        }
+        {
+            Raid r(argv[1], 2);
+            r.Plan(); // First observation in combat: no replacement mid-pull.
+            assert(r.Scope() && !r.Scope()->active);
+            r.map.script.state = 0;
+            r.players[0]->otherCombat = true;
+            r.Plan();
+            assert(!r.Scope()->active); // Human trash combat blocks activation too.
+            r.players[0]->otherCombat = false;
+            r.Plan();
+            assert(r.Scope()->active && r.Scope()->revision == digest);
+        }
+        {
+            Raid recreated(argv[1], 2);
+            recreated.map.script.state = 0;
+            recreated.Plan();
+            assert(recreated.Scope()->active && recreated.Scope()->revision == digest);
+            assert(recreated.map.pathCalls == 0); // Installation itself requests no paths/grid loads.
+        }
+        assert(fs::is_empty(std::string(argv[1]) + "/requests"));
+        std::cout << "automatic actual adapter fresh/combat/recreated/eligibility passed\n";
+        return 0;
+    }
     if (argc == 4 && std::string(argv[3]) == "blocked-route")
     {
         Raid r(argv[1], 2);

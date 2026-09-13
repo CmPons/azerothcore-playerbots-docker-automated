@@ -1,6 +1,9 @@
 # Instance-owned C'Thun Lua policy MVP
 
-**Native support deployed September13,2026; initial Lua activation pending a current C'Thun scope.**
+**Deployed:0033 C'Thun-specific support. Phase1 automatic loading (0034) is implemented offline,
+NOT built/deployed; phase2 generic Lua-only boss tactics is still required BEFORE gameplay testing.**
+See [the automatic-loader and queued phase2 contract](playerbot-automatic-policy.md).
+Do not publish these new wire formats to the old running binary or deploy/test phase1 alone.
 See [deployment evidence](lua-cthun-scaling-deployment-20260913.md). Live navigation/encounter behavior
 is not yet validated. Incremental patch: `patches/0033-playerbot-cthun-lua-policy.patch`. Actual baseline root HEAD:
 `b03ae99b0891289abd923bfc6d076561c152c9d3`. Do not run setup/reset-to-pins to install this delta.
@@ -189,55 +192,52 @@ setfacl -m "u:$container_host_uid:rwx,d:u::rwx,d:u:$host_uid:rwx,d:g::---,d:m::r
 ```
 
 The deployment retained the checked source as an immutable revision and installed the offline checker at
-`runtime/playerbot-policy-checker/policy-runtime-test`. This does **not** activate Lua automatically.
-Each new map generation starts with the revised native fallback. Once its fresh scope appears near
-C'Thun, publish explicitly as below; a request for an old generation is not reused. This initial MVP
-requires a new publication after instance unload/recreation, including a natural reset or restart.
+`runtime/playerbot-policy-checker/policy-runtime-test`. Deployed0033 still requires generation-specific
+publication; it has NOT gained automatic activation merely because0034 source exists. After the parent
+finishes and deploys BOTH agreed phases, the installed-default lifecycle below replaces that requirement.
+Initial installed publication is once per policy version, never once per map generation.
 
 Native default configuration keys are
 `AiPlayerbot.CthunPolicyDirectory` and `AiPlayerbot.CthunPolicyStatusDirectory`, with the paths above;
 no env/runtime config change is otherwise required. Keep status and publisher access administrator-only.
 
-The instance polls only its own bounded256-byte request file once/second (no directory scans).
-The publisher atomically links immutable hash-named source bytes and atomically replaces the request.
-The instance copies/validates those bytes, checks expected active revision, and activates only when
-C'Thun is not IN_PROGRESS and **no instance member is in combat**, including trash. No force mode.
-File IO is bounded in bytes/count/rate but can block on the trusted local filesystem; no hard IO
-latency bound is claimed. User can remain logged in/grouped/inside AQ throughout later Lua reloads.
+### Phase1 source contract (not deployed; use only after combined readiness gate)
 
-Prepare a persistent offline checker once (tests use the same Lua/native runtime sources):
+Publish a checked installed default ONCE/version, without a scope or active-generation selection:
 
 ```sh
-PLAYERBOT_POLICY_TEST_BUILD=/tmp/playerbot-policy-checker PYTHONPATH=scripts/tests \
-  python3 -m unittest test_raid_policy -v
+python3 scripts/playerbot_policy.py publish-default raid-policies/aq40/cthun/policy.lua \
+  --directory runtime/playerbot-policies \
+  --checker runtime/playerbot-policy-checker/policy-runtime-test
 ```
 
-Subsequent code publications use the existing checker binary, with no native recompilation:
+This is future operator guidance, not an action performed in this lane. Ordinary editor saves do not
+publish. The tool checks the exact immutable bytes and atomically installs `defaults/raid.txt`; all
+relevant scopes discover it automatically. New map generations inherit it after recreation/restart/
+natural reset; no raid-entry command. Later publications activate between pulls while players remain
+logged in/in the raid. Initial observation in combat remains native until the same safe boundary.
+Phase1 retains existing C'Thun approach/human-led eligibility; it does not yet offer generic raid tactics.
 
-```sh
-python3 scripts/playerbot_policy.py check raid-policies/aq40/cthun/policy.lua \
-  --checker /tmp/playerbot-policy-checker/policy-runtime-test
-```
+The native phase1 scope reads the fixed256-byte manifest and its own256-byte optional diagnostic request
+once/second, with one extra bounded manifest observation per safe candidate attempt. Source remains
+32KiB; Lua memory/instruction/path budgets are unchanged. No scans/daemon/globalVM. The manifest identity
+is re-observed before attempting a safe commit; publication after that observation is handled at the
+next poll, not an impossible filesystem-revocation lock. Reads may block on trusted local storage.
 
-Read the current `531-INSTANCE-GENERATION.json` filename from the status directory. Substitute that
-exact scope and its reported active revision (initially`native`):
+`publish`/`revert` remain optional diagnostic per-scope CAS, **not production initialization**. They bind
+to the default publication observed in current status and expire on its replacement/removal/invalidity.
+A new default automatically supersedes pending/adopted diagnostics; no travel/recreation to unpin.
+The publisher rejects stale status/default observations; the native scope also checks identity and
+expected active revision at safe commit. Old three-field requests are accepted only without a valid
+default; new publisher wire is not compatible with the still-running0033 binary.
 
-```sh
-python3 scripts/playerbot_policy.py publish raid-policies/aq40/cthun/policy.lua \
-  --directory runtime/playerbot-policies --status-directory runtime/playerbot-policy-status \
-  --scope 531-INSTANCE-GENERATION --expect-active native \
-  --checker /tmp/playerbot-policy-checker/policy-runtime-test
-python3 scripts/playerbot_policy.py status --status-directory runtime/playerbot-policy-status \
-  --scope 531-INSTANCE-GENERATION
-```
+`status` distinguishes actual Lua/native backend, desired/queued revision and source, default observation
+errors, diagnostic override, active-fault quarantine, source retry, safe boundary, adoption and heartbeat.
+Destroyed/absent/stale scopes remain explicit. `publish-default --expect-default ID` optionally provides
+host manifest CAS (`none` for first install); absent that flag, cooperating checked publishers serialize
+and last publication wins. The resulting `nonce:digest` ID is returned by the tool and exposed by scopes.
 
-`publish` means file publication, NOT activation. Status distinguishes queued/active, adoption
-(observed by guarded eligible bot checks, not simultaneous movement), exclusions, errors and freshness.
-Destroyed scope status is written at teardown; heartbeat older than5s is displayed stale/unloaded.
-An absent scope is unloaded/not observed. Never publish against an old map generation.
-`revert --revision HASH` with the same directory/scope/expected/checker flags republishes retained
-code through the same transaction; it never restores gameplay/save/inventory state. Host revisions
-are retained for explicit administrator rollback/cleanup; the server never scans them.
+See the companion guide for failure/retry rules, POSIX ACL installation and exact phase2 acceptance.
 
 ## Evidence and remaining gates
 
@@ -281,7 +281,7 @@ actual root. No copied contents were redesigned, and no mound count, speed or ti
 
 **Subsequent gates completed:** retained targeted re-review accepted both P1 corrections; the combined
 Lua/scaling native image built successfully and was deployed after a fresh logout and preservation checks.
-**Outstanding:** initial publication for a fresh C'Thun scope and live no-disconnect reload/adoption
-observation. Offline fixtures and compilation do not prove live navmesh, latency, HPS, recovery,
+**Outstanding:** BOTH automatic default loading and the queued generic Lua-only boss tactics milestone
+require combined review/build/deployment before any live gameplay/adoption test. Offline fixtures and compilation do not prove live navmesh, latency, HPS, recovery,
 aggro timing, encounter success or difficulty. Deployment evidence separately confirms saved AQ state
 and inventory preservation.
