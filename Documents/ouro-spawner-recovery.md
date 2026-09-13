@@ -1,6 +1,6 @@
 # Ouro: original-spawner recovery after a failed pull
 
-## Scope and authorization
+## Scope and initial authorization
 
 September 13, 2026: the user reported Ouro emerging and disappearing, leaving an empty room.
 Read-only inspection found encounter 8 in FAIL, the existing Twins completion intact, and original
@@ -14,7 +14,11 @@ Canonical patch: `patches/0030-core-aq40-ouro-spawner-recovery.patch`.
 Sole production file: `src/server/scripts/Kalimdor/TempleOfAhnQiraj/instance_temple_of_ahnqiraj.cpp`.
 `boss_ouro.cpp` remains byte-identical to the pre-edit source.
 
-## Built, not deployed
+## Initial build-only preparation (subsequently deployed)
+
+The fix was later deployed with the authorized C'Thun positioning update. See
+[cthun-positioning-deployment-20260913.md](cthun-positioning-deployment-20260913.md).
+The build-only record below describes the earlier preparation, not the current live image.
 
 The full native build passed all **1,888 Ninja steps**. Prepared image:
 `acore/ac-wotlk-worldserver:ouro-recovery-20260913`,

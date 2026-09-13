@@ -111,4 +111,4 @@ Selected regression suite: **97 tests, 96 passed and one optional MySQL fixture 
 Scoped production C++ style and added-line checks passed.
 
 Preparation backup: `backups/cthun-positioning-preparation-20260913-134114/`.
-Deployment evidence will be recorded separately after verification.
+Deployment completed and verified: [cthun-positioning-deployment-20260913.md](cthun-positioning-deployment-20260913.md).
