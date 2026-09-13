@@ -19,7 +19,7 @@ using uint32 = uint32_t;
 using int32 = int32_t;
 constexpr int CLASS_WARRIOR=1, CLASS_PALADIN=2, CLASS_HUNTER=3, CLASS_ROGUE=4, CLASS_PRIEST=5,
     CLASS_DEATH_KNIGHT=6, CLASS_SHAMAN=7, CLASS_MAGE=8, CLASS_WARLOCK=9, CLASS_DRUID=11;
-constexpr int IN_PROGRESS=1, DONE=3, BOT_STATE_COMBAT=1, UNIT_STATE_MELEE_ATTACKING=1, UNIT_STATE_FOLLOW=2,
+constexpr int IN_PROGRESS=1, DONE=3, BOT_STATE_NON_COMBAT=0, BOT_STATE_COMBAT=1, UNIT_STATE_MELEE_ATTACKING=1, UNIT_STATE_FOLLOW=2,
     UNIT_STATE_ROOT=4, CURRENT_AUTOREPEAT_SPELL=0, REACT_PASSIVE=0, REACT_DEFENSIVE=1, CREATURE_FLAG_EXTRA_NO_TAUNT=1,
     FLEEING_MOTION_TYPE=1, TIMED_FLEEING_MOTION_TYPE=2;
 template<class... T> void TestLog(T const&...) {}
@@ -69,7 +69,7 @@ struct Map
     uint32 id=531,instance=1;
     InstanceScript script;
     std::vector<Creature*> bugs;
-    int searches=0, pathType=1;
+    int searches=0, pathType=1, pathCalls=0;
     std::vector<Position> pathDetour;
     bool fixedHeight=false;
     float groundZ=0;
@@ -90,7 +90,12 @@ public:
     Map* map=nullptr;
     bool alive=true,inWorld=true,los=true,moving=false,charmed=false,casting=false;
     uint32 phase=1,flags=0;
-    float hp=100;
+    float hp=100, reach=1.5f, orientation=0;
+    bool walking=false;
+    float GetCombatReach() const{return reach;}
+    float GetOrientation() const{return orientation;}
+    void SetWalk(bool walk){walking=walk;}
+    float GetMeleeRange(Unit const* target) const{return std::max(5.0f,reach+target->reach+4.0f/3.0f);}
     Unit* victim=nullptr;
     ThreatManager tm;
     MotionMaster motion;
@@ -237,22 +242,23 @@ public:
     Player* master=nullptr;
     AiObjectContext ctx;
     bool real=false,canMove=true,castAllowed=true,focus=false,pathAllowed=true,passive=false;
-    float healRange=38.5f;
+    float healRange=38.5f,spellRange=25.0f;
     bool exactWaypoint=false;
     std::set<std::string> known={"shadow ward","searing pain","frostbolt","smite"},buffs;
     std::vector<std::string> casts,messages;
     std::vector<Position> moves;
     explicit PlayerbotAI(Player* p):bot(p){p->ai=this;ctx.GetValue<bool>("group")->Set(true);}
     Player* GetBot(){return bot;}
+    Player* GetMaster(){return master;}
     AiObjectContext* GetAiObjectContext(){return &ctx;}
     bool IsRealPlayer() const{return real;}
     static bool IsTank(Player* p,bool=false){return p && p->tankSpec;}
     static bool IsHeal(Player* p,bool=false){return p && p->healer;}
     static bool IsMelee(Player* p){return p && p->melee;}
-    float GetRange(std::string const&) const{return healRange;}
+    float GetRange(std::string const& type) const{return type=="spell"?spellRange:healRange;}
     bool HasStrategy(std::string const& name,int)
     {return (focus && name=="focus heal targets") || (passive && name=="passive");}
-    bool CanMove() const{return canMove;}
+    bool CanMove() const{return canMove && !(bot->flags & UNIT_STATE_ROOT);}
     bool HasAura(std::string const& n,Unit*){return buffs.contains(n);}
     bool CanCastSpell(std::string const& n,Unit* t){return castAllowed && known.contains(n) && t && bot->GetDistance2d(t)<=34;}
     bool CastSpell(std::string const& n,Unit*){casts.push_back(n);if(n=="shadow ward")buffs.insert(n);return true;}
@@ -269,6 +275,7 @@ public:
     explicit PathGenerator(Player* p):owner(p) {}
     bool CalculatePath(float x,float y,float z)
     {
+        ++owner->map->pathCalls;
         if(!owner->ai->pathAllowed)return false;
         points={{owner->x,owner->y,owner->z}};
         for(auto const& p:owner->map->pathDetour)points.push_back({p.x,p.y,p.z});

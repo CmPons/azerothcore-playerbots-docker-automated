@@ -64,7 +64,10 @@ Small Eye Tentacles (15726) are normal-rank and currently outside generic raid s
 script casts **Mind Flay (26143)**, not Eye Beam. Any later audit of those adds should remain separate
 from diagnosing the reported chain beam; no add scaling adjustment was made here.
 
-## Recommended next work — not implemented
+## Recommended next work — at the time of investigation
+
+Subsequently authorized positioning work is documented in [cthun-positioning.md](cthun-positioning.md).
+The investigation above describes the pre-change live implementation.
 
 Prepare C'Thun-specific bot coordination: safe entry and persistent spread with healer coverage,
 movement that does not immediately collapse back into ordinary follow/melee formations, and

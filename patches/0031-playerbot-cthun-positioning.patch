@@ -1,0 +1,677 @@
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40ActionContext.h b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40ActionContext.h
+--- a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40ActionContext.h
++++ b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40ActionContext.h
+@@ -8,6 +8,7 @@
+ #define PLAYERBOTS_AQ40ACTIONCONTEXT_H
+ 
+ #include "Aq40Actions.h"
++#include "Aq40Cthun.h"
+ #include "NamedObjectContext.h"
+ 
+ class RaidAq40ActionContext : public NamedObjectContext<Action>
+@@ -15,6 +16,8 @@
+ public:
+     RaidAq40ActionContext()
+     {
++        creators["aq40 cthun position"] = &RaidAq40ActionContext::cthun_position;
++        creators["aq40 cthun status"] = &RaidAq40ActionContext::cthun_status;
+         creators["aq40 twins caster tank"] = &RaidAq40ActionContext::caster_tank;
+         creators["aq40 twins clear arcane"] = &RaidAq40ActionContext::clear_arcane;
+         creators["aq40 twins status"] = &RaidAq40ActionContext::status;
+@@ -29,6 +32,8 @@
+     }
+ 
+ private:
++    static Action* cthun_position(PlayerbotAI* b) { return new Aq40CthunPositionAction(b); }
++    static Action* cthun_status(PlayerbotAI* b) { return new Aq40CthunStatusAction(b); }
+     static Action* caster_tank(PlayerbotAI* b) { return new Aq40TwinsCasterTankAction(b); }
+     static Action* clear_arcane(PlayerbotAI* b) { return new Aq40TwinsClearArcaneAction(b); }
+     static Action* status(PlayerbotAI* b) { return new Aq40TwinsStatusAction(b); }
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Cthun.cpp b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Cthun.cpp
+new file mode 100644
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Cthun.cpp
+@@ -0,0 +1,550 @@
++/*
++ * This file is part of the mod-playerbots module for AzerothCore.
++ * Released under GNU GPL v2 license.
++ */
++
++#include "Aq40Cthun.h"
++
++#include <algorithm>
++#include <cmath>
++#include <sstream>
++#include <vector>
++
++#include "Creature.h"
++#include "FollowActions.h"
++#include "GenericActions.h"
++#include "Group.h"
++#include "InstanceScript.h"
++#include "PathGenerator.h"
++#include "Playerbots.h"
++#include "ReachTargetActions.h"
++
++namespace CthunPositioning
++{
++namespace
++{
++    constexpr float PI = 3.141592654f;
++    constexpr float FLOOR_TOLERANCE = 12.0f;
++
++    struct Neighbor
++    {
++        Player* player;
++        Position position;
++        Position destination;
++        bool reserved = false;
++    };
++
++    // All pointers are call-local. No map/creature/player pointers or assignments outlive a tick.
++    struct Frame
++    {
++        Creature* center = nullptr;
++        Creature* eye = nullptr;
++        Unit* target = nullptr;
++        Position goal;
++        std::vector<Neighbor> neighbors;
++        std::vector<Position> crowdedPairs;
++        bool combat = false;
++        float minRadius = 0.0f;
++        float range = 0.0f;
++    };
++
++    bool Here(Player* bot, Player* other, Creature* center)
++    {
++        return other && other->IsInWorld() && other->GetMap() == bot->GetMap() &&
++            other->InSamePhase(bot) && other->GetGroup() == bot->GetGroup() &&
++            !other->HasAura(DIGESTIVE_ACID) &&
++            std::abs(other->GetPositionZ() - center->GetPositionZ()) < FLOOR_TOLERANCE;
++    }
++
++    bool Melee(Player* player)
++    {
++        return PlayerbotAI::IsMelee(player) && !PlayerbotAI::IsHeal(player);
++    }
++
++    bool MakeFrame(Player* bot, PlayerbotAI* ai, Frame& frame)
++    {
++        if (!bot || !ai || ai->IsRealPlayer() || !bot->IsInWorld() || !bot->IsAlive() ||
++            bot->IsCharmed() || !ai->CanMove() || bot->GetMapId() != 531 || !bot->GetGroup() ||
++            !bot->GetGroup()->isRaidGroup() || ai->HasStrategy("passive", BOT_STATE_COMBAT) ||
++            ai->HasStrategy("passive", BOT_STATE_NON_COMBAT) || bot->HasAura(DIGESTIVE_ACID))
++            return false;
++
++        InstanceScript* script = bot->GetInstanceScript();
++        if (!script || script->GetBossState(DATA_CTHUN) == DONE)
++            return false;
++        frame.eye = script->GetCreature(DATA_EYE);
++        // The Eye's native phase transition is a fake death: zero health, but IsAlive() can
++        // remain true. Do not keep its large collision envelope around the phase-two body.
++        if (frame.eye && (!frame.eye->IsInWorld() || !frame.eye->IsAlive() || frame.eye->GetHealthPct() <= 0.0f))
++            frame.eye = nullptr;
++        frame.center = frame.eye ? frame.eye : script->GetCreature(DATA_CTHUN);
++        if (!frame.center || !frame.center->IsInWorld() || !frame.center->IsAlive() ||
++            !frame.center->InSamePhase(bot) || !Here(bot, bot, frame.center) ||
++            bot->GetExactDist2d(frame.center) > 240.0f)
++            return false;
++
++        frame.combat = script->GetBossState(DATA_CTHUN) == IN_PROGRESS;
++        Player* master = ai->GetMaster();
++        if (!frame.combat && (!frame.eye || !Here(bot, master, frame.center) ||
++            !master->IsAlive() || master->GetExactDist2d(frame.center) > 180.0f))
++            return false;
++
++        frame.minRadius = frame.combat ? frame.center->GetCombatReach() + bot->GetCombatReach() + 0.2f :
++            // Native aggro is 90y PLUS object sizes. Leave another 20y to isolate the puller.
++            110.0f + frame.center->GetCombatReach() + bot->GetCombatReach();
++        frame.target = frame.center;
++        if (frame.combat)
++        {
++            Unit* target = ai->GetAiObjectContext()->GetValue<Unit*>(
++                PlayerbotAI::IsHeal(bot) ? "party member to heal" : "current target")->Get();
++            if (target && target->IsAlive() && target->GetHealthPct() > 0.0f &&
++                target->IsInWorld() && target->GetMap() == bot->GetMap() &&
++                target->InSamePhase(bot) && target->GetExactDist2d(frame.center) < 160.0f &&
++                std::abs(target->GetPositionZ() - frame.center->GetPositionZ()) < FLOOR_TOLERANCE &&
++                (PlayerbotAI::IsHeal(bot) ? Here(bot, target->ToPlayer(), frame.center) :
++                                           bot->IsValidAttackTarget(target)))
++                frame.target = target;
++        }
++
++        std::vector<Player*> cohort;
++        for (GroupReference* ref = bot->GetGroup()->GetFirstMember(); ref; ref = ref->next())
++        {
++            Player* other = ref->GetSource();
++            if (!Here(bot, other, frame.center))
++                continue;
++            // Keep dead members' slots so one death does not rotate everyone else's preferred approach.
++            if (Melee(other) == Melee(bot))
++                cohort.push_back(other);
++            if (other == bot || !other->IsAlive())
++                continue;
++            Neighbor neighbor{other, *other, *other, false};
++            if (PlayerbotAI* otherAI = GET_PLAYERBOT_AI(other))
++            {
++                LastMovement const& last =
++                    otherAI->GetAiObjectContext()->GetValue<LastMovement&>("last movement")->Get();
++                if (!otherAI->IsRealPlayer() && other->isMoving() &&
++                    last.priority == MovementPriority::MOVEMENT_COMBAT &&
++                    getMSTimeDiff(last.msTime, getMSTime()) < 2500 &&
++                    other->GetExactDist(last.lastMoveShort.GetPositionX(), last.lastMoveShort.GetPositionY(),
++                                        last.lastMoveShort.GetPositionZ()) <= STEP + 0.1f)
++                {
++                    neighbor.destination = last.lastMoveShort;
++                    neighbor.reserved = true;
++                }
++            }
++            frame.neighbors.push_back(neighbor);
++        }
++        // A locally safe bot must still yield when it encloses a clumped pair. Otherwise the
++        // first few bots to spread form an impassable ring around the remaining group.
++        for (std::size_t i = 0; i < frame.neighbors.size(); ++i)
++            for (std::size_t j = i + 1; j < frame.neighbors.size(); ++j)
++            {
++                Neighbor const& a = frame.neighbors[i];
++                Neighbor const& b = frame.neighbors[j];
++                float const spacing = BEAM_JUMP + SPACING_BUFFER + a.player->GetCombatReach() +
++                    b.player->GetCombatReach();
++                if (a.position.GetExactDist2d(&b.position) < spacing - 0.2f)
++                {
++                    Position midpoint;
++                    midpoint.Relocate((a.position.GetPositionX() + b.position.GetPositionX()) / 2.0f,
++                                      (a.position.GetPositionY() + b.position.GetPositionY()) / 2.0f,
++                                      bot->GetPositionZ());
++                    frame.crowdedPairs.push_back(midpoint);
++                }
++            }
++        std::sort(cohort.begin(), cohort.end(), [](Player* a, Player* b) { return a->GetGUID() < b->GetGUID(); });
++        auto const slot = std::find(cohort.begin(), cohort.end(), bot) - cohort.begin();
++        float angle = 2.0f * PI * float(slot) / float(std::max<std::size_t>(1, cohort.size()));
++
++        if (!frame.combat)
++        {
++            frame.target = master;
++            // Follow the approach, but never the puller into aggro before the encounter starts.
++            angle = std::atan2(master->GetPositionY() - frame.center->GetPositionY(),
++                               master->GetPositionX() - frame.center->GetPositionX());
++            float const radius = std::max(frame.minRadius + 2.0f, master->GetExactDist2d(frame.center) + 20.0f);
++            frame.goal.Relocate(frame.center->GetPositionX() + radius * std::cos(angle),
++                                frame.center->GetPositionY() + radius * std::sin(angle), bot->GetPositionZ());
++            frame.range = 35.0f;
++        }
++        else
++        {
++            // The ordinary heal selector may discard out-of-range patients. Supply an approach
++            // target in that case without changing which spell/recipient the healing engine chooses.
++            if (PlayerbotAI::IsHeal(bot) && frame.target == frame.center)
++            {
++                float nearest = 100000.0f;
++                for (Neighbor const& n : frame.neighbors)
++                {
++                    float const distance = bot->GetExactDist2d(n.player);
++                    if (n.player->GetHealthPct() < 90.0f && distance < nearest)
++                    {
++                        frame.target = n.player;
++                        nearest = distance;
++                    }
++                }
++            }
++            float const reach = bot->GetCombatReach() + frame.target->GetCombatReach();
++            frame.range = Melee(bot) ? bot->GetMeleeRange(frame.target) - 0.3f :
++                std::min(38.0f, ai->GetRange(PlayerbotAI::IsHeal(bot) ? "heal" : "spell")) + reach - 2.0f;
++            float const radius = Melee(bot) ? frame.range : std::min(32.0f, frame.range - 1.0f);
++            frame.goal.Relocate(frame.target->GetPositionX() + radius * std::cos(angle),
++                                frame.target->GetPositionY() + radius * std::sin(angle), bot->GetPositionZ());
++        }
++        return true;
++    }
++
++    float RequiredDistance(Player* bot, Neighbor const& n)
++    {
++        return BEAM_JUMP + SPACING_BUFFER + bot->GetCombatReach() + n.player->GetCombatReach();
++    }
++
++    float Crowding(Frame const& frame, Player* bot, Position const& point)
++    {
++        float result = 0.0f;
++        for (Neighbor const& n : frame.neighbors)
++        {
++            float distance = point.GetExactDist2d(&n.position);
++            if (n.reserved)
++                distance = std::min(distance, point.GetExactDist2d(&n.destination));
++            float const deficit = std::max(0.0f, RequiredDistance(bot, n) - distance);
++            result += deficit * deficit;
++        }
++        return result;
++    }
++
++    float RangeDebt(Frame const& frame, Player* bot, PlayerbotAI* ai, Position const& point)
++    {
++        float debt = std::max(0.0f, point.GetExactDist2d(frame.target) - frame.range);
++        if (!frame.combat)
++            return debt;
++        if (!frame.target->IsWithinLOS(point.GetPositionX(), point.GetPositionY(), point.GetPositionZ()))
++            debt += 10.0f;
++        if (!PlayerbotAI::IsHeal(bot))
++        {
++            float coverage = 100000.0f;
++            bool hasHealer = false;
++            for (Neighbor const& n : frame.neighbors)
++            {
++                PlayerbotAI* healerAI = GET_PLAYERBOT_AI(n.player);
++                if (!PlayerbotAI::IsHeal(n.player) || n.player->IsCharmed() ||
++                    (healerAI && healerAI->HasStrategy("passive", BOT_STATE_COMBAT)))
++                    continue;
++                hasHealer = true;
++                float const range = std::min(healerAI ? healerAI->GetRange("heal") : 40.0f,
++                    sPlayerbotAIConfig.healDistance) + bot->GetCombatReach() + n.player->GetCombatReach() - 2.0f;
++                float deficit = std::max(0.0f, point.GetExactDist2d(&n.position) - range);
++                if (!n.player->IsWithinLOS(point.GetPositionX(), point.GetPositionY(), point.GetPositionZ()))
++                    deficit += 10.0f;
++                coverage = std::min(coverage, deficit);
++            }
++            if (hasHealer)
++                debt += coverage;
++        }
++        (void)ai;
++        return debt;
++    }
++
++    float YieldDebt(Frame const& frame, Position const& point)
++    {
++        float debt = 0.0f;
++        for (Position const& pair : frame.crowdedPairs)
++            debt = std::max(debt, 30.0f - point.GetExactDist2d(&pair));
++        return debt;
++    }
++
++    float Score(Frame const& frame, Player* bot, PlayerbotAI* ai, Position const& point)
++    {
++        float const glare = std::max(0.0f, -GlareClearance(frame.eye, point, bot->GetCombatReach()));
++        float const range = RangeDebt(frame, bot, ai, point);
++        float const inside = std::max(0.0f, frame.minRadius - point.GetExactDist2d(frame.center));
++        float const yield = YieldDebt(frame, point);
++        return glare * 100000.0f + Crowding(frame, bot, point) * 10.0f + yield * yield * 3.0f +
++            inside * 100.0f + range * 5.0f +
++            // A soft, deterministic approach breaks coincident-player symmetry. Once safe and in
++            // range, Needs() holds rather than forcing everyone to march to a rigid station.
++            point.GetExactDist2d(&frame.goal) * 0.1f;
++    }
++
++    bool Needs(Frame const& frame, Player* bot, PlayerbotAI* ai)
++    {
++        return Crowding(frame, bot, *bot) > 0.04f || YieldDebt(frame, *bot) > 0.5f ||
++            GlareClearance(frame.eye, *bot, bot->GetCombatReach()) < 0.0f ||
++            bot->GetExactDist2d(frame.center) + 0.1f < frame.minRadius || RangeDebt(frame, bot, ai, *bot) > 0.5f;
++    }
++
++    bool SafeEndpoint(Frame const& frame, Player* bot, Position const& point)
++    {
++        float const currentGlare = GlareClearance(frame.eye, *bot, bot->GetCombatReach());
++        if (GlareClearance(frame.eye, point, bot->GetCombatReach()) < std::min(0.0f, currentGlare) - 0.002f ||
++            point.GetExactDist2d(frame.center) < std::min(frame.minRadius, bot->GetExactDist2d(frame.center)) - 0.02f)
++            return false;
++        if (currentGlare < 0.0f)
++            return true;
++        if (Crowding(frame, bot, point) > Crowding(frame, bot, *bot) + 0.2f)
++            return false;
++        for (Neighbor const& n : frame.neighbors)
++        {
++            float const required = RequiredDistance(bot, n);
++            auto createsLink = [&](Position const& other)
++            {
++                return bot->GetExactDist2d(&other) >= required && point.GetExactDist2d(&other) < required - 0.02f;
++            };
++            if (createsLink(n.position) || (n.reserved && createsLink(n.destination)))
++                return false;
++        }
++        return true;
++    }
++
++    bool SafePath(Frame const& frame, Player* bot, Position const& destination)
++    {
++        if (bot->GetExactDist(destination.GetPositionX(), destination.GetPositionY(), destination.GetPositionZ()) >
++            STEP + 0.01f || std::abs(destination.GetPositionZ() - bot->GetPositionZ()) > 3.0f ||
++            !bot->IsWithinLOS(destination.GetPositionX(), destination.GetPositionY(), destination.GetPositionZ()))
++            return false;
++        PathGenerator path(bot);
++        if (!path.CalculatePath(destination.GetPositionX(), destination.GetPositionY(), destination.GetPositionZ()) ||
++            path.GetPathType() != PATHFIND_NORMAL || path.GetPath().size() < 2)
++            return false;
++        auto const& points = path.GetPath();
++        Position previous = *bot;
++        float length = 0.0f;
++        float previousGlare = GlareClearance(frame.eye, *bot, bot->GetCombatReach());
++        bool const escapingGlare = previousGlare < 0.0f;
++        float const initialCrowding = Crowding(frame, bot, *bot);
++        float previousRadius = bot->GetExactDist2d(frame.center);
++        for (auto const& node : points)
++        {
++            Position end;
++            end.Relocate(node.x, node.y, node.z);
++            float const segment = previous.GetExactDist(node.x, node.y, node.z);
++            length += segment;
++            if (length > 12.0f)
++                return false;
++            uint32 const samples = std::max(1u, uint32(std::ceil(segment / 0.75f)));
++            for (uint32 i = 1; i <= samples; ++i)
++            {
++                float const t = float(i) / float(samples);
++                Position p;
++                p.Relocate(previous.GetPositionX() + (node.x - previous.GetPositionX()) * t,
++                           previous.GetPositionY() + (node.y - previous.GetPositionY()) * t,
++                           previous.GetPositionZ() + (node.z - previous.GetPositionZ()) * t);
++                if (std::abs(p.GetPositionZ() - bot->GetPositionZ()) > 3.0f ||
++                    !bot->IsWithinLOS(p.GetPositionX(), p.GetPositionY(), p.GetPositionZ()))
++                    return false;
++                float const radius = p.GetExactDist2d(frame.center);
++                if (radius < std::min(frame.minRadius, previousRadius) - 0.02f)
++                    return false;
++                previousRadius = radius;
++                float const glare = GlareClearance(frame.eye, p, bot->GetCombatReach());
++                if (glare < std::min(0.0f, previousGlare) - 0.002f)
++                    return false;
++                previousGlare = glare;
++                // Red-sweep escape takes precedence if there is no simultaneously spaced route.
++                if (!escapingGlare)
++                {
++                    if (Crowding(frame, bot, p) > initialCrowding + 0.2f)
++                        return false;
++                    for (Neighbor const& n : frame.neighbors)
++                    {
++                        float const required = RequiredDistance(bot, n);
++                        auto createsLink = [&](Position const& other)
++                        {
++                            return bot->GetExactDist2d(&other) >= required &&
++                                p.GetExactDist2d(&other) < required - 0.02f;
++                        };
++                        if (createsLink(n.position) || (n.reserved && createsLink(n.destination)))
++                            return false;
++                    }
++                }
++            }
++            previous = end;
++        }
++        return previous.GetExactDist(destination.GetPositionX(), destination.GetPositionY(),
++                                     destination.GetPositionZ()) < 0.5f;
++    }
++}
++
++float GlareClearance(Creature const* eye, Position const& point, float reach)
++{
++    if (!eye || !eye->IsAlive() || eye->GetHealthPct() <= 0.0f || !eye->HasAura(RED_COLORATION))
++        return PI;
++    float const angle = std::atan2(point.GetPositionY() - eye->GetPositionY(),
++                                   point.GetPositionX() - eye->GetPositionX());
++    float const relative = std::abs(std::remainder(angle - eye->GetOrientation(), 2.0f * PI));
++    float const radius = std::max(0.1f, point.GetExactDist2d(eye));
++    // Native HasInLine is a 5y half-width forward beam. Cover ~four seconds of its 180/35
++    // degree/second rotation in EITHER direction, plus width/reach margin. No hidden AI-state oracle.
++    float const halfWidth = std::asin(std::min(1.0f, (7.0f + reach) / radius));
++    return relative - std::min(PI, halfWidth + 0.36f);
++}
++
++bool ControlsMovement(Player* bot, PlayerbotAI* ai)
++{
++    Frame frame;
++    return MakeFrame(bot, ai, frame);
++}
++
++std::string Describe(Player* bot, PlayerbotAI* ai)
++{
++    Frame frame;
++    if (!MakeFrame(bot, ai, frame))
++        return "Cthun positioning inactive (outside approach/fight, unavailable, passive, CC, stomach or completed).";
++    std::ostringstream out;
++    out << "Cthun " << (frame.combat ? "combat" : "pre-pull spacing")
++        << ": move needed=" << Needs(frame, bot, ai)
++        << ", red warning=" << (GlareClearance(frame.eye, *bot, bot->GetCombatReach()) < 0.0f);
++    Neighbor const* nearest = nullptr;
++    for (Neighbor const& neighbor : frame.neighbors)
++        if (!nearest || bot->GetExactDist2d(&neighbor.position) < bot->GetExactDist2d(&nearest->position))
++            nearest = &neighbor;
++    if (nearest)
++        out << ", nearest=" << nearest->player->GetName() << ' ' << bot->GetExactDist2d(&nearest->position)
++            << "y centers, wanted=" << RequiredDistance(bot, *nearest) << "y";
++    return out.str();
++}
++
++bool NeedsMovement(Player* bot, PlayerbotAI* ai)
++{
++    Frame frame;
++    return MakeFrame(bot, ai, frame) && Needs(frame, bot, ai);
++}
++
++bool FindPosition(Player* bot, PlayerbotAI* ai, Position& spot, Position const* previous)
++{
++    Frame frame;
++    if (!MakeFrame(bot, ai, frame) || !Needs(frame, bot, ai))
++        return false;
++    float const current = Score(frame, bot, ai, *bot);
++    if (previous && bot->GetExactDist2d(previous) > 1.0f &&
++        Score(frame, bot, ai, *previous) < current - 0.1f && SafePath(frame, bot, *previous))
++    {
++        spot = *previous;
++        return true;
++    }
++
++    struct Candidate { Position position; float score; };
++    std::vector<Candidate> candidates;
++    float const goalAngle = std::atan2(frame.goal.GetPositionY() - bot->GetPositionY(),
++                                      frame.goal.GetPositionX() - bot->GetPositionX());
++    auto add = [&](float x, float y)
++    {
++        Position p;
++        float z = bot->GetPositionZ();
++        bot->UpdateAllowedPositionZ(x, y, z);
++        p.Relocate(x, y, z);
++        float const score = Score(frame, bot, ai, p);
++        // Cheap endpoint rejection must precede the bounded native path budget. Otherwise eight
++        // tempting but occupied endpoints can hide the first usable side-step.
++        if (score < current - 0.1f && SafeEndpoint(frame, bot, p))
++            candidates.push_back({p, score});
++    };
++    for (float step : {STEP, STEP / 2.0f})
++    {
++        for (uint32 i = 0; i < 24; ++i)
++        {
++            float const angle = goalAngle + float(i) * PI / 12.0f;
++            add(bot->GetPositionX() + step * std::cos(angle), bot->GetPositionY() + step * std::sin(angle));
++        }
++        float const radius = bot->GetExactDist2d(frame.center);
++        if (radius > 1.0f)
++        {
++            float const angle = std::atan2(bot->GetPositionY() - frame.center->GetPositionY(),
++                                           bot->GetPositionX() - frame.center->GetPositionX());
++            for (float sign : {-1.0f, 1.0f})
++                add(frame.center->GetPositionX() + radius * std::cos(angle + sign * step / radius),
++                    frame.center->GetPositionY() + radius * std::sin(angle + sign * step / radius));
++        }
++    }
++    std::stable_sort(candidates.begin(), candidates.end(), [](Candidate const& a, Candidate const& b)
++    {
++        return a.score < b.score;
++    });
++    uint32 attempts = previous ? 1 : 0;
++    for (Candidate const& candidate : candidates)
++    {
++        if (++attempts > 8)
++            break;
++        if (SafePath(frame, bot, candidate.position))
++        {
++            spot = candidate.position;
++            return true;
++        }
++    }
++    return false;
++}
++}
++
++bool Aq40CthunPositionAction::isUseful()
++{
++    LastMovement const& last = AI_VALUE(LastMovement&, "last movement");
++    return !(last.priority > MovementPriority::MOVEMENT_COMBAT &&
++             IsWaitingForLastMove(MovementPriority::MOVEMENT_COMBAT)) &&
++        CthunPositioning::ControlsMovement(bot, botAI) &&
++        (bot->isMoving() || CthunPositioning::NeedsMovement(bot, botAI));
++}
++
++bool Aq40CthunPositionAction::Execute(Event /*event*/)
++{
++    if (!isUseful())
++        return false;
++    LastMovement& last = AI_VALUE(LastMovement&, "last movement");
++    Position spot;
++    bool const owned = _ownsMove && last.priority == MovementPriority::MOVEMENT_COMBAT &&
++        last.lastMoveShort.GetExactDist(_destination.GetPositionX(), _destination.GetPositionY(),
++                                       _destination.GetPositionZ()) < 0.1f;
++    if (!CthunPositioning::FindPosition(bot, botAI, spot, owned ? &_destination : nullptr))
++    {
++        // Do not carry an obsolete chase/waypoint into a newly unsafe gap just because no safe
++        // replacement path exists. Manual leases and CC were checked before touching movement.
++        if (bot->isMoving())
++        {
++            bot->StopMovingOnCurrentPos();
++            last.clear();
++        }
++        _ownsMove = false;
++        return false;
++    }
++    if (owned && bot->isMoving() && spot.GetExactDist(_destination.GetPositionX(), _destination.GetPositionY(),
++                                                    _destination.GetPositionZ()) < 0.1f)
++        return false;
++    if (bot->IsNonMeleeSpellCast(true))
++        bot->InterruptNonMeleeSpells(false);
++    bot->StopMovingOnCurrentPos();
++    last.clear();
++    bot->SetWalk(false);
++    bool const moved = MoveTo(bot->GetMapId(), spot.GetPositionX(), spot.GetPositionY(), spot.GetPositionZ(),
++                              false, false, true, true, MovementPriority::MOVEMENT_COMBAT, true);
++    _ownsMove = moved;
++    _destination = spot;
++    return moved;
++}
++
++bool Aq40CthunStatusAction::Execute(Event /*event*/)
++{
++    botAI->TellMaster(CthunPositioning::Describe(bot, botAI));
++    return true;
++}
++
++float CthunMovementMultiplier::GetValue(Action* action)
++{
++    if (!action)
++        return 1.0f;
++    std::string const& name = action->getName();
++    if (name == "aq40 cthun position" || name.find("chat shortcut") != std::string::npos)
++        return 1.0f;
++    // Never blanket-veto MovementAction: attacks and melee also derive from it. Healing,
++    // dispels, interrupts, target choice, ordinary damage and explicit orders remain available.
++    // Automatic movement spells bypass the checked route just like a chase would. Explicit
++    // custom casts/orders are not these class-strategy actions and remain under player control.
++    bool const movementSpell = name == "charge" || name.find("intercept") == 0 || name == "intervene" ||
++        name == "blink" || name == "blink back" || name == "disengage" || name == "shadowstep" ||
++        name == "feral charge - cat" || name == "feral charge - bear";
++    bool const mover = movementSpell || dynamic_cast<FollowAction*>(action) ||
++        dynamic_cast<CombatFormationMoveAction*>(action) ||
++        dynamic_cast<RearFlankAction*>(action) || dynamic_cast<ReachTargetAction*>(action) ||
++        dynamic_cast<FleeAction*>(action) || dynamic_cast<FleeWithPetAction*>(action) ||
++        dynamic_cast<FleeToGroupLeaderAction*>(action) || dynamic_cast<RunAwayAction*>(action) ||
++        dynamic_cast<MoveOutOfEnemyContactAction*>(action) || name == "move from group";
++    return mover && CthunPositioning::ControlsMovement(bot, botAI) ? 0.0f : 1.0f;
++}
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Cthun.h b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Cthun.h
+new file mode 100644
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Cthun.h
+@@ -0,0 +1,59 @@
++/*
++ * This file is part of the mod-playerbots module for AzerothCore.
++ * Released under GNU GPL v2 license.
++ */
++
++#ifndef PLAYERBOTS_AQ40CTHUN_H
++#define PLAYERBOTS_AQ40CTHUN_H
++
++#include "MovementActions.h"
++#include "Multiplier.h"
++#include "Position.h"
++
++class Creature;
++
++namespace CthunPositioning
++{
++// Native spell jump distance plus both players' combat reach and a two-yard buffer.
++constexpr float BEAM_JUMP = 10.0f;
++constexpr float SPACING_BUFFER = 2.0f;
++constexpr float STEP = 6.0f;
++constexpr uint32 DATA_CTHUN = 9;
++constexpr uint32 DATA_EYE = 18;
++constexpr uint32 RED_COLORATION = 22518;
++constexpr uint32 DIGESTIVE_ACID = 26476;
++
++bool ControlsMovement(Player* bot, PlayerbotAI* ai);
++bool NeedsMovement(Player* bot, PlayerbotAI* ai);
++bool FindPosition(Player* bot, PlayerbotAI* ai, Position& spot, Position const* previous = nullptr);
++float GlareClearance(Creature const* eye, Position const& point, float reach);
++std::string Describe(Player* bot, PlayerbotAI* ai);
++}
++
++class Aq40CthunPositionAction : public MovementAction
++{
++public:
++    Aq40CthunPositionAction(PlayerbotAI* ai) : MovementAction(ai, "aq40 cthun position") { }
++    bool isUseful() override;
++    bool Execute(Event event) override;
++
++private:
++    Position _destination;
++    bool _ownsMove = false;
++};
++
++class Aq40CthunStatusAction : public Action
++{
++public:
++    Aq40CthunStatusAction(PlayerbotAI* ai) : Action(ai, "aq40 cthun status") { }
++    bool Execute(Event event) override;
++};
++
++class CthunMovementMultiplier : public Multiplier
++{
++public:
++    CthunMovementMultiplier(PlayerbotAI* ai) : Multiplier(ai, "cthun positioning") { }
++    float GetValue(Action* action) override;
++};
++
++#endif
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Strategy.cpp b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Strategy.cpp
+--- a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Strategy.cpp
++++ b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Strategy.cpp
+@@ -6,6 +6,7 @@
+ 
+ #include "Aq40Strategy.h"
+ 
++#include "Aq40Cthun.h"
+ #include "Aq40Helpers.h"
+ #include "Aq40Multipliers.h"
+ #include "Playerbots.h"
+@@ -14,7 +15,8 @@
+ // always-active action starves anything ranked under it. ACTION_RAID is 60, ACTION_EMERGENCY 90.
+ std::vector<NextAction> RaidAq40Strategy::getDefaultActions()
+ {
+-    return {NextAction("aq40 twins clear arcane", ACTION_EMERGENCY + 2),
++    return {NextAction("aq40 cthun position", ACTION_EMERGENCY + 8),
++            NextAction("aq40 twins clear arcane", ACTION_EMERGENCY + 2),
+             NextAction("aq40 twins caster tank", 26.0f)};
+ }
+ 
+@@ -74,6 +76,7 @@
+ {
+     // BOTH ship in the first cut. Shipping the target-hold veto later cost the previous attempt
+     // four revisions.
++    multipliers.push_back(new CthunMovementMultiplier(botAI));
+     multipliers.push_back(new TwinEmperorsMovementMultiplier(botAI));
+     multipliers.push_back(new TwinEmperorsTargetHoldMultiplier(botAI));
+ }

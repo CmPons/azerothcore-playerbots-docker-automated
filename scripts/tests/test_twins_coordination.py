@@ -10,6 +10,7 @@ MODULE = ROOT / "azerothcore-wotlk/modules/mod-playerbots"
 PATCH = ROOT / "patches/0026-playerbot-twins-coordination.patch"
 STATION_PATCH = ROOT / "patches/0028-playerbot-twins-station-healers.patch"
 VICTIM_PATCH = ROOT / "patches/0029-playerbot-twins-caster-victim-coverage.patch"
+CTHUN_PATCH = ROOT / "patches/0031-playerbot-cthun-positioning.patch"
 AQ = MODULE / "src/Ai/Raid/Aq40"
 
 
@@ -44,12 +45,13 @@ class TwinsCoordinationTests(unittest.TestCase):
                 (temp / f"{name}.h").write_text(f'#include "{fixture}"\n')
             baseline = temp / "baseline"
             baseline.mkdir()
-            names = [line.split(" b/", 1)[1] for line in PATCH.read_text().splitlines()
-                     if line.startswith("diff --git ")]
+            names = sorted({line.split(" b/", 1)[1] for patch in (PATCH, CTHUN_PATCH)
+                            for line in patch.read_text().splitlines() if line.startswith("diff --git ")})
             for name in names:
                 p = baseline / name
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_bytes((ROOT / "azerothcore-wotlk" / name).read_bytes())
+            run(["git", "apply", "--reverse", str(CTHUN_PATCH)], cwd=baseline)
             run(["git", "apply", "--reverse", str(VICTIM_PATCH)], cwd=baseline)
             run(["git", "apply", "--reverse", str(STATION_PATCH)], cwd=baseline)
             previous = (baseline / "modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Coordination.cpp").read_text()
@@ -92,8 +94,8 @@ class TwinsCoordinationTests(unittest.TestCase):
             self.assertIn("Twins production coordination regressions passed", run([str(binary)]))
 
     def test_patch_round_trip_and_scope(self):
-        names = [line.split(" b/", 1)[1] for line in PATCH.read_text().splitlines()
-                 if line.startswith("diff --git ")]
+        names = sorted({line.split(" b/", 1)[1] for patch in (PATCH, CTHUN_PATCH)
+                        for line in patch.read_text().splitlines() if line.startswith("diff --git ")})
         self.assertTrue(names)
         self.assertTrue(all(name.startswith("modules/mod-playerbots/src/") for name in names))
         self.assertFalse(any("conf" in name or "sql" in name for name in names))
@@ -103,6 +105,7 @@ class TwinsCoordinationTests(unittest.TestCase):
                 p = temp / name
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_bytes((ROOT / "azerothcore-wotlk" / name).read_bytes())
+            run(["git", "apply", "--reverse", str(CTHUN_PATCH)], cwd=temp)
             run(["git", "apply", "--reverse", "--check", str(VICTIM_PATCH)], cwd=temp)
             run(["git", "apply", "--reverse", str(VICTIM_PATCH)], cwd=temp)
             run(["git", "apply", "--reverse", "--check", str(STATION_PATCH)], cwd=temp)
@@ -120,6 +123,7 @@ class TwinsCoordinationTests(unittest.TestCase):
             run(["git", "apply", str(STATION_PATCH)], cwd=temp)
             run(["git", "apply", "--check", str(VICTIM_PATCH)], cwd=temp)
             run(["git", "apply", str(VICTIM_PATCH)], cwd=temp)
+            run(["git", "apply", str(CTHUN_PATCH)], cwd=temp)
             for name in names:
                 self.assertEqual((temp / name).read_bytes(), (ROOT / "azerothcore-wotlk" / name).read_bytes())
 
