@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from test_cthun_positioning import lua_layer
 
 ROOT = Path(__file__).resolve().parents[2]
 MODULE = ROOT / "azerothcore-wotlk/modules/mod-playerbots"
@@ -51,6 +52,7 @@ class TwinsCoordinationTests(unittest.TestCase):
                 p = baseline / name
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_bytes((ROOT / "azerothcore-wotlk" / name).read_bytes())
+            lua_layer(baseline, names, reverse=True)
             run(["git", "apply", "--reverse", str(CTHUN_PATCH)], cwd=baseline)
             run(["git", "apply", "--reverse", str(VICTIM_PATCH)], cwd=baseline)
             run(["git", "apply", "--reverse", str(STATION_PATCH)], cwd=baseline)
@@ -105,6 +107,7 @@ class TwinsCoordinationTests(unittest.TestCase):
                 p = temp / name
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_bytes((ROOT / "azerothcore-wotlk" / name).read_bytes())
+            lua_layer(temp, names, reverse=True)
             run(["git", "apply", "--reverse", str(CTHUN_PATCH)], cwd=temp)
             run(["git", "apply", "--reverse", "--check", str(VICTIM_PATCH)], cwd=temp)
             run(["git", "apply", "--reverse", str(VICTIM_PATCH)], cwd=temp)
@@ -124,6 +127,7 @@ class TwinsCoordinationTests(unittest.TestCase):
             run(["git", "apply", "--check", str(VICTIM_PATCH)], cwd=temp)
             run(["git", "apply", str(VICTIM_PATCH)], cwd=temp)
             run(["git", "apply", str(CTHUN_PATCH)], cwd=temp)
+            lua_layer(temp, names)
             for name in names:
                 self.assertEqual((temp / name).read_bytes(), (ROOT / "azerothcore-wotlk" / name).read_bytes())
 
@@ -138,7 +142,9 @@ class TwinsCoordinationTests(unittest.TestCase):
         patches = [p for p in sorted((ROOT / "patches").glob("*.patch"))
                    if not p.name.startswith("0021-")]
         prefix = "modules/mod-playerbots/"
-        names = {line.split(" b/", 1)[1] for p in patches for line in p.read_text().splitlines()
+        # Only Twins-owned paths:0033 also includes Playerbots.cpp whose unrelated0021 ancestry
+        # cannot be replayed when0021 is intentionally omitted. Full pinned replay remains broken.
+        names = {line.split(" b/", 1)[1] for line in PATCH.read_text().splitlines()
                  if line.startswith("diff --git a/" + prefix)}
         with tempfile.TemporaryDirectory() as directory:
             temp = Path(directory)
@@ -151,7 +157,7 @@ class TwinsCoordinationTests(unittest.TestCase):
                     p.write_bytes(blob.stdout)
             for p in patches:
                 if any(line.startswith("diff --git a/" + prefix) for line in p.read_text().splitlines()):
-                    run(["git", "apply", "--include=" + prefix + "*", str(p)], cwd=temp)
+                    run(["git", "apply", *("--include=" + name for name in sorted(names)), str(p)], cwd=temp)
             owned = [line.split(" b/", 1)[1] for line in PATCH.read_text().splitlines()
                      if line.startswith("diff --git ")]
             for name in owned:

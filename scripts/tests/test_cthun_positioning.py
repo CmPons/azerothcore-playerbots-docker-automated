@@ -18,18 +18,40 @@ def run(args, cwd=None):
     return result.stdout
 
 
+def lua_layer(directory, names, reverse=False):
+    """Replay only copied paths through the newer incremental layer, never reset actual sources."""
+    patch = ROOT / "patches/0033-playerbot-cthun-lua-policy.patch"
+    changed = {line.split(" b/", 1)[1] for line in patch.read_text().splitlines()
+               if line.startswith("diff --git ")}
+    selected = sorted(changed.intersection(names))
+    if selected:
+        run(["git", "apply", *(["--reverse"] if reverse else []),
+             *("--include=" + name for name in selected), str(patch)], cwd=directory)
+
+
 class CthunPositioningTests(unittest.TestCase):
-    def test_production_planner_actions_and_multiplier(self):
+    def test_0031_historical_planner_invariants(self):
+        # Intentional0033 changes supersede0031 exterior/pre-pull/cast-stop behavior.
+        # Keep its historical invariant suite intact; current behavior has real-Lua integration tests.
         with tempfile.TemporaryDirectory() as directory:
             temp = Path(directory)
             fixture = ROOT / "scripts/tests/fixtures/twins/Framework.h"
             for name in "MovementActions Multiplier Position Creature FollowActions GenericActions Group InstanceScript PathGenerator Playerbots ReachTargetActions".split():
                 (temp / f"{name}.h").write_text(f'#include "{fixture}"\n')
+            baseline = temp / "baseline"
+            names = ["modules/mod-playerbots/src/Ai/Raid/Aq40/" + name
+                     for name in ("Aq40Cthun.h", "Aq40Cthun.cpp")]
+            for name in names:
+                p = baseline / name
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_bytes((CORE / name).read_bytes())
+            lua_layer(baseline, names, reverse=True)
+            historical = baseline / "modules/mod-playerbots/src/Ai/Raid/Aq40"
             binary = temp / "test"
             run([os.environ.get("CXX", "g++"), "-std=c++20", "-Wall", "-Wextra", "-Werror",
                  "-D_GLIBCXX_ASSERTIONS", "-fsanitize=undefined", "-fno-sanitize-recover=all",
-                 f"-I{temp}", f"-I{AQ}", str(ROOT / "scripts/tests/cpp/CthunPositioningTest.cpp"),
-                 str(AQ / "Aq40Cthun.cpp"), "-o", str(binary)])
+                 f"-I{temp}", f"-I{historical}", str(ROOT / "scripts/tests/cpp/CthunPositioningTest.cpp"),
+                 str(historical / "Aq40Cthun.cpp"), "-o", str(binary)])
             self.assertIn("Cthun production positioning regressions passed", run([str(binary)]))
 
     def test_incremental_patch_roundtrip(self):
@@ -43,9 +65,11 @@ class CthunPositioningTests(unittest.TestCase):
                 p = temp / name
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_bytes((CORE / name).read_bytes())
+            lua_layer(temp, names, reverse=True)
             run(["git", "apply", "--reverse", str(PATCH)], cwd=temp)
             self.assertNotIn("cthun", (temp / names[-1]).read_text().lower())
             run(["git", "apply", str(PATCH)], cwd=temp)
+            lua_layer(temp, names)
             for name in names:
                 self.assertEqual((temp / name).read_bytes(), (CORE / name).read_bytes())
 
@@ -68,8 +92,9 @@ class CthunPositioningTests(unittest.TestCase):
         self.assertIn("IsWithinDist2d(who, 90.0f)", boss)
         self.assertIn("path.GetPathType() != PATHFIND_NORMAL", code)
         self.assertIn("attempts > 8", code)
-        self.assertIn("IsWaitingForLastMove", code)
-        self.assertIn("false, false, true, true, MovementPriority::MOVEMENT_COMBAT, true", code)
+        self.assertIn("getMSTimeDiff(last.msTime, getMSTime()) < last.lastdelayTime", code)
+        self.assertIn("MoveCheckedCthunPath(path, generation)", code)
+        self.assertNotIn("false, false, true, true, MovementPriority::MOVEMENT_COMBAT, true", code)
         jump = (CORE / "src/server/game/Spells/Spell.cpp").read_text()
         self.assertIn("chainSource->IsWithinDist(*itr, jumpRadius)", jump)
         reach = (CORE / "src/server/game/Entities/Object/Object.cpp").read_text()

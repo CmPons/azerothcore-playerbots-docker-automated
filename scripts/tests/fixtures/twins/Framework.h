@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <list>
 #include <map>
 #include <memory>
@@ -15,12 +16,16 @@
 #include <unordered_map>
 #include <vector>
 using uint8 = uint8_t;
+using uint64 = uint64_t;
+#include "../../../../azerothcore-wotlk/src/common/Utilities/DataMap.h"
+namespace Movement {struct Point {float x,y,z;}; using PointsArray=std::vector<Point>;}
+constexpr int FOLLOW_MOTION_TYPE=3, CHASE_MOTION_TYPE=4, UNIT_STAND_STATE_STAND=0;
 using uint32 = uint32_t;
 using int32 = int32_t;
 constexpr int CLASS_WARRIOR=1, CLASS_PALADIN=2, CLASS_HUNTER=3, CLASS_ROGUE=4, CLASS_PRIEST=5,
     CLASS_DEATH_KNIGHT=6, CLASS_SHAMAN=7, CLASS_MAGE=8, CLASS_WARLOCK=9, CLASS_DRUID=11;
 constexpr int IN_PROGRESS=1, DONE=3, BOT_STATE_NON_COMBAT=0, BOT_STATE_COMBAT=1, UNIT_STATE_MELEE_ATTACKING=1, UNIT_STATE_FOLLOW=2,
-    UNIT_STATE_ROOT=4, CURRENT_AUTOREPEAT_SPELL=0, REACT_PASSIVE=0, REACT_DEFENSIVE=1, CREATURE_FLAG_EXTRA_NO_TAUNT=1,
+    UNIT_STATE_ROOT=4, UNIT_STATE_FLEEING=8, CURRENT_AUTOREPEAT_SPELL=0, REACT_PASSIVE=0, REACT_DEFENSIVE=1, CREATURE_FLAG_EXTRA_NO_TAUNT=1,
     FLEEING_MOTION_TYPE=1, TIMED_FLEEING_MOTION_TYPE=2;
 template<class... T> void TestLog(T const&...) {}
 #define LOG_DEBUG(...) TestLog(__VA_ARGS__)
@@ -33,6 +38,7 @@ struct ObjectGuid
     bool operator==(ObjectGuid b) const {return id==b.id;}
     explicit operator bool() const {return id!=0;}
     bool IsPlayer() const {return id<10000;}
+    std::string ToString() const{return std::to_string(id);}
 };
 namespace std {template<> struct hash<ObjectGuid> {size_t operator()(ObjectGuid a) const{return a.id;}};}
 using GuidVector=std::vector<ObjectGuid>;
@@ -68,19 +74,33 @@ struct Map
 {
     uint32 id=531,instance=1;
     InstanceScript script;
+    DataMap CustomData;
     std::vector<Creature*> bugs;
     int searches=0, pathType=1, pathCalls=0;
     std::vector<Position> pathDetour;
+    std::function<bool(float,float,float)> pathCheck;
     bool fixedHeight=false;
     float groundZ=0;
     uint32 GetInstanceId(){return instance;}
+    Map* ToInstanceMap(){return this;} InstanceScript* GetInstanceScript(){return &script;}
 };
 struct SpellInfo {uint32 Id=0;};
 struct Spell
 {
     struct Targets {Unit* unit=nullptr;Unit* GetUnitTarget() const{return unit;}} m_targets;
 };
-struct MotionMaster {int type=0;int GetCurrentMovementGeneratorType(){return type;}};
+struct MotionMaster {int type=0,clears=0;bool controlledFear=false;uint32* states=nullptr;
+    int GetCurrentMovementGeneratorType(){return type;}
+    void Clear(){++clears;if(controlledFear && states)*states&=~UNIT_STATE_FLEEING;controlledFear=false;type=0;}
+    void MoveIdle(){type=0;}};
+struct TestSpline {
+    uint32 id=1; bool done=true; Movement::PointsArray points; Movement::Point position{};
+    uint32 GetId()const{return id;} bool Finalized()const{return done;}
+    TestSpline const& _Spline()const{return *this;} int32 _currentSplineIdx()const{return 0;}
+    int32 first()const{return 0;} int32 last()const{return int32(points.size())-1;}
+    Movement::Point const& getPoint(int32 i)const{return points.at(i);}
+    Movement::Point ComputePosition()const{return position;}
+};
 class Unit : public Position
 {
 public:
@@ -92,6 +112,10 @@ public:
     uint32 phase=1,flags=0;
     float hp=100, reach=1.5f, orientation=0;
     bool walking=false;
+    TestSpline spline; TestSpline* movespline=&spline;
+    void* GetTransport(){return nullptr;} void* GetVehicle(){return nullptr;}
+    bool IsFlying(){return false;} bool isSwimming(){return false;}
+    bool IsSitState(){return false;} void SetStandState(int){}
     float GetCombatReach() const{return reach;}
     float GetOrientation() const{return orientation;}
     void SetWalk(bool walk){walking=walk;}
@@ -126,7 +150,9 @@ public:
     virtual Player* ToPlayer(){return nullptr;}
     virtual Creature* ToCreature(){return nullptr;}
     void AttackStop(){victim=nullptr;flags&=~UNIT_STATE_MELEE_ATTACKING;++attackStops;}
-    void StopMovingOnCurrentPos(){moving=false;++moveStops;}
+    // Unit::StopMoving returns before spline initialization when already finalized.
+    void StopMoving(){moving=false;if(!inWorld || spline.done)return;++moveStops;++spline.id;spline.done=true;}
+    void StopMovingOnCurrentPos(){moving=false;++moveStops;++spline.id;spline.done=true;}
     bool HasUnitState(uint32 flag) const{return flags&flag;}
     void ClearUnitState(uint32 flag){flags&=~flag;}
     void SetTarget(ObjectGuid){}
@@ -218,9 +244,12 @@ enum class MovementPriority {MOVEMENT_NORMAL=0,MOVEMENT_COMBAT=20,MOVEMENT_FORCE
 struct LastMovement
 {
     Position lastMoveShort;
+    uint64 cthunOwner=0;uint32 cthunSpline=0,cthunAutomatic=0,cthunManual=0;
+    void Set(uint32,float x,float y,float z,float,float delay,MovementPriority pri)
+    {clear();lastMoveShort.Relocate(x,y,z);lastdelayTime=uint32(delay);msTime=getMSTime();priority=pri;}
     MovementPriority priority=MovementPriority::MOVEMENT_NORMAL;
     uint32 msTime=0,lastdelayTime=0;
-    void clear(){lastMoveShort={};priority=MovementPriority::MOVEMENT_NORMAL;msTime=lastdelayTime=0;}
+    void clear(){cthunOwner=cthunSpline=cthunAutomatic=cthunManual=0;lastMoveShort={};priority=MovementPriority::MOVEMENT_NORMAL;msTime=lastdelayTime=0;}
 };
 struct AnyValue {virtual ~AnyValue()=default;};
 template<class T> struct TestValue : AnyValue
@@ -241,12 +270,13 @@ public:
     Player* bot;
     Player* master=nullptr;
     AiObjectContext ctx;
-    bool real=false,canMove=true,castAllowed=true,focus=false,pathAllowed=true,passive=false;
+    bool real=false,canMove=true,castAllowed=true,focus=false,pathAllowed=true,passive=false,stay=false,combatFollow=false;
     float healRange=38.5f,spellRange=25.0f;
     bool exactWaypoint=false;
     std::set<std::string> known={"shadow ward","searing pain","frostbolt","smite"},buffs;
     std::vector<std::string> casts,messages;
     std::vector<Position> moves;
+    Movement::PointsArray executedPath;
     explicit PlayerbotAI(Player* p):bot(p){p->ai=this;ctx.GetValue<bool>("group")->Set(true);}
     Player* GetBot(){return bot;}
     Player* GetMaster(){return master;}
@@ -256,8 +286,9 @@ public:
     static bool IsHeal(Player* p,bool=false){return p && p->healer;}
     static bool IsMelee(Player* p){return p && p->melee;}
     float GetRange(std::string const& type) const{return type=="spell"?spellRange:healRange;}
-    bool HasStrategy(std::string const& name,int)
-    {return (focus && name=="focus heal targets") || (passive && name=="passive");}
+    bool HasStrategy(std::string const& name,int state)
+    {return (focus && name=="focus heal targets") || (passive && name=="passive") || (stay && name=="stay") ||
+        (combatFollow && state==BOT_STATE_COMBAT && name=="follow");}
     bool CanMove() const{return canMove && !(bot->flags & UNIT_STATE_ROOT);}
     bool HasAura(std::string const& n,Unit*){return buffs.contains(n);}
     bool CanCastSpell(std::string const& n,Unit* t){return castAllowed && known.contains(n) && t && bot->GetDistance2d(t)<=34;}
@@ -269,7 +300,7 @@ constexpr int PATHFIND_NORMAL=1, PATHFIND_SHORTCUT=2;
 class PathGenerator
 {
 public:
-    struct Point {float x,y,z;};
+    using Point=Movement::Point;
     Player* owner;
     std::vector<Point> points;
     explicit PathGenerator(Player* p):owner(p) {}
@@ -277,6 +308,7 @@ public:
     {
         ++owner->map->pathCalls;
         if(!owner->ai->pathAllowed)return false;
+        if(owner->map->pathCheck && !owner->map->pathCheck(x,y,z))return false;
         points={{owner->x,owner->y,owner->z}};
         for(auto const& p:owner->map->pathDetour)points.push_back({p.x,p.y,p.z});
         points.push_back({x,y,z});return true;
@@ -286,11 +318,23 @@ public:
 };
 #define AI_VALUE(type,name) (context->GetValue<type>(name)->Get())
 #define AI_VALUE2(type,name,q) (context->GetValue<type>(name,q)->Get())
+namespace Movement {
+struct MoveSplineInit {
+    Player* bot; PointsArray points;
+    explicit MoveSplineInit(Player* p):bot(p){}
+    void MovebyPath(PointsArray const& p){points=p;}
+    void SetWalk(bool){}
+    int32 Launch(){bot->ai->executedPath=points;bot->ai->exactWaypoint=true;
+        bot->spline.points=points;bot->spline.position={bot->x,bot->y,bot->z};
+        bot->ai->moves.push_back(Position{points.back().x,points.back().y,points.back().z});
+        bot->moving=true;++bot->spline.id;bot->spline.done=false;return 700;}
+};}
 struct Event {};
 class Action
 {
 public:
     enum class ActionThreatType{None,Single,Aoe};
+    bool verbose=false;
     PlayerbotAI* botAI;Player* bot;AiObjectContext* context;std::string name;
     Action(PlayerbotAI* a,std::string n="action"):botAI(a),bot(a->bot),context(&a->ctx),name(n){}
     virtual ~Action()=default;
@@ -305,6 +349,9 @@ class MovementAction : public Action
 public:
     using Action::Action;
 protected:
+    bool MoveCheckedCthunPath(Movement::PointsArray const& path,uint64 owner);
+    void RecordCthunFollow();
+    bool IsMovingAllowed(){return botAI->CanMove();}
     bool IsWaitingForLastMove(MovementPriority priority)
     {
         auto& last=AI_VALUE(LastMovement&,"last movement");
@@ -373,7 +420,8 @@ inline auto* sConfigMgr=&config;
 struct TestSpellMgr {SpellInfo const* GetSpellInfo(uint32){return nullptr;}};
 inline TestSpellMgr spellMgr;
 inline auto* sSpellMgr=&spellMgr;
-struct TestAiConfig {float healDistance=38.5f,mediumHealth=50;};
+struct TestAiConfig {float maxWaitForMove=5000;
+    float healDistance=38.5f,mediumHealth=50;};
 inline TestAiConfig sPlayerbotAIConfig;
 struct MinValueCalculator
 {
