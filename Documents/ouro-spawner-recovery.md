@@ -14,6 +14,24 @@ Canonical patch: `patches/0030-core-aq40-ouro-spawner-recovery.patch`.
 Sole production file: `src/server/scripts/Kalimdor/TempleOfAhnQiraj/instance_temple_of_ahnqiraj.cpp`.
 `boss_ouro.cpp` remains byte-identical to the pre-edit source.
 
+## Built, not deployed
+
+The full native build passed all **1,888 Ninja steps**. Prepared image:
+`acore/ac-wotlk-worldserver:ouro-recovery-20260913`,
+`sha256:40d9753004571fba301b51c1e46070c469a2577402493cdfb1c91e25869acb71`.
+Its worldserver SHA256 is `1100329cd23ee00ec1e49dafbb1e6cbcc64541fc387cfde78f60421aac494ac0`.
+Inspection from a never-started container confirmed the new recovery callback/lifecycle handlers,
+retained features and disabled database updater. No second worldserver was started.
+
+The running worldserver's ID, PID, image, start time and restart count were identical before/after
+building. The live `:master` tag remains the Twins-learning image `0f1b3651…`; auth, database and Pi
+identities, configs/env/Compose/root flakes are unchanged. **No deployment or live Ouro recovery.**
+
+Build backup: `backups/ouro-recovery-build-20260913-124752/`, with full source/config/image archives,
+a verified live four-database dump, manifests, test/build logs and `BUILD-SHA256SUMS`.
+Exactly one production source file differs from the live image. This live database backup must not
+be restored over the user's continuing C'Thun attempts; capture fresh state before any later deployment.
+
 ## Cause
 
 The spawner despawns itself in `npc_ouro_spawner::JustSummoned` after creating Ouro. Its default
