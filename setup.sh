@@ -225,6 +225,9 @@ services:
       - "${DOCKER_WORLD_EXTERNAL_PORT:-8085}:8085"
     volumes:
       - ./modules:/azerothcore/modules:ro
+      # Prepare restricted host ownership/ACLs per Documents/playerbot-lua-policies.md.
+      - ../runtime/playerbot-policies:/opt/playerbot-policies:ro
+      - ../runtime/playerbot-policy-status:/opt/playerbot-policy-status:rw
   ac-db-import:
     environment:
       TZ: "${SERVER_TZ:-Etc/UTC}"

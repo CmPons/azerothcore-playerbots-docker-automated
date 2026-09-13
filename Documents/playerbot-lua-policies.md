@@ -1,7 +1,8 @@
 # Instance-owned C'Thun Lua policy MVP
 
-**Implemented offline; not deployed or live-validated.** Incremental patch:
-`patches/0033-playerbot-cthun-lua-policy.patch`. Actual baseline root HEAD:
+**Native support deployed September13,2026; initial Lua activation pending a current C'Thun scope.**
+See [deployment evidence](lua-cthun-scaling-deployment-20260913.md). Live navigation/encounter behavior
+is not yet validated. Incremental patch: `patches/0033-playerbot-cthun-lua-policy.patch`. Actual baseline root HEAD:
 `b03ae99b0891289abd923bfc6d076561c152c9d3`. Do not run setup/reset-to-pins to install this delta.
 The unrelated full pinned replay failure at0021 remains; focused Twins replay is deliberately
 limited to Twins-owned paths rather than claiming full reproducibility.
@@ -158,8 +159,8 @@ co-installation is intentionally rejected instead of risking two conflicting Lua
 
 ## Reload and operator handoff — parent deployment only
 
-**No live config/mounts were changed.** Parent must review/build/install native0033 once and approve
-these directory mounts in the persistent Compose/setup source before deployment:
+Native0033 and these directory mounts were installed in the September13 deployment. They are
+also retained in the persistent `setup.sh` Compose template:
 
 ```
 host runtime/playerbot-policies/      -> /opt/playerbot-policies       read-only
@@ -167,7 +168,33 @@ host runtime/playerbot-policy-status/ -> /opt/playerbot-policy-status  writable 
 ```
 
 Mount whole directories, not individual replaceable files. Create restricted host directories with
-appropriate worldserver read/status-write ownership. Native default configuration keys are
+appropriate worldserver read/status-write ownership. On this rootless Docker host, container acore
+UID1000 maps to host UID100999, not the administrator's UID1000. The installed policy directories
+have read/traverse ACLs for100999; status has write ACLs for100999 and inherited administrator access.
+Do not blindly reuse this mapping on another host. To prepare directories on a running host:
+
+```sh
+umask 077
+container_host_uid=$(docker exec ac-worldserver sh -c \
+  'awk -v u="$(id -u)" "u >= \\$1 && u < \\$1 + \\$3 { print \\$2 + u - \\$1 }" /proc/self/uid_map')
+host_uid=$(id -u)
+mkdir -p runtime/playerbot-policies/{revisions,requests} runtime/playerbot-policy-status
+for d in runtime/playerbot-policies runtime/playerbot-policies/revisions runtime/playerbot-policies/requests; do
+  chmod 700 "$d"
+  setfacl -m "u:$container_host_uid:r-x,d:u::rwx,d:u:$container_host_uid:r-x,d:g::---,d:m::r-x,d:o::---" "$d"
+done
+chmod 700 runtime/playerbot-policy-status
+setfacl -m "u:$container_host_uid:rwx,d:u::rwx,d:u:$host_uid:rwx,d:g::---,d:m::rwx,d:o::---" \
+  runtime/playerbot-policy-status
+```
+
+The deployment retained the checked source as an immutable revision and installed the offline checker at
+`runtime/playerbot-policy-checker/policy-runtime-test`. This does **not** activate Lua automatically.
+Each new map generation starts with the revised native fallback. Once its fresh scope appears near
+C'Thun, publish explicitly as below; a request for an old generation is not reused. This initial MVP
+requires a new publication after instance unload/recreation, including a natural reset or restart.
+
+Native default configuration keys are
 `AiPlayerbot.CthunPolicyDirectory` and `AiPlayerbot.CthunPolicyStatusDirectory`, with the paths above;
 no env/runtime config change is otherwise required. Keep status and publisher access administrator-only.
 
@@ -252,7 +279,9 @@ postchecked against the accepted result hashes. It is canonical root-module publ
 build source, OUTSIDE0033; see `raid-scaling-creature-eligibility.md`. Its38-test suite also passes in
 actual root. No copied contents were redesigned, and no mound count, speed or timer changes were made.
 
-**Outstanding:** targeted retained-reviewer recheck of the P1 fixes; native full-header/worldserver
-build remains DEFERRED (no accepted build gate), followed by parent-owned initial mount/install/deployment; then separately authorized live no-disconnect reload observation. Offline
-fixtures do not prove live navmesh, latency, HPS, recovery, aggro timing, encounter success or difficulty.
-The live Ouro image/binary and saved AQ state were not touched by this implementation.
+**Subsequent gates completed:** retained targeted re-review accepted both P1 corrections; the combined
+Lua/scaling native image built successfully and was deployed after a fresh logout and preservation checks.
+**Outstanding:** initial publication for a fresh C'Thun scope and live no-disconnect reload/adoption
+observation. Offline fixtures and compilation do not prove live navmesh, latency, HPS, recovery,
+aggro timing, encounter success or difficulty. Deployment evidence separately confirms saved AQ state
+and inventory preservation.

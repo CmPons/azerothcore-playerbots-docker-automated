@@ -8,6 +8,11 @@ client-addons.zip
 # Database backups produced by backup.sh.
 backups/
 
+# Host-only immutable Lua revisions, instance mailboxes/status and offline checker.
+runtime/playerbot-policies/
+runtime/playerbot-policy-status/
+runtime/playerbot-policy-checker/
+
 # Local env / secrets
 .env
 .env.pre-restore
