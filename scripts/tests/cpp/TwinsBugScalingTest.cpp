@@ -3,9 +3,14 @@
 #include <cassert>
 #include <cmath>
 #include <iostream>
+#include <iomanip>
+#include <sstream>
+#include <functional>
 #include <map>
 #include <string>
 #include "RaidScalingMgr.h"
+#include "CreatureAPI.h"
+#include "NativeLoadedStore.h"
 
 constexpr uint32 CREATURE_ELITE_NORMAL = 0, CREATURE_ELITE_ELITE = 1,
     CREATURE_ELITE_RAREELITE = 2, CREATURE_ELITE_WORLDBOSS = 3;
@@ -23,6 +28,9 @@ public:
     uint32 id = 531, instance = 1;
     bool raid = true;
     std::map<uint32, Creature*> spawns;
+    MapStoredObjectTypesContainer _objectsStore;
+    auto& GetObjectsStore() { return _objectsStore; }
+    Creature* GetCreature(ObjectGuid const& guid);
     uint32 GetId() const { return id; }
     uint32 GetInstanceId() const { return instance; }
     bool IsRaid() const { return raid; }
@@ -35,11 +43,32 @@ public:
     void SendSysMessage(char const*) {}
     template<class... Args> void PSendSysMessage(char const*, Args...) {}
 };
-class Unit
+class Unit : public WorldObject
 {
 public:
     virtual ~Unit() = default;
-    bool player = false, controlled = false;
+    bool player = false, controlled = false, created = false, immunePC = false;
+    ObjectGuid owner, charmer, creator;
+    uint32 flags = 0;
+    FactionTemplateEntry faction{};
+    Unit() { faction.faction = 1; }
+    Unit const* ToUnit() const override { return this; }
+    virtual bool IsPet() const { return false; }
+    virtual bool IsSummon() const { return false; }
+    TempSummon const* ToTempSummon() const;
+    ObjectGuid GetCharmerGUID() const { return charmer; }
+    ObjectGuid GetOwnerGUID() const { return owner; }
+    ObjectGuid GetCreatorGUID() const { return creator; }
+    bool IsCreatedByPlayer() const { return created; }
+    bool IsImmuneToPC() const { return immunePC; }
+    bool HasUnitFlag(uint32 flag) const { return (flags & flag) != 0; }
+    FactionTemplateEntry const* GetFactionTemplateEntry() const { return &faction; }
+    bool IsHostileToPlayers() const;
+    bool IsFriendlyTo(Unit const*) const;
+    static ReputationRank GetFactionReactionTo(FactionTemplateEntry const*, FactionTemplateEntry const*);
+    // Only the non-reputation/non-PvP branch is simulated. Its faction calculation is native.
+    ReputationRank GetReactionTo(Unit const* target) const
+    { return GetFactionReactionTo(&faction, &target->faction); }
     uint32 health = 3052, maxHealth = 3052;
     float flat[2] = {3052, 0}, pct[2] = {1, 1};
     virtual Creature* ToCreature() { return nullptr; }
@@ -48,7 +77,8 @@ public:
     uint32 GetHealth() const { return health; }
     uint32 GetMaxHealth() const { return maxHealth; }
     float GetHealthPct() const { return 100.0f * float(health) / float(maxHealth); }
-    bool IsAlive() const { return health != 0; }
+    DeathState deathState = DeathState::Alive;
+    bool IsAlive() const { return deathState == DeathState::Alive; }
     void SetMaxHealth(uint32 n) { maxHealth = n; health = std::min(health, n); }
     void SetHealth(uint32 n) { health = std::min(n, maxHealth); }
     virtual void UpdateMaxHealth() {}
@@ -72,6 +102,8 @@ struct Creature : Unit
     CreatureTemplate proto;
     CreatureData data;
     uint32 entry = 15316, spawnId = 1, createHealth = 3052;
+    uint32 runtimeId = 0;
+    std::function<void()> afterHealthChange;
     bool pet = false, trigger = false, critter = false, civilian = false, boss = false,
         worldBoss = false, hasData = true, hasProto = true;
     explicit Creature(Map* m) : map(m) {}
@@ -80,10 +112,10 @@ struct Creature : Unit
     uint32 GetMapId() const { return map->GetId(); }
     uint32 GetEntry() const { return entry; }
     uint32 GetSpawnId() const { return spawnId; }
-    ObjectGuid GetGUID() const { return ObjectGuid::Create<HighGuid::Unit>(entry, spawnId); }
+    ObjectGuid GetGUID() const { return ObjectGuid::Create<HighGuid::Unit>(entry, runtimeId ? runtimeId : spawnId); }
     CreatureData const* GetCreatureData() const { return hasData ? &data : nullptr; }
     CreatureTemplate const* GetCreatureTemplate() const { return hasProto ? &proto : nullptr; }
-    bool IsPet() const { return pet; }
+    bool IsPet() const override { return pet; }
     bool IsTrigger() const { return trigger; }
     bool IsCritter() const { return critter; }
     bool IsCivilian() const { return civilian; }
@@ -93,8 +125,28 @@ struct Creature : Unit
     uint32 GetCreateHealth() const { return createHealth; }
     void SetCreateHealth(uint32 n) { createHealth = n; }
     void UpdateMaxHealth() override;
-    void ResetPlayerDamageReq() {}
+    void ResetPlayerDamageReq() { if (afterHealthChange) afterHealthChange(); }
 };
+class TempSummon : public Creature
+{
+public:
+    explicit TempSummon(Map* map) : Creature(map)
+    {
+        hasData = false;
+        spawnId = 0;
+        static uint32 nextRuntimeId = 100000;
+        runtimeId = nextRuntimeId++;
+    }
+    ObjectGuid summoner;
+    bool IsSummon() const override { return true; }
+    ObjectGuid GetSummonerGUID() const { return summoner; }
+};
+TempSummon const* Unit::ToTempSummon() const
+{
+    return IsSummon() ? static_cast<TempSummon const*>(this) : nullptr;
+}
+#include "RaidCreatureEligibility.h"
+
 struct ObjectMgr
 {
     std::map<ObjectGuid, ObjectGuid> links;
@@ -132,6 +184,7 @@ void Link(Creature& bug, uint32 boss = 15276)
     bug.data.id = bug.entry;
     objectMgr.links[bug.GetGUID()] = ObjectGuid::Create<HighGuid::Unit>(boss, 999);
     bug.map->spawns[bug.spawnId] = &bug;
+    bug.map->GetObjectsStore().Insert<Creature>(bug.GetGUID(), &bug);
 }
 RaidScaleSettings Default()
 {
@@ -152,6 +205,8 @@ int main(int argc, char** argv)
     Enable(mgr, map);
     Unit player;
     player.player = true;
+    player.faction.faction = 2;
+    player.faction.ourMask = FACTION_MASK_PLAYER;
     if (scenario == "mutation")
     {
         for (uint32 entry : {15316u, 15317u})
@@ -201,6 +256,7 @@ int main(int argc, char** argv)
         assert(hook.DealDamage(&bug, &player, 1900, 0) == 827);
         Unit pet;
         pet.controlled = true;
+        pet.faction = player.faction; // native Minion::InitStats inherits its owner's faction
         assert(hook.DealDamage(&bug, &pet, 1900, 0) == 827);
         Creature npc(&map);
         assert(hook.DealDamage(&bug, &npc, 1900, 0) == 1900);
@@ -253,7 +309,9 @@ int main(int argc, char** argv)
         objectMgr.links.clear(); // same entry, corridor spawn
         mgr.OnCreatureAddWorld(&bug);
         Mutate(bug);
-        assert(bug.GetMaxHealth() == 12208 && mgr.GetDamageScale(&bug, &player) == 1);
+        // Neutral corridor bugs keep their health; actual nonfriendly damage is now rank-independent.
+        assert(bug.GetMaxHealth() == 12208);
+        assert(std::fabs(mgr.GetDamageScale(&bug, &player) - Default().trashDamage) < .00001f);
         for (uint32 rank : {1u, 2u, 3u})
         {
             bug.proto.rank = rank;
@@ -286,6 +344,7 @@ int main(int argc, char** argv)
         Link(unscaled);
         mgr.OnCreatureAddWorld(&unscaled);
         assert(unscaled.GetMaxHealth() == 3052 && mgr.GetDamageScale(&unscaled, &player) == 1);
+        bug.deathState = DeathState::Dead;
         bug.SetHealth(0);
         mgr.ApplyToCreature(&bug);
         assert(bug.GetHealth() == 0);
@@ -313,4 +372,5 @@ int main(int argc, char** argv)
     else
         return 1;
     std::cout << "Passed " << scenario << '\n';
+    return 0;
 }

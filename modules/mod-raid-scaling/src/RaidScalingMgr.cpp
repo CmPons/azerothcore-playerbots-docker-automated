@@ -1,4 +1,5 @@
 #include "RaidScalingMgr.h"
+#include "RaidCreatureEligibility.h"
 
 #include "CellImpl.h"
 #include "Chat.h"
@@ -18,6 +19,7 @@
 #include "PoolMgr.h"
 #include "ScriptMgr.h"
 #include "SharedDefines.h"
+#include "TypeContainerVisitor.h"
 #include "Unit.h"
 #include <algorithm>
 #include <cmath>
@@ -27,6 +29,31 @@
 
 namespace
 {
+    struct LoadedCreatureGuidSnapshot
+    {
+        std::vector<ObjectGuid> guids;
+
+        void Visit(std::unordered_map<ObjectGuid, Creature*>& creatures)
+        {
+            for (auto const& [guid, creature] : creatures)
+                if (creature)
+                    guids.push_back(guid);
+        }
+
+        template<class T>
+        void Visit(std::unordered_map<ObjectGuid, T*>&) { }
+    };
+
+    std::vector<ObjectGuid> GetLoadedCreatureGuids(Map* map)
+    {
+        // The spawn-ID store omits temporary creatures. Snapshot the loaded runtime store,
+        // then resolve each GUID at use time so apply/restore never retain iterators/pointers.
+        LoadedCreatureGuidSnapshot snapshot;
+        TypeContainerVisitor<LoadedCreatureGuidSnapshot, MapStoredObjectTypesContainer> visitor(snapshot);
+        visitor.Visit(map->GetObjectsStore());
+        return snapshot.guids;
+    }
+
     bool IsTwinsEncounterBug(Creature const* creature)
     {
         if (!creature || !creature->GetMap() || creature->GetMapId() != 531 ||
@@ -314,17 +341,26 @@ std::optional<RaidScaleSettings> RaidScalingMgr::GetSettings(Map const* map) con
 
 bool RaidScalingMgr::IsScalableCreature(Creature const* creature) const
 {
-    if (!creature || creature->IsPet() || creature->IsTrigger() || creature->IsCritter() || creature->IsCivilian())
+    if (!creature || RaidCreatureEligibility::HasExcludedOrigin(creature) ||
+        creature->IsTrigger() || creature->IsCritter() || creature->IsCivilian())
         return false;
 
     CreatureTemplate const* proto = creature->GetCreatureTemplate();
     if (!proto)
         return false;
 
-    // Scale before mutation: waiting for aura 802 would miss the spawn-time health scaling.
-    return IsTwinsEncounterBug(creature) || creature->IsDungeonBoss() || creature->isWorldBoss() ||
+    // Preserve spawn-time scaling for encounter bugs and elites/bosses, including intro flags.
+    // Waiting for mutation aura 802 would miss the Twins' base-unitmod health scaling.
+    if (IsTwinsEncounterBug(creature) || creature->IsDungeonBoss() || creature->isWorldBoss() ||
         proto->rank == CREATURE_ELITE_ELITE ||
-        proto->rank == CREATURE_ELITE_RAREELITE || proto->rank == CREATURE_ELITE_WORLDBOSS;
+        proto->rank == CREATURE_ELITE_RAREELITE || proto->rank == CREATURE_ELITE_WORLDBOSS)
+        return true;
+
+    // New combat bodies need hostile faction evidence at spawn, not rank or player attendance.
+    // Untargetable hazards still qualify for damage scaling, but not for health changes.
+    return creature->IsHostileToPlayers() && !creature->IsImmuneToPC() &&
+        !creature->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE |
+            UNIT_FLAG_NOT_ATTACKABLE_1 | UNIT_FLAG_NON_ATTACKABLE_2);
 }
 
 RaidScaleCreatureKind RaidScalingMgr::ClassifyCreature(Creature const* creature) const
@@ -356,10 +392,15 @@ uint32 RaidScalingMgr::ScaleHealth(uint32 value, float scale) const
 
 void RaidScalingMgr::OnCreatureAddWorld(Creature* creature)
 {
-    if (!_enabled || !creature || !creature->GetMap() || !HasScaling(creature->GetMap()))
+    if (!creature || !creature->GetMap() || !creature->GetMap()->IsRaid() ||
+        !creature->GetMap()->GetInstanceId())
         return;
 
-    ApplyToCreature(creature);
+    // InitStats has populated summon metadata before AddToWorld. Capture even when scaling
+    // is off/not initialized, while the summoner still exists. No saved or global registry state.
+    RaidCreatureEligibility::CaptureSummonOrigin(creature);
+    if (_enabled && HasScaling(creature->GetMap()))
+        ApplyToCreature(creature);
 }
 
 void RaidScalingMgr::ApplyToMap(Map* map, ChatHandler* handler)
@@ -368,9 +409,9 @@ void RaidScalingMgr::ApplyToMap(Map* map, ChatHandler* handler)
         return;
 
     uint32 count = 0;
-    for (auto const& pair : map->GetCreatureBySpawnIdStore())
+    for (ObjectGuid guid : GetLoadedCreatureGuids(map))
     {
-        if (Creature* creature = pair.second)
+        if (Creature* creature = map->GetCreature(guid))
         {
             if (!IsScalableCreature(creature) || creature->isDead())
                 continue;
@@ -389,15 +430,13 @@ void RaidScalingMgr::RestoreMap(Map* map, ChatHandler* handler)
         return;
 
     uint32 count = 0;
-    std::vector<Creature*> creatures;
-    for (auto const& pair : map->GetCreatureBySpawnIdStore())
-        if (pair.second)
-            creatures.push_back(pair.second);
-
-    for (Creature* creature : creatures)
+    for (ObjectGuid guid : GetLoadedCreatureGuids(map))
     {
-        RestoreCreature(creature);
-        ++count;
+        if (Creature* creature = map->GetCreature(guid))
+        {
+            RestoreCreature(creature);
+            ++count;
+        }
     }
 
     if (handler)
@@ -486,7 +525,8 @@ void RaidScalingMgr::RestoreCreature(Creature* creature)
     }
 
     creature->SetMaxHealth(original.maxHealth);
-    creature->SetHealth(std::max<uint32>(1, uint32(std::round(float(original.maxHealth) * pct))));
+    creature->SetHealth(creature->isDead() ? 0 :
+        std::max<uint32>(1, uint32(std::round(float(original.maxHealth) * pct))));
     creature->ResetPlayerDamageReq();
 }
 
@@ -496,7 +536,7 @@ float RaidScalingMgr::GetDamageScale(Unit* attacker, Unit* victim) const
         return 1.0f;
 
     Creature* creature = attacker->ToCreature();
-    if (!creature || !IsScalableCreature(creature))
+    if (!creature)
         return 1.0f;
 
     auto settings = GetSettings(creature->GetMap());
@@ -506,6 +546,12 @@ float RaidScalingMgr::GetDamageScale(Unit* attacker, Unit* victim) const
     // Only scale hostile raid damage against the player party/raid. Leave creature-vs-creature
     // scripted event combat alone (e.g. escorts, friendly NPCs, add interactions).
     if (!victim->IsPlayer() && !victim->IsControlledByPlayer())
+        return 1.0f;
+
+    // Actual outgoing damage is combat evidence even for neutral, unattackable summons/triggers.
+    // Health eligibility is deliberately separate; never scale friendly or player-origin sources.
+    if (creature->IsCritter() || creature->IsCivilian() ||
+        RaidCreatureEligibility::HasExcludedOrigin(creature) || creature->IsFriendlyTo(victim))
         return 1.0f;
 
     return DamageScaleFor(creature, *settings);
