@@ -11,6 +11,7 @@ CORE = ROOT / "azerothcore-wotlk"
 BASE = Path("src/server/scripts/Kalimdor/TempleOfAhnQiraj")
 FILES = (BASE / "boss_bug_trio.cpp", BASE / "instance_temple_of_ahnqiraj.cpp", BASE / "temple_of_ahnqiraj.h")
 PATCH = ROOT / "patches/0022-core-aq40-bug-trio-reset.patch"
+OURO_PATCH = ROOT / "patches/0030-core-aq40-ouro-spawner-recovery.patch"
 
 
 def block(text, signature):
@@ -36,6 +37,7 @@ class BugTrioResetTests(unittest.TestCase):
                 destination = temp / path
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(CORE / path, destination)
+            command(["git", "apply", "--reverse", str(OURO_PATCH)], cwd=temp)
             command(["git", "apply", "--reverse", str(PATCH)], cwd=temp)
             old = (temp / FILES[0]).read_text()
             boss, instance, header = [(CORE / path).read_text() for path in FILES]
@@ -68,10 +70,13 @@ class BugTrioResetTests(unittest.TestCase):
             for path in FILES:
                 (temp / path).parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(CORE / path, temp / path)
+            command(["git", "apply", "--reverse", "--check", str(OURO_PATCH)], cwd=temp)
+            command(["git", "apply", "--reverse", str(OURO_PATCH)], cwd=temp)
             command(["git", "apply", "--reverse", "--check", str(PATCH)], cwd=temp)
             command(["git", "apply", "--reverse", str(PATCH)], cwd=temp)
             command(["git", "apply", "--check", str(PATCH)], cwd=temp)
             command(["git", "apply", str(PATCH)], cwd=temp)
+            command(["git", "apply", str(OURO_PATCH)], cwd=temp)
             for path in FILES:
                 self.assertEqual((temp / path).read_bytes(), (CORE / path).read_bytes())
         names = [line.split(" b/", 1)[1] for line in PATCH.read_text().splitlines() if line.startswith("diff --git ")]

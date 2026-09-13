@@ -1,0 +1,149 @@
+diff --git a/src/server/scripts/Kalimdor/TempleOfAhnQiraj/instance_temple_of_ahnqiraj.cpp b/src/server/scripts/Kalimdor/TempleOfAhnQiraj/instance_temple_of_ahnqiraj.cpp
+--- a/src/server/scripts/Kalimdor/TempleOfAhnQiraj/instance_temple_of_ahnqiraj.cpp
++++ b/src/server/scripts/Kalimdor/TempleOfAhnQiraj/instance_temple_of_ahnqiraj.cpp
+@@ -16,11 +16,20 @@
+  */
+ 
+ #include "CreatureGroups.h"
++#include "GameTime.h"
+ #include "InstanceMapScript.h"
+ #include "InstanceScript.h"
++#include "ObjectMgr.h"
+ #include "Player.h"
+ #include "TaskScheduler.h"
+ #include "temple_of_ahnqiraj.h"
++#include <set>
++#include <vector>
++
++namespace
++{
++    constexpr uint32 NPC_OURO_DIRT_MOUND = 15712;
++}
+ 
+ ObjectData const creatureData[] =
+ {
+@@ -73,13 +82,28 @@
+             BugTrioConsumeTarget = 0;
+         }
+ 
++        void OnPlayerEnter(Player* player) override
++        {
++            InstanceScript::OnPlayerEnter(player);
++            // Also recover a failed pull saved before this fix: its original spawn timer survives
++            // a map unload/restart, while the old creature GUID does not.
++            ScheduleOuroRecovery();
++        }
++
++        void OnCreatureRemove(Creature* creature) override
++        {
++            _ouroMounds.erase(creature->GetGUID());
++            InstanceScript::OnCreatureRemove(creature);
++            if (creature->GetEntry() == NPC_OURO || creature->GetEntry() == NPC_OURO_DIRT_MOUND)
++                ScheduleOuroRecovery();
++        }
++
+         void OnCreatureCreate(Creature* creature) override
+         {
+             switch (creature->GetEntry())
+             {
+-                case NPC_OURO_SPAWNER:
+-                    if (GetBossState(DATA_OURO) != DONE)
+-                        creature->Respawn();
++                case NPC_OURO_DIRT_MOUND:
++                    _ouroMounds.insert(creature->GetGUID());
+                     break;
+                 case NPC_MASTERS_EYE:
+                     if (GetBossState(DATA_TWIN_EMPERORS) != DONE && !creature->IsAlive())
+@@ -197,6 +221,9 @@
+ 
+         bool SetBossState(uint32 type, EncounterState state) override
+         {
++            // Late mound evades must not reopen an already completed Ouro encounter.
++            if (type == DATA_OURO && GetBossState(DATA_OURO) == DONE && state != DONE)
++                return false;
+             if (!InstanceScript::SetBossState(type, state))
+                 return false;
+ 
+@@ -204,10 +231,7 @@
+             {
+                 case DATA_OURO:
+                     if (state == FAIL)
+-                    {
+-                        if (Creature* ouroSpawner = GetCreature(DATA_OURO_SPAWNER))
+-                            ouroSpawner->Respawn();
+-                    }
++                        ScheduleOuroRecovery();
+                     break;
+                 default:
+                     break;
+@@ -217,6 +241,70 @@
+         }
+ 
+     private:
++        bool OuroCanRecover() const
++        {
++            EncounterState const state = GetBossState(DATA_OURO);
++            return state == NOT_STARTED || state == FAIL;
++        }
++
++        void ScheduleOuroRecovery()
++        {
++            if (_ouroRecoveryPending || !OuroCanRecover())
++                return;
++            _ouroRecoveryPending = true;
++            scheduler.Schedule(2s, [this](TaskContext context)
++            {
++                if (!OuroCanRecover())
++                {
++                    _ouroRecoveryPending = false;
++                    return;
++                }
++                // A submerge replaces the boss with moving mounds. A single mound's evade is
++                // not permission to create another boss while its siblings can still re-emerge.
++                if (GetCreature(DATA_OURO) || !_ouroMounds.empty())
++                {
++                    context.Repeat(2s);
++                    return;
++                }
++                _ouroRecoveryPending = false;
++                RecoverOuroSpawner();
++            });
++        }
++
++        void RecoverOuroSpawner()
++        {
++            if (!OuroCanRecover() || GetCreature(DATA_OURO) || !_ouroMounds.empty())
++                return;
++            // Compatibility-mode spawns may still be present as dead objects. Do not force a
++            // living spawner through a death/respawn cycle, or bypass native respawn conditions.
++            if (Creature* spawner = GetCreature(DATA_OURO_SPAWNER))
++            {
++                if (!spawner->IsAlive())
++                    spawner->Respawn();
++                return;
++            }
++
++            // Non-compat despawn removes the instance GUID entirely. Recover the ORIGINAL DB
++            // spawn via this map's native respawn queue, never by summoning a replacement boss.
++            std::vector<ObjectGuid::LowType> spawns;
++            for (auto const& [spawnId, respawnTime] : instance->GetCreatureRespawnTimes())
++            {
++                CreatureData const* data = sObjectMgr->GetCreatureData(spawnId);
++                if (data && data->mapid == MAP_AHN_QIRAJ_TEMPLE && data->id == NPC_OURO_SPAWNER &&
++                    !data->id2 && !data->id3)
++                    spawns.push_back(spawnId);
++            }
++            if (spawns.size() != 1)
++                return; // absent or ambiguous metadata: do not fabricate a new spawn
++
++            time_t now = GameTime::GetGameTime().count();
++            instance->SaveCreatureRespawnTime(spawns.front(), now);
++            LOG_INFO("scripts", "Ouro recovery: queued original spawner {} in instance {}",
++                     spawns.front(), instance->GetInstanceId());
++        }
++
++        bool _ouroRecoveryPending = false;
++        std::set<ObjectGuid> _ouroMounds;
+         GuidVector CThunGraspGUIDs;
+         uint32 BugTrioDeathCount;
+         uint32 BugTrioConsumeTarget;
