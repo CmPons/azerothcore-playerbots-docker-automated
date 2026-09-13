@@ -31,7 +31,7 @@ diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Cthun.cpp b/modules/mod
 new file mode 100644
 --- /dev/null
 +++ b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Cthun.cpp
-@@ -0,0 +1,550 @@
+@@ -0,0 +1,552 @@
 +/*
 + * This file is part of the mod-playerbots module for AzerothCore.
 + * Released under GNU GPL v2 license.
@@ -119,8 +119,10 @@ new file mode 100644
 +
 +        frame.combat = script->GetBossState(DATA_CTHUN) == IN_PROGRESS;
 +        Player* master = ai->GetMaster();
++        // Do not steal movement from an unrelated trash fight in the approach corridor.
 +        if (!frame.combat && (!frame.eye || !Here(bot, master, frame.center) ||
-+            !master->IsAlive() || master->GetExactDist2d(frame.center) > 180.0f))
++            !master->IsAlive() || bot->IsInCombat() || master->IsInCombat() ||
++            master->GetExactDist2d(frame.center) > 180.0f))
 +            return false;
 +
 +        frame.minRadius = frame.combat ? frame.center->GetCombatReach() + bot->GetCombatReach() + 0.2f :

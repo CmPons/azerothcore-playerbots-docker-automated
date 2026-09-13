@@ -23,7 +23,8 @@ threat injection, learned-spell bypass or passive-state changes.
   party members are obstacles; only bots are moved. Pets are not beam targets in this DBC.
 - Act on the upper floor near C'Thun (within 240 yards), outside the stomach, with a living encounter
   creature and raid group. Finished encounters do not activate the policy.
-- Before combat, require the living master on that floor within 180 yards. Spread on approach,
+- Before combat, require the living master on that floor within 180 yards and neither the bot nor
+  master fighting unrelated trash. Spread on approach,
   without crossing the Eye's native `90 + Eye reach + player reach` aggro boundary: another
   **20 yards** is reserved to isolate the puller. With the observed Eye reach of 15 yards, bots
   aim to remain at least 126.5 yards from its center before aggro. This is not a command to pull.

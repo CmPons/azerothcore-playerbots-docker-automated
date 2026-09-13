@@ -88,7 +88,7 @@ public:
     ObjectGuid guid;
     std::string name="unit";
     Map* map=nullptr;
-    bool alive=true,inWorld=true,los=true,moving=false,charmed=false,casting=false;
+    bool alive=true,inWorld=true,los=true,moving=false,charmed=false,casting=false,otherCombat=false;
     uint32 phase=1,flags=0;
     float hp=100, reach=1.5f, orientation=0;
     bool walking=false;
@@ -111,7 +111,7 @@ public:
     bool IsInWorld() const{return inWorld;}
     bool InSamePhase(Unit const* other) const{return phase==other->phase;}
     Unit* GetVictim(){return victim;}
-    virtual bool IsInCombat() const{return map && map->script.state==IN_PROGRESS;}
+    virtual bool IsInCombat() const{return otherCombat || (map && map->script.state==IN_PROGRESS);}
     bool IsWithinLOSInMap(Unit const* other) const{return los && other->los;}
     bool IsWithinLOS(float,float,float) const{return los;}
     float GetDistance2d(Unit const* p) const{return GetExactDist2d(p);}

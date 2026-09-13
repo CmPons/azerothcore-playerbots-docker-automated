@@ -390,6 +390,15 @@ void NeighborAndHealingGuards()
     assert(FindPosition(p, ai, spot));
     assert(spot.GetExactDist2d(r.players[0].get()) < p->GetExactDist2d(r.players[0].get()));
     r.map.script.state = 0;
+    r.Place(0, 150, 0);
+    r.Place(1, 170, 0);
+    assert(ControlsMovement(p, ai));
+    p->otherCombat = true;
+    assert(!ControlsMovement(p, ai));
+    p->otherCombat = false;
+    r.players[0]->otherCombat = true;
+    assert(!ControlsMovement(p, ai));
+    r.players[0]->otherCombat = false;
     r.Place(0, 200, 0);
     assert(!ControlsMovement(p, ai)); // human withdrew from the approach
 }
