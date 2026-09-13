@@ -1,9 +1,10 @@
-# Ouro combat lifecycle — NOT DEPLOYED
+# Ouro combat lifecycle
 
-Preparation and accepted P1 correction, September 13, 2026. **No image build or deployment in
-this worker stage.** No service operations, live commands, database access, scaling/config changes,
-commits or pushes. Deployment is parent-only after corrected review, build, fresh backups and
-logout gates; ongoing gameplay has not been used as a test.
+**Deployed September 13, 2026**, after independent corrected review, native build, fresh backups
+and confirmed human logout. [Deployment and preservation evidence](ouro-combat-deployment-20260913.md).
+Only worldserver was replaced; no encounter reset or gameplay-state restoration occurred.
+The implementation and build stages below were isolated from deployment and did not use ongoing
+gameplay as a test. Real combat behavior remains for ordinary encounter validation.
 
 ## Cause (source-supported, not a captured live trace)
 
@@ -84,9 +85,9 @@ final hashes are in the backup (`p1-focused-tests.log`, `p1-red.log`, `p1-codest
 and modified/untracked playerbot files are preserved; no staged diff in any repository.
 Full pinned replay is not claimed: unrelated 0021 failure remains; focused recovery replay passes.
 
-## Limits / next gate
+## Limits
 
-Independent corrected review and native image compilation are separate gates. API doubles do not
+Independent corrected review and native image compilation passed as separate gates. API doubles do not
 prove real combat, packet-visible facing, pathfinding, knockback physics or recovery. Cone checks
 are simplified geometry and the fixture uses a synthetic preparation interval, not a claim about
 native cast-time execution. No live DB/spell overrides or encounter were queried in this stage.
@@ -98,7 +99,8 @@ Corrected independent review: **OK with notes; no issues found**. Parent accepte
 SHA256 `7b7e7ba51d9330be9e4efb9e0eb7ad2652685621b9c92a3fb46117a8a859ab11` and 0032 patch
 SHA256 `7909d7d38dd3c82b7a4f6f5bded7d00478cd876a110f83dcba8db9ac631d3364` before building.
 
-**Native image build succeeded; NOT DEPLOYED.** Actual existing sources (including unrelated
+**Native image build succeeded.** This stage was build-only; deployment occurred afterward.
+Actual existing sources (including unrelated
 modified/untracked module inputs) were used, without regeneration, config changes or service
 interruption. Dockerfile `worldserver` target, host networking, UID/GID 1000/acore, Ubuntu base
 `24.04@sha256:224a1869083a311ef3f13648a154ba79832fbef6364d31493642ca03082da254`.
