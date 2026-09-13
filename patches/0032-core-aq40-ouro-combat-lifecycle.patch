@@ -1,0 +1,136 @@
+diff --git a/src/server/scripts/Kalimdor/TempleOfAhnQiraj/boss_ouro.cpp b/src/server/scripts/Kalimdor/TempleOfAhnQiraj/boss_ouro.cpp
+index f5a82207f..9b2739e4b 100644
+--- a/src/server/scripts/Kalimdor/TempleOfAhnQiraj/boss_ouro.cpp
++++ b/src/server/scripts/Kalimdor/TempleOfAhnQiraj/boss_ouro.cpp
+@@ -22,7 +22,10 @@
+ #include "GridNotifiersImpl.h"
+ #include "Player.h"
+ #include "ScriptedCreature.h"
++#include "Spell.h"
++#include "ThreatManager.h"
+ #include "temple_of_ahnqiraj.h"
++#include <optional>
+ 
+ enum Spells
+ {
+@@ -110,11 +113,6 @@ struct boss_ouro : public BossAI
+         me->SetControlled(true, UNIT_STATE_ROOT);
+     }
+ 
+-    bool CanAIAttack(Unit const* victim) const override
+-    {
+-        return me->IsWithinMeleeRange(victim);
+-    }
+-
+     void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType, SpellSchoolMask) override
+     {
+         if (me->HealthBelowPctDamaged(20, damage) && !_enraged)
+@@ -209,8 +207,12 @@ struct boss_ouro : public BossAI
+                     if (Unit* target = SelectTarget(SelectTargetMethod::MaxThreat, 0, 0.0f, true))
+                     {
+                         me->SetTarget(target->GetGUID());
++                        me->SetInFront(target);
++                        me->SetFacingTo(me->GetOrientation());
+                     }
+ 
++                    // Sand Blast is a caster-relative cone, not an explicit-target spell with native focus.
++                    _sandBlastOrientation = me->GetOrientation();
+                     DoCastAOE(SPELL_SAND_BLAST);
+ 
+                     me->m_Events.AddEventAtOffset([this]()
+@@ -266,6 +268,7 @@ struct boss_ouro : public BossAI
+         _submergeMelee = 0;
+         _submerged = false;
+         _enraged = false;
++        _sandBlastOrientation.reset();
+     }
+ 
+     void EnterEvadeMode(EvadeReason /*why*/) override
+@@ -288,7 +291,8 @@ struct boss_ouro : public BossAI
+ 
+     void UpdateAI(uint32 diff) override
+     {
+-        UpdateVictim();
++        if (!UpdateOuroVictim())
++            return;
+ 
+         scheduler.Update(diff,
+             std::bind(&ScriptedAI::DoMeleeAttackIfReady, this));
+@@ -298,10 +302,76 @@ protected:
+     bool _enraged;
+     uint8 _submergeMelee;
+     bool _submerged;
++    std::optional<float> _sandBlastOrientation;
++
++    Unit* SelectMeleeVictim() const
++    {
++        ThreatReference const* highest = nullptr;
++        ThreatReference const* current = nullptr;
++        for (ThreatReference const* ref : me->GetThreatMgr().GetSortedThreatList())
++        {
++            Unit* target = ref->GetVictim();
++            if (!ref->IsAvailable() || !me->IsWithinMeleeRange(target) || !me->CanSeeOrDetect(target)
++                || !me->_IsTargetAcceptable(target) || !me->CanCreatureAttack(target))
++                continue;
++
++            if (target == me->GetThreatMgr().GetFixateTarget())
++                return target;
++
++            if (!highest)
++                highest = ref;
++            if (target == me->GetVictim())
++                current = ref;
++        }
++
++        if (!highest)
++            return nullptr;
++
++        // Keep native melee hysteresis and availability/taunt ordering without taking ranged threat offline.
++        // TauntUpdate assigns distinct priorities to simultaneous taunt casters; the comparator retains them.
++        if (current && (!CompareThreatLessThan()(current, highest)
++            || (current->GetOnlineState() == highest->GetOnlineState()
++                && current->GetTauntState() == highest->GetTauntState() && !highest->IsTaunting()
++                && highest->GetThreat() <= current->GetThreat() * 1.1f)))
++            return current->GetVictim();
++
++        return highest->GetVictim();
++    }
++
++    bool UpdateOuroVictim()
++    {
++        Spell const* spell = me->GetCurrentSpell(CURRENT_GENERIC_SPELL);
++        if (!spell || spell->GetSpellInfo()->Id != SPELL_SAND_BLAST || spell->getState() == SPELL_STATE_FINISHED)
++            _sandBlastOrientation.reset();
++
++        if (!me->IsEngaged() || !me->IsAlive() || me->IsCharmed() || me->HasReactState(REACT_PASSIVE))
++            return UpdateVictim();
++
++        // Keep native no-hostiles/evade handling, but prefer an eligible melee victim for this stationary boss.
++        // CanAIAttack must not gate melee range: it also controls ranged threat availability and engagement.
++        Unit* victim = me->SelectVictim();
++        if (!victim)
++        {
++            _sandBlastOrientation.reset();
++            return false;
++        }
++
++        if (Unit* melee = SelectMeleeVictim())
++            victim = melee;
++
++        if (victim != me->GetVictim())
++            AttackStart(victim);
++        // SelectVictim also turns toward its threat target; restore the cone after both selection paths.
++        if (_sandBlastOrientation)
++            me->SetOrientation(*_sandBlastOrientation);
++        else if (!me->HasSpellFocus())
++            me->SetInFront(victim);
++        return me->GetVictim() != nullptr;
++    }
+ 
+     bool IsPlayerWithinMeleeRange() const
+     {
+-        return me->IsWithinMeleeRange(me->GetVictim());
++        return SelectMeleeVictim() != nullptr;
+     }
+ };
+ 
