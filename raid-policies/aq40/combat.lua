@@ -34,7 +34,36 @@ local function entry(member)
     end
     return point
 end
+-- Viscidus: first live iteration deliberately favors sustained melee, not cloud avoidance.
+-- Approach on the bot's current side, then hold; boss-facing changes do not reshuffle slots.
+local function viscidus(s)
+    if s.map ~= 531 or not s.combat then return nil end
+    local boss, index
+    for i,e in ipairs(s.entities) do
+        if e.entry == 15299 and e.alive and e.health > 0 and e.attackable and e.engaged and
+           not aura(e,25905) then boss,index=e,i; break end
+    end
+    if not boss then return nil end
+    local out = {}
+    for i,m in ipairs(s.members) do
+        local intent = release()
+        out[i] = intent
+        local dx,dy,dz = m.x-boss.x,m.y-boss.y,m.z-boss.z
+        local horizontal = math.sqrt(dx*dx+dy*dy)
+        if m.eligible and m.alive and m.melee and not m.healer and horizontal < 80 and math.abs(dz) < 6 then
+            intent.target = index
+            intent.movement = 1
+            if dx*dx+dy*dy+dz*dz > 4.5*4.5 then
+                local divisor = math.max(horizontal,0.01)
+                goal(intent,boss.x+3.5*dx/divisor,boss.y+3.5*dy/divisor,boss.z)
+            end
+        end
+    end
+    return out
+end
 return {api=2, plan=function(s)
+    local melee = viscidus(s)
+    if melee then return melee end
     local out, eye, eyeIndex, committed, count = {},nil,0,false,0
     for i,e in ipairs(s.entities) do
         if e.entry == 15589 and e.alive and e.health > 0 then eye,eyeIndex=e,i end

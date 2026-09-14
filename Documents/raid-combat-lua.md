@@ -129,12 +129,19 @@ fall back to native behavior.
 `aq40/combat.lua` selects the observed Eye of C'Thun entry 15589, uses the existing
 west-entry landmarks, spreads ground positions and reacts to observed red-facing
 hazards. It is initial tunable content, not a zero-damage guarantee or exhaustive
-phase-two strategy. Ouro hazards and Chromaggus cover are **next authoring targets**,
-not implemented boss policies. All encounter IDs/landmarks/decisions remain Lua data.
+phase-two strategy. The first Viscidus live-tuning policy now asks eligible non-healer
+melee bots (including bot tanks) to approach on their current side and hold within
+4.5 yards of his center, reapproaching toward a 3.5-yard goal if needed. It prioritizes
+the already-engaged boss but does not change rotations or force caster melee attacks.
+Per the user's simplified request, this version does **not** dodge poison or continually
+reposition behind him. Human/manual/emergency control remains authoritative. No new unit
+tests were requested for this iteration; required checker validation and live feedback
+are the tuning loop. Ouro hazards and Chromaggus cover remain next authoring targets.
+All encounter IDs/landmarks/decisions remain Lua data.
 
 Run `test_raid_combat.py` for real-VM budgets, exact native adapters/collector/ground
 lifecycle, generic dispatch/reload and temporary checked publication. API doubles
 cover external world services; this is not a full worldserver/navmesh/live-pull test.
-The native deployment is complete. Live adoption/encounter behavior still needs observation
-with an eligible raid; offline tests do not establish encounter success. Further server
+The native deployment is complete. API2 default adoption has now been observed for nine
+bots in AQ40; encounter behavior remains live tuning, not established by offline tests. Further server
 restarts require fresh authorization. Lua-only publication does not restart the server.
