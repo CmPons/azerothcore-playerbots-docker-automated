@@ -96,6 +96,23 @@ local function roomSpacing(s, index, eye, angle)
     end
     return best,false
 end
+-- Kill nearby eye stalks without undoing the working entrance/spacing movement.
+-- Only select visible, already-engaged enemies. Unknown LOS is left to native cast checks.
+local function eyeTentacle(s, member, memberIndex)
+    local range=(member.melee and not member.healer) and 4.5 or 28
+    local best,limit=0,range*range
+    local mask=1 << (memberIndex-1)
+    for i,e in ipairs(s.entities) do
+        if (e.entry==15726 or e.entry==15334) and e.alive and e.health > 0 and
+           e.attackable and e.engaged and (e.visible_to & mask) ~= 0 and
+           ((e.los_known & mask)==0 or (e.los_to & mask) ~= 0) and math.abs(e.z-member.z) < 5 then
+            local dx,dy=member.x-e.x,member.y-e.y
+            local d2=dx*dx+dy*dy
+            if d2 <= limit then best,limit=i,d2 end
+        end
+    end
+    return best
+end
 -- Viscidus: first live iteration deliberately favors sustained melee, not cloud avoidance.
 -- Approach on the bot's current side, then hold; boss-facing changes do not reshuffle slots.
 local function viscidus(s)
@@ -195,6 +212,14 @@ return {api=2, plan=function(s)
                 end
             end
             if eye.attackable and eye.engaged and not m.healer then intent.target=eyeIndex end
+        end
+        -- Surface-room support also works when the central Eye is absent during body phase.
+        -- No stomach, entrance, human or healer retargeting; movement remains exactly as above.
+        if s.map==531 and s.combat and m.eligible and not m.healer and
+           m.z > 98 and m.z < 104 and m.x > -8620 and not aura(m,26476) and
+           (m.x+8578.79)^2+(m.y-1986.18)^2 < 55*55 then
+            local tentacle=eyeTentacle(s,m,i)
+            if tentacle ~= 0 then intent.target=tentacle end
         end
     end
     return out

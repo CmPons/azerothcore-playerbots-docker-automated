@@ -141,8 +141,14 @@ positions without snapping back. Observed red-facing avoidance takes precedence.
 Keep moving clear of the doorway yourself: Lua cannot reposition you. Casts, simultaneous
 movement and path rejection mean this is not guaranteed separation or zero beam damage.
 It requires an observed Eye and known route position; casts/manual/CC/nonpolicy movement
-and incomplete observations still limit enforcement. It is initial tunable content,
-not a zero-damage guarantee or exhaustive phase-two strategy. The first Viscidus live-tuning policy now asks eligible non-healer
+and incomplete observations still limit enforcement. Surface-room non-healer DPS now prefer
+nearby small/giant eye tentacles (15726/15334) over the central Eye: up to28 yards for
+ranged and4.5 yards for melee, without changing entry/spacing movement. Only visible,
+attackable, raid-engaged tentacles qualify; known blocked LOS is excluded, unknown LOS
+still requires native cast validation. This priority also works without the central Eye
+observed during body phase, but does not handle stomach tactics. Explicit/manual target
+priorities still win. It is initial tunable content, not a zero-damage guarantee or
+exhaustive phase-two strategy. The first Viscidus live-tuning policy now asks eligible non-healer
 melee bots (including bot tanks) to approach on their current side and hold within
 4.5 yards of his center, reapproaching toward a 3.5-yard goal if needed. It prioritizes
 the already-engaged boss but does not change rotations or force caster melee attacks.
