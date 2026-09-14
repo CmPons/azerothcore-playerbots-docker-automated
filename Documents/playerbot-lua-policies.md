@@ -1,15 +1,15 @@
 # Instance-owned C'Thun Lua policy MVP
 
-The API2 raid-combat source candidate is now packaged as0035; see
-[raid-combat API and operator workflow](raid-combat-lua.md). It remains unbuilt,
-unpublished and subject to focused review. The deployment state below is unchanged.
+**Current deployment: API2 raid-combat plus automatic loading (0034/0035), September14.**
+The checked initial C'Thun default is installed. Use the
+[raid-combat API/operator workflow](raid-combat-lua.md) and
+[current deployment evidence](raid-combat-lua-deployment-20260914.md).
+The user narrowed first playable to raid combat; deferred mechanics and broad boss demonstrations
+are not prerequisites. Live adoption/navigation/encounter behavior still needs observation.
 
-**Deployed:0033 C'Thun-specific support. Phase1 automatic loading (0034) is implemented offline,
-NOT built/deployed; phase2 generic Lua-only boss tactics is still required BEFORE gameplay testing.**
-See [the automatic-loader and queued phase2 contract](playerbot-automatic-policy.md).
-Do not publish these new wire formats to the old running binary or deploy/test phase1 alone.
-See [deployment evidence](lua-cthun-scaling-deployment-20260913.md). Live navigation/encounter behavior
-is not yet validated. Incremental patch: `patches/0033-playerbot-cthun-lua-policy.patch`. Actual baseline root HEAD:
+The material below documents the retained API1 C'Thun implementation and its historical
+[September13 deployment](lua-cthun-scaling-deployment-20260913.md), not the current loading workflow.
+Incremental patch: `patches/0033-playerbot-cthun-lua-policy.patch`. Actual baseline root HEAD:
 `b03ae99b0891289abd923bfc6d076561c152c9d3`. Do not run setup/reset-to-pins to install this delta.
 The unrelated full pinned replay failure at0021 remains; focused Twins replay is deliberately
 limited to Twins-owned paths rather than claiming full reproducibility.

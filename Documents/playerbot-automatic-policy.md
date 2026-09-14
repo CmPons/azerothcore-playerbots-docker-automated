@@ -1,19 +1,20 @@
-# Automatic policy loading — phase1, with required phase2 queued
+# Automatic policy loading — phase1 implementation reference
 
-**Source implemented/tested offline; NOT built or deployed. Do not deploy or gameplay-test phase1 alone.**
-User sequence: automatic installed loading first, then generic Lua-only ANY-boss tactics. BOTH are
-required before combined readiness review/build/deployment and gameplay testing. The running0033 image
-still lacks automatic activation. Existing installation evidence is historical, not changed by this guide.
+**Deployed together with the first-playable raid-combat API2 on September14,2026.**
+Use the [current operator workflow](raid-combat-lua.md) and
+[deployment evidence](raid-combat-lua-deployment-20260914.md).
+The user narrowed first playable to combat positioning/avoidance; the older exhaustive phase2
+roadmap below is historical, not a current release gate. Phase1 was not deployed alone.
 
 Phase1 incremental patch: `patches/0034-playerbot-automatic-policy-default.patch`, against the preserved
 ACTUAL0033 deployed source at root HEAD `8ddbb858a5e8d96c07787ef5e770b5277222c5fc`. Never rewrite0033,
 reset to pins or run setup to replay this delta. Native allowlist is only
 `modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyScope.{h,cpp}` inside core. The default control plane
-is a fixed raid bundle, while C'Thun remains its only consumer until phase2.
+is a fixed raid bundle. API2 now supplies the generic raid-instance consumer.
 
 ## Installed-default lifecycle
 
-`defaults/raid.txt` is a bounded256-byte text record: `1 1 NONCE SHA256` (format1, LuaAPI1,16 lowercase
+`defaults/raid.txt` is a bounded256-byte text record: `1 1 NONCE SHA256` (transport format/version1,16 lowercase
 hex nonce,64 lowercase hex digest). Source is immutable `revisions/SHA256.lua`, at most32KiB. Its bytes
 are checked with the production pinned Lua offline checker before publication. The whole-directory
 policy mount remains read-only to worldserver, status remains separate/writable. No new config/mount,

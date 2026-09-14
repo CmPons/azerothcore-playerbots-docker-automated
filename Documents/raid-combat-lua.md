@@ -1,4 +1,4 @@
-# Raid combat Lua API2 (source delivery; not deployed)
+# Raid combat Lua API2 (deployed September 14, 2026)
 
 API2 runs in the existing instance-owned VM/mailbox: one active plus one candidate,
 serialized map updates, last-good retention, active-fault quarantine. The manifest
@@ -7,28 +7,35 @@ transport remains `1 1 <publication> <sha256>`; the Lua payload deliberately dec
 
 ## Edit → check → publish → next pull
 
-After a separately authorized native build/deployment, use the existing configured
-policy/status directories (legacy `AiPlayerbot.CthunPolicyDirectory` names retained).
-No daemon, watcher, per-instance command, logout or travel is needed.
+The reviewed API2 image and checked initial C'Thun default are installed. See
+[deployment and preservation evidence](raid-combat-lua-deployment-20260914.md).
+From the project root, use the existing directories (legacy config names retained):
+
+```sh
+POLICY_DIRECTORY=runtime/playerbot-policies
+STATUS_DIRECTORY=runtime/playerbot-policy-status
+```
+
+No daemon, watcher, per-instance publication command, logout or travel is needed.
 
 1. Edit `raid-policies/aq40/combat.lua`. Its small `release`, `goal`, `aura`, and
    `distance` helpers are self-contained; no imports or generated bundle are required.
-2. Check with the offline runner built from `scripts/tests/lua-runtime`:
+2. Check with the installed offline runner (built from `scripts/tests/lua-runtime`):
 
    ```sh
    python3 scripts/playerbot_policy.py check raid-policies/aq40/combat.lua \
-     --checker /path/to/test-build/raid-combat-check
+     --checker runtime/playerbot-policy-checker/raid-combat-check
    ```
 
-3. When publication is authorized, publish the checked bytes once:
+3. Publish the checked bytes once when the policy change is authorized:
 
    ```sh
    python3 scripts/playerbot_policy.py publish-default raid-policies/aq40/combat.lua \
-     --checker /path/to/test-build/raid-combat-check --directory "$POLICY_DIRECTORY"
+     --checker runtime/playerbot-policy-checker/raid-combat-check --directory "$POLICY_DIRECTORY"
    ```
 
-   **These commands were tested only against temporary mailboxes. This change did
-   not publish to the installed runtime.** Checking/publication prints the source
+   The initial default was published during the authorized deployment. Subsequent
+   publications replace it at the next safe boundary. Checking/publication prints the source
    filename; Lua syntax/runtime errors include the retained `cthun-policy:<line>`
    chunk label. Native output-schema errors identify the invalid field.
 
@@ -128,4 +135,6 @@ not implemented boss policies. All encounter IDs/landmarks/decisions remain Lua 
 Run `test_raid_combat.py` for real-VM budgets, exact native adapters/collector/ground
 lifecycle, generic dispatch/reload and temporary checked publication. API doubles
 cover external world services; this is not a full worldserver/navmesh/live-pull test.
-Native deployment, restart and live tuning remain separately authorized operations.
+The native deployment is complete. Live adoption/encounter behavior still needs observation
+with an eligible raid; offline tests do not establish encounter success. Further server
+restarts require fresh authorization. Lua-only publication does not restart the server.
