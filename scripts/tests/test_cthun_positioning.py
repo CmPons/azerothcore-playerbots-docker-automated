@@ -18,8 +18,21 @@ def run(args, cwd=None):
     return result.stdout
 
 
+def combat_layer(directory, names, reverse=False):
+    """Apply/remove0035 only for paths already copied into a historical test workspace."""
+    patch = ROOT / "patches/0035-playerbot-raid-combat-lua.patch"
+    changed = {line.split(" b/", 1)[1] for line in patch.read_text().splitlines()
+               if line.startswith("diff --git ")}
+    selected = sorted(changed.intersection(names))
+    if selected:
+        run(["git", "apply", *(["--reverse"] if reverse else []),
+             *("--include=" + name for name in selected), str(patch)], cwd=directory)
+
+
 def lua_layer(directory, names, reverse=False):
     """Replay only copied paths through the newer incremental layer, never reset actual sources."""
+    if reverse:
+        combat_layer(directory, names, reverse=True)
     patch = ROOT / "patches/0033-playerbot-cthun-lua-policy.patch"
     changed = {line.split(" b/", 1)[1] for line in patch.read_text().splitlines()
                if line.startswith("diff --git ")}
@@ -27,6 +40,8 @@ def lua_layer(directory, names, reverse=False):
     if selected:
         run(["git", "apply", *(["--reverse"] if reverse else []),
              *("--include=" + name for name in selected), str(patch)], cwd=directory)
+    if not reverse:
+        combat_layer(directory, names)
 
 
 class CthunPositioningTests(unittest.TestCase):

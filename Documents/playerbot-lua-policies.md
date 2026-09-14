@@ -1,5 +1,9 @@
 # Instance-owned C'Thun Lua policy MVP
 
+The API2 raid-combat source candidate is now packaged as0035; see
+[raid-combat API and operator workflow](raid-combat-lua.md). It remains unbuilt,
+unpublished and subject to focused review. The deployment state below is unchanged.
+
 **Deployed:0033 C'Thun-specific support. Phase1 automatic loading (0034) is implemented offline,
 NOT built/deployed; phase2 generic Lua-only boss tactics is still required BEFORE gameplay testing.**
 See [the automatic-loader and queued phase2 contract](playerbot-automatic-policy.md).

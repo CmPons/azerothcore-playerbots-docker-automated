@@ -38,7 +38,7 @@ string(FIND "${MOVEMENT}" "void MovementAction::RecordCthunFollow()" RECORD_STAR
 string(FIND "${MOVEMENT}" "bool MovementAction::ChaseTo" RECORD_END)
 math(EXPR RECORD_LENGTH "${RECORD_END} - ${RECORD_START}")
 string(SUBSTRING "${MOVEMENT}" ${RECORD_START} ${RECORD_LENGTH} RECORD_FOLLOW)
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/checked-path.cpp" "#include \"${FIXTURE}\"\n${CHECKED_PATH}\n${RECORD_FOLLOW}")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/checked-path.cpp" "#include \"${FIXTURE}\"\n#include \"RaidCombatPolicy.h\"\n${CHECKED_PATH}\n${RECORD_FOLLOW}")
 add_executable(policy-integration-test ../cpp/CthunPolicyIntegrationTest.cpp
   "${PB}/src/Ai/Raid/Aq40/Aq40Cthun.cpp" "${CMAKE_CURRENT_BINARY_DIR}/checked-path.cpp")
 target_include_directories(policy-integration-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/doubles" "${PB}/src/Ai/Raid/Aq40")
@@ -62,3 +62,11 @@ target_include_directories(policy-retention-mutant PRIVATE "${CMAKE_CURRENT_BINA
 target_link_libraries(policy-retention-mutant PRIVATE policy-core)
 target_compile_options(policy-retention-mutant PRIVATE -Wall -Wextra -Werror -Wno-unused-function -fsanitize=undefined -fno-sanitize-recover=all)
 target_link_options(policy-retention-mutant PRIVATE -fsanitize=undefined)
+
+foreach(TARGET policy-integration-test policy-entrance-test policy-retention-mutant)
+  target_sources(${TARGET} PRIVATE ../cpp/RaidCombatPhaseOneFixture.cpp)
+endforeach()
+add_executable(raid-combat-check ../cpp/RaidCombatRuntimeTest.cpp)
+target_link_libraries(raid-combat-check PRIVATE policy-core)
+target_compile_options(raid-combat-check PRIVATE -Wall -Wextra -Werror -fsanitize=undefined -fno-sanitize-recover=all)
+target_link_options(raid-combat-check PRIVATE -fsanitize=undefined)

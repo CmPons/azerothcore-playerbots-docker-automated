@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Trusted-host Cthun policy publisher. Files only: no server, SQL or gameplay commands."""
+"""Trusted-host raid policy publisher. Files only: no server, SQL or gameplay commands."""
 import argparse
 from contextlib import contextmanager
 import fcntl
@@ -108,6 +108,7 @@ def source_bytes(path, maximum=MAX_SOURCE):
 
 def checked(path, checker):
     source = source_bytes(path)
+    print(f"Checking {path}", file=sys.stderr)
     # Check the SAME immutable bytes that will be published, not a path that can change afterward.
     import tempfile
     with tempfile.NamedTemporaryFile(suffix=".lua") as snapshot:
@@ -118,12 +119,12 @@ def checked(path, checker):
 
 
 def read_status(directory, scope):
-    if not re.fullmatch(r"531-\d+-\d+", scope):
+    if not re.fullmatch(r"\d+-\d+-\d+", scope):
         raise ValueError("scope must come from a current status filename")
     path = directory / (scope + ".json")
     if not path.exists():
         return {"scope": scope, "state": "unloaded/not observed"}
-    if path.is_symlink() or path.stat().st_size > 4096:
+    if path.is_symlink() or path.stat().st_size > 16384:
         raise ValueError("invalid status file")
     data = json.loads(path.read_text())
     age = time.time() - data["updated"]

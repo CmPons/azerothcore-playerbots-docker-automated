@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 import time
 import unittest
-from test_cthun_positioning import lua_layer
+from test_cthun_positioning import lua_layer, combat_layer
 
 ROOT = Path(__file__).resolve().parents[2]
 CORE = ROOT / "azerothcore-wotlk"
@@ -79,6 +79,7 @@ class RaidPolicyTests(unittest.TestCase):
                 target = root / name
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes((CORE / name).read_bytes())
+            combat_layer(root, names, reverse=True)
             run(["git", "apply", "--reverse", AUTOMATIC_PATCH], cwd=root)
             scope = root / "modules/mod-playerbots/src/Ai/Raid/Policy"
             self.assertEqual(hashlib.sha256((scope / "CthunPolicyScope.cpp").read_bytes()).hexdigest(),
@@ -110,10 +111,12 @@ class RaidPolicyTests(unittest.TestCase):
                 target = root / name
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes((CORE / name).read_bytes())
+            combat_layer(root, names, reverse=True)
             run(["git", "apply", "--check", "--reverse", AUTOMATIC_PATCH], cwd=root)
             run(["git", "apply", "--reverse", AUTOMATIC_PATCH], cwd=root)
             run(["git", "apply", "--check", AUTOMATIC_PATCH], cwd=root)
             run(["git", "apply", AUTOMATIC_PATCH], cwd=root)
+            combat_layer(root, names)
             for name in names:
                 self.assertEqual((root / name).read_bytes(), (CORE / name).read_bytes(), name)
 
@@ -183,11 +186,13 @@ class RaidPolicyTests(unittest.TestCase):
                 target = temp / name
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes((CORE / name).read_bytes())
+            combat_layer(temp, names, reverse=True)
             run(["git", "apply", "--reverse", AUTOMATIC_PATCH], cwd=temp)
             run(["git", "apply", "--reverse", PATCH], cwd=temp)
             run(["git", "apply", "--check", PATCH], cwd=temp)
             run(["git", "apply", PATCH], cwd=temp)
             run(["git", "apply", AUTOMATIC_PATCH], cwd=temp)
+            combat_layer(temp, names)
             for name in names:
                 self.assertEqual((temp / name).read_bytes(), (CORE / name).read_bytes(), name)
 

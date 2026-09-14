@@ -1,0 +1,2239 @@
+diff --git a/modules/mod-playerbots/src/Ai/Base/Actions/MovementActions.cpp b/modules/mod-playerbots/src/Ai/Base/Actions/MovementActions.cpp
+--- a/modules/mod-playerbots/src/Ai/Base/Actions/MovementActions.cpp
++++ b/modules/mod-playerbots/src/Ai/Base/Actions/MovementActions.cpp
+@@ -5,6 +5,7 @@
+  */
+ 
+ #include "MovementActions.h"
++#include "RaidCombatPolicy.h"
+ 
+ #include <cmath>
+ #include <cstdlib>
+@@ -896,6 +897,8 @@
+ 
+ bool MovementAction::ReachCombatTo(Unit* target, float distance)
+ {
++    if (botAI->raidCombat.scheduled && RaidCombat::HasMovementClaim(*botAI))
++        return false;
+     if (!IsMovingAllowed(target))
+         return false;
+ 
+@@ -1195,6 +1198,8 @@
+ 
+ bool MovementAction::Follow(Unit* target, float distance, float angle)
+ {
++    if (botAI->raidCombat.scheduled && RaidCombat::HasMovementClaim(*botAI))
++        return false;
+     UpdateMovementState();
+ 
+     if (!target)
+@@ -1361,6 +1366,8 @@
+         if (currentTarget && currentTarget->GetGUID() == target->GetGUID())
+         {
+             RecordCthunFollow();
++            if (!botAI->raidCombat.scheduled)
++                botAI->raidCombat.automaticMotion = 0; // Never relabel an existing manual/unknown follow.
+             return false;
+         }
+     }
+@@ -1370,12 +1377,14 @@
+ 
+     bot->GetMotionMaster()->MoveFollow(target, distance, angle);
+     RecordCthunFollow();
++    RaidCombat::RecordScheduledMotion(*botAI);
+     return true;
+ }
+ 
+ void MovementAction::RecordCthunFollow()
+ {
+-    if (bot->GetMapId() != 531)
++    // API2 uses generator provenance without clearing LastMovement/nonpolicy leases.
++    if (bot->GetMapId() != 531 || RaidCombat::UsesCombatPolicy(*botAI))
+         return;
+     LastMovement& last = AI_VALUE(LastMovement&, "last movement");
+     uint32 const spline = bot->movespline->GetId();
+@@ -1400,6 +1409,8 @@
+ 
+ bool MovementAction::ChaseTo(WorldObject* obj, float distance)
+ {
++    if (botAI->raidCombat.scheduled && RaidCombat::HasMovementClaim(*botAI))
++        return false;
+     if (!IsMovingAllowed())
+     {
+         return false;
+@@ -1429,6 +1440,7 @@
+ 
+     // bot->GetMotionMaster()->Clear();
+     bot->GetMotionMaster()->MoveChase((Unit*)obj, distance);
++    RaidCombat::RecordScheduledMotion(*botAI);
+ 
+     // TODO shouldnt this use "last movement" value?
+     WaitForReach(bot->GetExactDist2d(obj) - distance);
+diff --git a/modules/mod-playerbots/src/Ai/Base/Value/CurrentTargetValue.cpp b/modules/mod-playerbots/src/Ai/Base/Value/CurrentTargetValue.cpp
+--- a/modules/mod-playerbots/src/Ai/Base/Value/CurrentTargetValue.cpp
++++ b/modules/mod-playerbots/src/Ai/Base/Value/CurrentTargetValue.cpp
+@@ -5,11 +5,17 @@
+  */
+ 
+ #include "CurrentTargetValue.h"
++#include "RaidCombatPolicy.h"
+ 
+ #include "Playerbots.h"
+ 
+ Unit* CurrentTargetValue::Get()
+ {
++    // Explicit/native prioritized targets (including attack-my-target and raid markers) win.
++    if (botAI->raidCombat.scheduled &&
++        botAI->GetAiObjectContext()->GetValue<GuidVector>("prioritized targets")->Get().empty())
++        if (Unit* preferred = RaidCombat::PreferredTarget(*botAI))
++            return preferred;
+     if (selection.IsEmpty())
+         return nullptr;
+ 
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Cthun.cpp b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Cthun.cpp
+--- a/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Cthun.cpp
++++ b/modules/mod-playerbots/src/Ai/Raid/Aq40/Aq40Cthun.cpp
+@@ -6,6 +6,7 @@
+ #include "Aq40Cthun.h"
+ #include "CthunRoom.h"
+ #include "CthunPolicyScope.h"
++#include "RaidCombatPolicy.h"
+ #include "MoveSpline.h"
+ #include "Map.h"
+ #include "MotionMaster.h"
+@@ -571,6 +572,8 @@
+     if (roster.size() > CthunPolicy::MAX_MEMBERS)
+         for (std::size_t i = 0; i < snapshot.count; ++i)
+             snapshot.members[i].eligible = false;
++    RaidCombat::Collect(map, snapshot);
++    safeBoundary = safeBoundary && RaidCombat::SafeBoundary(map);
+     scope->Update(snapshot, safeBoundary, getMSTime());
+     if (poll)
+         scope->Status();
+@@ -582,7 +585,7 @@
+     generation = scope ? scope->generation : 1;
+     if (!scope || !scope->active)
+         return -2; // Native backend, never run alongside Lua.
+-    if (!scope->Fresh(getMSTime()))
++    if (scope->api == 2 || !scope->Fresh(getMSTime()))
+         return -1;
+     std::string const guid = bot->GetGUID().ToString();
+     for (std::size_t i = 0; i < scope->snapshot.count; ++i)
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyRuntime.cpp b/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyRuntime.cpp
+--- a/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyRuntime.cpp
++++ b/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyRuntime.cpp
+@@ -2,6 +2,7 @@
+ #include "CthunPolicyRuntime.h"
+ 
+ #include <cmath>
++#include <cstdio>
+ #include <cstdlib>
+ #include <cstring>
+ #include <algorithm>
+@@ -16,7 +17,7 @@
+ {
+ namespace
+ {
+-    struct LoadContext { char const* bytes; std::size_t size; };
++    struct LoadContext { char const* bytes; std::size_t size; unsigned* api; };
+     struct EvalContext { Snapshot const* snapshot; Plan* plan; };
+ 
+     // These callbacks contain only trivial automatic objects. Lua errors/allocator failures
+@@ -113,8 +114,9 @@
+     if (!lua_istable(state, -1))
+         return luaL_error(state, "module must return api/plan table");
+     RawField(state, -1, "api");
+-    if (!lua_isinteger(state, -1) || lua_tointeger(state, -1) != 1)
++    if (!lua_isinteger(state, -1) || (lua_tointeger(state, -1) != 1 && lua_tointeger(state, -1) != 2))
+         return luaL_error(state, "unsupported api");
++    *context->api = static_cast<unsigned>(lua_tointeger(state, -1));
+     lua_pop(state, 1);
+     RawField(state, -1, "plan");
+     if (!lua_isfunction(state, -1))
+@@ -135,7 +137,7 @@
+         _error = "state allocation failed";
+         return false;
+     }
+-    LoadContext context{source.data(), source.size()};
++    LoadContext context{source.data(), source.size(), &_api};
+     return Call(Initialize, &context);
+ }
+ int Runtime::EvaluateProtected(lua_State* state)
+@@ -206,6 +208,8 @@
+     }
+     return 0;
+ }
++#include "RaidCombatLua.h"
++
+ bool Runtime::Evaluate(Snapshot const& snapshot, Plan& plan)
+ {
+     if (!_state || snapshot.count > MAX_MEMBERS)
+@@ -216,7 +220,7 @@
+             return false;
+     Plan temporary;
+     EvalContext context{&snapshot, &temporary};
+-    if (!Call(EvaluateProtected, &context))
++    if (!Call(_api == 2 ? EvaluateCombatProtected : EvaluateProtected, &context))
+         return false;
+     plan = temporary;
+     return true;
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyRuntime.h b/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyRuntime.h
+--- a/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyRuntime.h
++++ b/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyRuntime.h
+@@ -2,6 +2,7 @@
+ #ifndef PLAYERBOTS_CTHUN_POLICY_RUNTIME_H
+ #define PLAYERBOTS_CTHUN_POLICY_RUNTIME_H
+ 
++#include "RaidCombatData.h"
+ #include <array>
+ #include <cstddef>
+ #include <cstdint>
+@@ -36,10 +37,12 @@
+     bool combat = false, eye = false, committed = false;
+     std::size_t count = 0;
+     std::array<Member, MAX_MEMBERS> members{};
++    RaidCombat::Snapshot raid;
+ };
+ struct Plan
+ {
+     std::array<int, MAX_MEMBERS> choices{};
++    RaidCombat::Plan raid;
+ };
+ class Runtime
+ {
+@@ -52,14 +55,17 @@
+     bool Evaluate(Snapshot const& snapshot, Plan& plan);
+     std::string const& Error() const { return _error; }
+     std::size_t Memory() const { return _memory; }
++    unsigned Api() const { return _api; }
+ private:
+     static void* Allocate(void* context, void* pointer, std::size_t oldSize, std::size_t newSize);
+     static int Initialize(lua_State* state);
+     static int EvaluateProtected(lua_State* state);
++    static int EvaluateCombatProtected(lua_State* state);
+     bool Call(int (*function)(lua_State*), void* context);
+     lua_State* _state = nullptr;
+     std::size_t _memory = 0;
+     int _instructions = 0;
++    unsigned _api = 1;
+     std::string _error;
+ };
+ }
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyScope.cpp b/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyScope.cpp
+--- a/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyScope.cpp
++++ b/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyScope.cpp
+@@ -294,16 +294,21 @@
+         }
+     bool committed = false;
+     excluded = 0;
+-    for (std::size_t i = 0; i < current.count; ++i)
+-        excluded += !current.members[i].eligible;
++    std::size_t const memberCount = api == 2 ? current.raid.count : current.count;
++    for (std::size_t i = 0; i < memberCount; ++i)
++        excluded += !(api == 2 ? current.raid.members[i].eligible : current.members[i].eligible);
+     unsigned retained = 0;
+     for (unsigned i = 0; i < adopted; ++i)
+-        for (std::size_t j = 0; j < current.count; ++j)
+-            if (current.members[j].eligible && _adopted[i] == current.members[j].guid)
++        for (std::size_t j = 0; j < memberCount; ++j)
++        {
++            bool const eligible = api == 2 ? current.raid.members[j].eligible : current.members[j].eligible;
++            std::string const guid = api == 2 ? std::to_string(current.raid.members[j].unit.guid) : current.members[j].guid;
++            if (eligible && _adopted[i] == guid)
+             {
+                 _adopted[retained++] = _adopted[i];
+                 break;
+             }
++        }
+     adopted = retained;
+     if (!queued.empty() && safeBoundary && (!_retrySource || uint32_t(now - _retrySince) >= 30000))
+     {
+@@ -337,6 +342,7 @@
+                         error = "reload rejected: " + candidate->Error();
+                     else
+                     {
++                        api = candidate->Api();
+                         _runtime = std::move(candidate);
+                         revision = queued;
+                         faultedRevision.clear(); // Only adoption of distinct verified bytes ends quarantine.
+@@ -431,7 +437,19 @@
+         << ",\"fault_error\":\"" << Escape(faultError) << "\""
+         << ",\"diagnostic_error\":\"" << Escape(diagnosticError) << "\""
+         << ",\"adopted\":" << adopted << ",\"excluded\":" << excluded
+-        << ",\"members\":" << snapshot.count << ",\"error\":\"" << Escape(error) << "\"}\n";
++        << ",\"members\":" << (api == 2 ? snapshot.raid.count : snapshot.count)
++        << ",\"api\":" << api << ",\"sampled_at\":" << snapshot.raid.sampledAt
++        << ",\"observation_gaps\":" << snapshot.raid.gaps << ",\"receipts\":[";
++    if (api == 2)
++        for (unsigned i = 0; i < snapshot.raid.count; ++i)
++        {
++            auto const& member = snapshot.raid.members[i];
++            if (i)
++                out << ',';
++            out << "{\"member\":\"" << member.unit.guid << "\",\"movement\":" << member.movementReceipt
++                << ",\"action\":" << member.actionReceipt << '}';
++        }
++    out << "],\"error\":\"" << Escape(error) << "\"}\n";
+     std::string const text = out.str();
+     std::string const temporary = id + ".tmp", destination = id + ".json";
+     int const file = openat(dir, temporary.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW | O_CLOEXEC, 0600);
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyScope.h b/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyScope.h
+--- a/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyScope.h
++++ b/modules/mod-playerbots/src/Ai/Raid/Policy/CthunPolicyScope.h
+@@ -27,7 +27,7 @@
+     bool diagnosticOverride = false;
+     uint64_t generation = 1;
+     uint32_t plannedAt = 0, elapsed = 0, pollElapsed = 1000;
+-    unsigned paths = 0, adopted = 0, excluded = 0;
++    unsigned paths = 0, adopted = 0, excluded = 0, api = 1;
+     bool active = false;
+     Snapshot snapshot;
+     Plan plan;
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Policy/GenericObservation.cpp b/modules/mod-playerbots/src/Ai/Raid/Policy/GenericObservation.cpp
+new file mode 100644
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Raid/Policy/GenericObservation.cpp
+@@ -0,0 +1,263 @@
++#include "GenericObservation.h"
++#include "CellImpl.h"
++#include "Corpse.h"
++#include "Creature.h"
++#include "DynamicObject.h"
++#include "GameObject.h"
++#include "InstanceScript.h"
++#include "Map.h"
++#include "ObjectAccessor.h"
++#include "Player.h"
++#include <algorithm>
++#include <limits>
++#include <map>
++#include <set>
++
++namespace GenericPolicy
++{
++namespace
++{
++struct CollectorVisitor
++{
++    Map& map;
++    std::vector<Player*> const& observers; // Call-local only; no pointer leaves Collect.
++    Observation& output;
++    std::map<ObjectGuid, ObservedEntity>& values;
++    uint32 perType;
++
++    void Observe(WorldObject* object)
++    {
++        if (!object)
++            return;
++        uint64 visible = 0;
++        for (std::size_t i = 0; i < observers.size(); ++i)
++        {
++            ++output.observerTests;
++            Player* observer = observers[i];
++            if (!observer || !observer->IsInWorld() || !object->IsInWorld() ||
++                observer->FindMap() != &map || object->FindMap() != &map || !observer->InSamePhase(object))
++                continue;
++            ++output.visibilityCalls;
++            // Real core observer-specific script/phase/GM/ghost/stealth/distance/vehicle checks.
++            if (observer->CanSeeOrDetect(object, false, true))
++                visible |= uint64(1) << i;
++        }
++        if (!visible)
++            return;
++        auto& value = values[object->GetGUID()];
++        value.guid = object->GetGUID();
++        value.observers |= visible;
++        value.x = object->GetPositionX();
++        value.y = object->GetPositionY();
++        value.z = object->GetPositionZ();
++        value.entry = object->GetEntry();
++        value.type = object->GetTypeId();
++    }
++
++    template<class T>
++    void Visit(GridRefMgr<T>& objects)
++    {
++        auto result = objects.VisitBounded(std::min(perType, ExamineLimit - output.examined), [this](T* object)
++        {
++            ++output.examined;
++            Observe(object);
++        });
++        if (!result.complete)
++            output.gaps |= PopulationGap;
++    }
++};
++}
++
++Observation MapCollector::Collect(Map& map, std::span<ObjectGuid const> observerGuids,
++    std::span<ObjectGuid const> neededInteractions, uint32 cellRadius)
++{
++    Observation output;
++    output.scopeEpoch = _scopeEpoch;
++    if (_sequence == std::numeric_limits<uint64>::max())
++    {
++        output.gaps = IdentityGap;
++        return output; // Owner must replace scope; never wrap an identity.
++    }
++    output.sequence = ++_sequence;
++    // Even a complete selected-cell pass is not whole-map knowledge, nor an event history.
++    output.gaps = SpatialGap;
++    if (cellRadius >= TOTAL_NUMBER_OF_CELLS_PER_MAP)
++    {
++        output.gaps |= RequiredGap;
++        return output;
++    }
++    if (observerGuids.size() > ObserverLimit)
++        output.gaps |= ObserverGap;
++    if (neededInteractions.size() > InteractionLimit)
++        output.gaps |= RequiredGap;
++
++    std::vector<Player*> observers;
++    std::set<ObjectGuid> required;
++    for (ObjectGuid guid : observerGuids.first(std::min<std::size_t>(observerGuids.size(), ObserverLimit)))
++    {
++        output.observers.push_back(guid);
++        ++output.examined; // Count observer resolution/target inspection, not just emitted/spatial rows.
++        Player* player = ObjectAccessor::GetPlayer(&map, guid);
++        if (!player || !player->IsInWorld() || player->FindMap() != &map)
++        {
++            output.gaps |= ObserverGap;
++            observers.push_back(nullptr);
++            required.insert(guid);
++            continue;
++        }
++        observers.push_back(player);
++        required.insert(guid);
++        if (player->GetTarget())
++            required.insert(player->GetTarget());
++    }
++    // Roster enumeration is bounded, but separate reload safety below never uses this prefix.
++    uint32 roster = 0;
++    for (auto const& reference : map.GetPlayers())
++    {
++        if (roster++ == ObserverLimit)
++        {
++            output.gaps |= RosterGap;
++            break;
++        }
++        ++output.examined;
++        if (Player* player = reference.GetSource())
++            required.insert(player->GetGUID());
++        else
++            output.gaps |= RosterGap;
++    }
++    for (ObjectGuid guid : neededInteractions.first(std::min<std::size_t>(neededInteractions.size(), InteractionLimit)))
++        required.insert(guid);
++
++    std::map<ObjectGuid, ObservedEntity> values;
++    CollectorVisitor collector{map, observers, output, values, 0};
++    Player* resolver = nullptr;
++    for (Player* player : observers)
++        if (player)
++        {
++            resolver = player;
++            break;
++        }
++    // GUID-sorted direct reads precede spatial reads, including targets outside selected cells.
++    // A missing resolver or invisible/unresolved object remains explicitly unknown.
++    for (ObjectGuid guid : required)
++    {
++        auto& value = values[guid];
++        value.guid = guid;
++        value.required = true;
++        ++output.examined;
++        if (resolver)
++            collector.Observe(ObjectAccessor::GetWorldObject(*resolver, guid));
++        if (!value.observers)
++            output.gaps |= RequiredGap;
++    }
++
++    std::vector<CellCoord> cells;
++    std::set<uint32> selected;
++    auto addCell = [&](CellCoord coord)
++    {
++        if (coord.IsCoordValid() && selected.insert(coord.GetId()).second)
++            cells.push_back(coord);
++    };
++    // Reserve every observer's center before spending any neighbor opportunities.
++    for (Player* player : observers)
++        if (player)
++            addCell(Acore::ComputeCellCoord(player->GetPositionX(), player->GetPositionY()));
++    uint32 const neighborOpportunities = CellLimit - uint32(observers.size());
++    uint64 const side = 2 * uint64(cellRadius) + 1;
++    if (!observers.empty())
++        for (uint32 n = 0; n < neighborOpportunities; ++n)
++        {
++            // Modular arithmetic avoids sequence multiplication overflow.
++            uint64 const period = uint64(observers.size()) * side * side;
++            uint64 const slot = (((output.sequence - 1) % period) * neighborOpportunities + n) % period;
++            Player* player = observers[slot % observers.size()];
++            if (!player)
++                continue;
++            auto center = Acore::ComputeCellCoord(player->GetPositionX(), player->GetPositionY());
++            uint64 const offset = slot / observers.size();
++            int64 const x = int64(center.x_coord) + int64(offset % side) - cellRadius;
++            int64 const y = int64(center.y_coord) + int64(offset / side) - cellRadius;
++            if (x >= 0 && y >= 0 && x < TOTAL_NUMBER_OF_CELLS_PER_MAP && y < TOTAL_NUMBER_OF_CELLS_PER_MAP)
++                addCell(CellCoord(uint32(x), uint32(y)));
++        }
++    // All five actual native grid types receive nonzero reserved work, even in dense GO prefixes.
++    collector.perType = cells.empty() ? 0 : (ExamineLimit - output.examined) / uint32(cells.size()) / 5;
++    TypeContainerVisitor<CollectorVisitor, GridTypeMapContainer> visitor(collector);
++    for (CellCoord coord : cells)
++    {
++        ++output.cells;
++        Cell cell(coord);
++        if (!map.IsGridLoaded(GridCoord(cell.GridX(), cell.GridY())))
++            output.gaps |= UnloadedGap;
++        map.Visit(cell, visitor); // Actual Map::Visit skips unloaded grids; no load/create call.
++    }
++    for (auto const& [guid, value] : values)
++        output.entities.push_back(value);
++    return output;
++}
++
++ReloadCheck CheckReloadSafety(InstanceMap& map, uint32 populationLimit)
++{
++    ReloadCheck result;
++    InstanceScript* script = map.GetInstanceScript();
++    if (!script)
++        return result;
++    if (script->IsEncounterInProgress())
++    {
++        result.state = ReloadSafety::Encounter;
++        return result;
++    }
++    std::vector<ObjectGuid> pending;
++    std::set<ObjectGuid> seen;
++    Player* resolver = nullptr;
++    auto add = [&](Unit* unit)
++    {
++        if (result.links == populationLimit)
++        {
++            result.state = ReloadSafety::OverBound;
++            return false;
++        }
++        ++result.links;
++        if (!unit || !unit->IsInWorld() || unit->IsDuringRemoveFromWorld() || unit->FindMap() != &map)
++            return false;
++        if (seen.insert(unit->GetGUID()).second)
++            pending.push_back(unit->GetGUID());
++        return true;
++    };
++    for (auto const& reference : map.GetPlayers())
++    {
++        if (result.players == populationLimit)
++        {
++            result.state = ReloadSafety::OverBound;
++            return result;
++        }
++        ++result.players;
++        Player* player = reference.GetSource();
++        if (!add(player) || player->IsBeingTeleported())
++            return result;
++        resolver = player;
++        if (!add(player->m_mover))
++            return result;
++    }
++    for (std::size_t i = 0; i < pending.size(); ++i)
++    {
++        Unit* unit = ObjectAccessor::GetUnit(*resolver, pending[i]);
++        if (!unit || !unit->IsInWorld() || unit->IsDuringRemoveFromWorld() || unit->FindMap() != &map)
++            return result;
++        ++result.units;
++        if (unit->IsInCombat() || unit->IsNonMeleeSpellCast(true, false, false, false, false))
++        {
++            result.state = ReloadSafety::Busy;
++            return result;
++        }
++        for (Unit* controlled : unit->m_Controlled)
++            if (!add(controlled))
++                return result;
++        if (Unit* vehicle = unit->GetVehicleBase())
++            if (!add(vehicle))
++                return result;
++    }
++    result.state = ReloadSafety::Safe;
++    return result;
++}
++}
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Policy/GenericObservation.h b/modules/mod-playerbots/src/Ai/Raid/Policy/GenericObservation.h
+new file mode 100644
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Raid/Policy/GenericObservation.h
+@@ -0,0 +1,86 @@
++#ifndef PLAYERBOT_GENERIC_OBSERVATION_H
++#define PLAYERBOT_GENERIC_OBSERVATION_H
++
++#include "ObjectGuid.h"
++#include <cstdint>
++#include <span>
++#include <vector>
++
++class Map;
++class InstanceMap;
++
++namespace GenericPolicy
++{
++// Bounded native collection; the Lua combat projection has a separate compact row cap.
++constexpr uint32 ObserverLimit = 40;
++constexpr uint32 CellLimit = 64;
++constexpr uint32 ExamineLimit = 2048;
++constexpr uint32 InteractionLimit = 128;
++
++enum ObservationGap : uint32
++{
++    NoGap = 0,
++    ObserverGap = 1,
++    RosterGap = 2,
++    RequiredGap = 4,
++    SpatialGap = 8,
++    UnloadedGap = 16,
++    PopulationGap = 32,
++    IdentityGap = 64
++};
++
++struct ObservedEntity
++{
++    ObjectGuid guid;
++    uint64 observers = 0; // Bits refer to the copied observer GUID array; never implies global visibility.
++    float x = 0, y = 0, z = 0;
++    uint32 entry = 0;
++    uint8 type = 0;
++    bool required = false;
++    // observers == 0: unknown, with no position/entry/type disclosure. Not evidence of absence.
++};
++
++struct Observation
++{
++    uint64 scopeEpoch = 0;
++    uint64 sequence = 0;
++    uint32 gaps = NoGap;
++    uint32 cells = 0;
++    uint32 examined = 0;
++    uint32 observerTests = 0;
++    uint32 visibilityCalls = 0;
++    std::vector<ObjectGuid> observers;
++    std::vector<ObservedEntity> entities;
++};
++
++class MapCollector
++{
++public:
++    explicit MapCollector(uint64 scopeEpoch) : _scopeEpoch(scopeEpoch) { }
++    MapCollector(MapCollector const&) = delete;
++    MapCollector& operator=(MapCollector const&) = delete;
++    MapCollector(MapCollector&&) = delete;
++    MapCollector& operator=(MapCollector&&) = delete;
++    // Serialized map-owner call only, after map mutation batches, before policy evaluation.
++    // Inputs must be bounded at their producer too. This function reads at most 40/128 input GUIDs.
++    // cellRadius defines an explicitly partial planning horizon; it is not an omniscience/absence API.
++    Observation Collect(Map& map, std::span<ObjectGuid const> observers,
++        std::span<ObjectGuid const> neededInteractions, uint32 cellRadius);
++private:
++    uint64 _scopeEpoch;
++    uint64 _sequence = 0;
++};
++
++enum class ReloadSafety { Safe, Encounter, Busy, Unknown, OverBound };
++struct ReloadCheck
++{
++    ReloadSafety state = ReloadSafety::Unknown;
++    uint32 players = 0;
++    uint32 units = 0;
++    uint32 links = 0;
++};
++
++// Independent of all planning caps. Recompute immediately before adoption; never cache Safe.
++ReloadCheck CheckReloadSafety(InstanceMap& map, uint32 populationLimit);
++}
++#endif
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatActions.cpp b/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatActions.cpp
+new file mode 100644
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatActions.cpp
+@@ -0,0 +1,163 @@
++/* Immediate, non-triggered combat requests. No queues, resource bypasses or cast cancellation. */
++#include "RaidCombatPolicy.h"
++#include "RaidCombatAdmission.h"
++#include "CthunPolicyScope.h"
++#include "Playerbots.h"
++#include "ObjectAccessor.h"
++#include "Spell.h"
++
++namespace RaidCombat
++{
++namespace
++{
++bool Binding(PlayerbotAI& ai, uint64 generation, uint32 issued, uint64 control)
++{
++    Player* bot = ai.GetBot();
++    auto* scope = bot->GetMap()->CustomData.Get<CthunPolicy::Scope>("playerbots.cthun");
++    return Eligible(ai) && scope && scope->api == 2 && scope->generation == generation &&
++        scope->plannedAt == issued && scope->Fresh(getMSTime()) && FreshRequest(issued, getMSTime()) &&
++        bot->GetControlIdentity() == control && !bot->GetTransGUID() && !bot->GetVehicle();
++}
++bool Idle(Player& bot)
++{
++    if (!bot.SpellQueue.empty())
++        return false;
++    for (auto slot : {CURRENT_MELEE_SPELL, CURRENT_GENERIC_SPELL, CURRENT_CHANNELED_SPELL,
++            CURRENT_AUTOREPEAT_SPELL})
++        if (bot.GetCurrentSpell(slot))
++            return false;
++    return true;
++}
++bool Permission(Spell const& spell)
++{
++    Player* bot = spell.GetCaster()->ToPlayer();
++    if (!bot || !bot->IsInWorld() || bot->GetCharmerGUID() || bot->m_mover != bot)
++        return false;
++    unsigned count = 0;
++    for (auto const& target : spell.GetCollectedCombatTargets())
++    {
++        if (++count > 96)
++            return false;
++        for (unsigned effect = 0; effect < MAX_SPELL_EFFECTS; ++effect)
++            if ((target.effectMask & (1u << effect)) && !spell.GetSpellInfo()->IsPositiveEffect(effect))
++            {
++                Unit* unit = ObjectAccessor::GetUnit(*bot, target.targetGUID);
++                if (!unit || !Engaged(*bot, *unit))
++                    return false;
++            }
++    }
++    return true;
++}
++bool Identity(Unit& target, Entity const& expected, Intent const& intent)
++{
++    if (intent.operation == Operation::Interrupt)
++    {
++        for (auto slot : {CURRENT_GENERIC_SPELL, CURRENT_CHANNELED_SPELL})
++            if (Spell* cast = target.GetCurrentSpell(slot))
++                if (cast->GetCastIdentity() == expected.cast && cast->GetSpellInfo()->Id == expected.castSpell)
++                    return true;
++        return false;
++    }
++    return intent.operation == Operation::Dispel && intent.aura && target.GetAuraApplication(intent.aura);
++}
++}
++Unit* PreferredTarget(PlayerbotAI& ai)
++{
++    Player* bot = ai.GetBot();
++    if (!Eligible(ai))
++        return nullptr;
++    auto* scope = bot->GetMap()->CustomData.Get<CthunPolicy::Scope>("playerbots.cthun");
++    if (!scope || scope->api != 2 || !scope->Fresh(getMSTime()))
++        return nullptr;
++    for (unsigned i = 0; i < scope->snapshot.raid.count; ++i)
++    {
++        if (scope->snapshot.raid.members[i].unit.guid != bot->GetGUID().GetRawValue())
++            continue;
++        unsigned const index = scope->plan.raid.intents[i].target;
++        if (!index || index > scope->snapshot.raid.entityCount)
++            return nullptr;
++        ObjectGuid const guid(scope->snapshot.raid.entities[index - 1].guid);
++        Unit* unit = ObjectAccessor::GetUnit(*bot, guid);
++        uint64 const generation = scope->generation, control = bot->GetControlIdentity();
++        uint32 const issued = scope->plannedAt;
++        if (!unit || !unit->IsAlive() || !unit->IsInMap(bot) || !unit->InSamePhase(bot) ||
++            !bot->CanSeeOrDetect(unit) || !bot->IsValidAttackTarget(unit))
++            return nullptr;
++        // No callback-bearing query follows the final clock/binding/engagement gate.
++        return Binding(ai, generation, issued, control) && ObjectAccessor::GetUnit(*bot, guid) == unit &&
++            Engaged(*bot, *unit) ? unit : nullptr;
++    }
++    return nullptr;
++}
++void ApplyCombatAction(PlayerbotAI& ai, Snapshot const& snapshot, Intent const& intent,
++    uint64 generation, uint32 issued)
++{
++    auto& state = ai.raidCombat;
++    if (state.attempted == snapshot.sequence || intent.operation == Operation::None)
++        return;
++    state.attempted = snapshot.sequence; // Retire before any callback; no same-frame retry or double submission.
++    Player* bot = ai.GetBot();
++    if (!intent.actionTarget || intent.actionTarget > snapshot.entityCount || !Eligible(ai))
++    {
++        state.actionReceipt = 10;
++        return;
++    }
++    // Emergency healer triage is native. Do not spend its available GCD on a requested utility spell.
++    if (PlayerbotAI::IsHeal(bot))
++        for (unsigned i = 0; i < snapshot.count; ++i)
++            if (snapshot.members[i].unit.alive && snapshot.members[i].unit.health < 50)
++            {
++                state.actionReceipt = 11;
++                return;
++            }
++    Entity const expected = snapshot.entities[intent.actionTarget - 1];
++    Intent const request = intent;
++    ObjectGuid const guid(expected.guid);
++    uint64 const control = bot->GetControlIdentity();
++    Unit* target = ObjectAccessor::GetUnit(*bot, guid);
++    uint64 const targetControl = target ? target->GetControlIdentity() : 0;
++    SpellInfo const* info = sSpellMgr->GetSpellInfo(request.spell);
++    SpellCastTargets targets;
++    bool const accepted = CheckedAdmission([&]
++    {
++        if (!target || !info || !bot->HasActiveSpell(info->Id) || info->IsPassive() ||
++            !target->IsInMap(bot) || !target->InSamePhase(bot) || !target->IsAlive() ||
++            !bot->CanSeeOrDetect(target) || !bot->IsWithinLOSInMap(target) || !Idle(*bot) ||
++            bot->GetSpellCooldownDelay(info->Id) || bot->GetGlobalCooldownMgr().HasGlobalCooldown(info) ||
++            !Identity(*target, expected, request))
++            return false;
++        if ((request.operation == Operation::Interrupt && !info->HasEffect(SPELL_EFFECT_INTERRUPT_CAST)) ||
++            (request.operation == Operation::Dispel && !info->HasEffect(SPELL_EFFECT_DISPEL)))
++            return false;
++        for (auto const& effect : info->Effects)
++            if (effect.Effect && effect.Effect != SPELL_EFFECT_INTERRUPT_CAST &&
++                effect.Effect != SPELL_EFFECT_DISPEL && effect.Effect != SPELL_EFFECT_SCHOOL_DAMAGE)
++                return false;
++        if (info->IsPositive())
++        {
++            Player* player = target->ToPlayer();
++            if (!player || player->GetGroup() != bot->GetGroup())
++                return false;
++        }
++        else if (!bot->IsValidAttackTarget(target) || !RequestedHarmAllowed(true, Engaged(*bot, *target)))
++            return false;
++        targets.SetUnitTarget(target);
++        return true;
++    }, [&]
++    {
++        // These reads cannot invoke visibility/LOS/spell validation scripts. This is the last gate,
++        // AFTER all callback-bearing validation and immediately before ordinary native preparation.
++        return ObjectAccessor::GetUnit(*bot, guid) == target &&
++            target->GetControlIdentity() == targetControl && target->IsAlive() &&
++            Identity(*target, expected, request) && Idle(*bot) &&
++            RequestedHarmAllowed(!info->IsPositive(), Engaged(*bot, *target)) &&
++            Binding(ai, generation, issued, control);
++    }, [&]
++    {
++        Spell* spell = new Spell(bot, info, TRIGGERED_NONE);
++        spell->SetCombatAdmissionCheck(Permission);
++        spell->prepare(&targets);
++    });
++    state.actionReceipt = accepted ? 12 : 10; // Submitted is not effect success; native CheckCast remains authoritative.
++}
++}
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatAdmission.h b/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatAdmission.h
+new file mode 100644
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatAdmission.h
+@@ -0,0 +1,28 @@
++#ifndef PLAYERBOTS_RAID_COMBAT_ADMISSION_H
++#define PLAYERBOTS_RAID_COMBAT_ADMISSION_H
++#include <cstdint>
++
++namespace RaidCombat
++{
++// Keep this ordering at the native admission boundary: validation can run scripts. Sampling the
++// clock/binding before validate (or before a second resolver) does not authorize admission afterward.
++template<class Validate, class Current, class Admit>
++bool CheckedAdmission(Validate&& validate, Current&& current, Admit&& admit)
++{
++    if (!validate())
++        return false;
++    if (!current())
++        return false;
++    admit();
++    return true;
++}
++inline bool FreshRequest(uint32_t issued, uint32_t now)
++{
++    return uint32_t(now - issued) < 1000;
++}
++inline bool RequestedHarmAllowed(bool harmful, bool engaged)
++{
++    return !harmful || engaged;
++}
++}
++#endif
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatData.h b/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatData.h
+new file mode 100644
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatData.h
+@@ -0,0 +1,63 @@
++/* Copied, bounded raid-combat API 2. No native pointers or Lua object bindings. */
++#ifndef PLAYERBOTS_RAID_COMBAT_DATA_H
++#define PLAYERBOTS_RAID_COMBAT_DATA_H
++
++#include <array>
++#include <cstdint>
++
++namespace RaidCombat
++{
++constexpr unsigned MaxRoster = 40;
++constexpr unsigned MaxEntities = 96;
++constexpr unsigned MaxAuras = 8;
++
++struct Aura
++{
++    uint32_t spell = 0;
++    uint32_t dispel = 0;
++    bool harmful = false;
++};
++struct Entity
++{
++    uint64_t guid = 0, cast = 0, victim = 0, visibleTo = 0, losKnown = 0, losTo = 0;
++    uint32_t entry = 0, castSpell = 0;
++    float x = 0, y = 0, z = 0, facing = 0, health = 0;
++    bool alive = false, attackable = false, engaged = false, casting = false;
++    bool auraGap = false;
++    unsigned auraCount = 0;
++    std::array<Aura, MaxAuras> auras{};
++};
++struct Member
++{
++    Entity unit;
++    bool human = false, eligible = false, healer = false, tank = false, melee = false, combat = false;
++    // Last maintenance/admission result, not an assertion that a spell effect succeeded.
++    uint32_t movementReceipt = 0, actionReceipt = 0;
++};
++struct Snapshot
++{
++    uint32_t map = 0, instance = 0, sampledAt = 0, gaps = 0;
++    uint64_t sequence = 0;
++    bool combat = false;
++    unsigned count = 0, entityCount = 0;
++    std::array<Member, MaxRoster> members{};
++    std::array<Entity, MaxEntities> entities{};
++};
++enum class Positioning : uint8_t { Release, Hold, Ground };
++enum class Operation : uint8_t { None, Interrupt, Dispel };
++struct Intent
++{
++    Positioning movement = Positioning::Release;
++    float x = 0, y = 0, z = 0;
++    // One-based copied entity index. Zero leaves ordinary target arbitration alone.
++    unsigned target = 0;
++    Operation operation = Operation::None;
++    uint32_t spell = 0, aura = 0;
++    unsigned actionTarget = 0;
++};
++struct Plan
++{
++    std::array<Intent, MaxRoster> intents{};
++};
++}
++#endif
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatGround.cpp b/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatGround.cpp
+new file mode 100644
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatGround.cpp
+@@ -0,0 +1,303 @@
++/* Ground-only checked short steps. Tactical maintenance never consumes an action tick. */
++#include "RaidCombatPolicy.h"
++#include "CthunPolicyScope.h"
++#include "Playerbots.h"
++#include "LastMovementValue.h"
++#include "MotionMaster.h"
++#include "MovementGenerator.h"
++#include "MoveSplineInit.h"
++#include "PathGenerator.h"
++#include "ModelIgnoreFlags.h"
++#include <algorithm>
++#include <cmath>
++
++namespace RaidCombat
++{
++namespace
++{
++bool Ground(Player& bot)
++{
++    return !bot.GetTransport() && !bot.GetTransGUID() && !bot.GetVehicle() && !bot.IsFlying() &&
++        !bot.isSwimming() && !bot.IsInFlight() && !bot.HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY |
++        MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_FALLING | MOVEMENTFLAG_FALLING_FAR);
++}
++bool Lease(PlayerbotAI& ai)
++{
++    auto const& last = ai.GetAiObjectContext()->GetValue<LastMovement&>("last movement")->Get();
++    return last.cthunOwner || getMSTimeDiff(last.msTime, getMSTime()) < last.lastdelayTime;
++}
++bool Binding(PlayerbotAI& ai, uint64 generation, uint32 issued)
++{
++    Player* bot = ai.GetBot();
++    auto* scope = bot->GetMap()->CustomData.Get<CthunPolicy::Scope>("playerbots.cthun");
++    return scope && scope->api == 2 && scope->generation == generation && scope->Fresh(getMSTime()) &&
++        uint32(getMSTime() - issued) < 1000 && Eligible(ai) && Ground(*bot) && !Lease(ai);
++}
++bool Point(Player& bot, G3D::Vector3 const& from, G3D::Vector3 const& to)
++{
++    if (!std::isfinite(to.x) || !std::isfinite(to.y) || !std::isfinite(to.z) ||
++        !bot.GetMap()->IsGridLoaded(to.x, to.y))
++        return false;
++    float const width = bot.GetCollisionWidth() * 0.5f;
++    float const height = bot.GetCollisionHeight();
++    if (width <= 0 || width > 8 || height <= 0 || height > 20)
++        return false;
++    // Finite footprint/support and body rays, not a continuous swept-volume guarantee.
++    for (unsigned i = 0; i < 5; ++i)
++    {
++        float const angle = float(i) * float(M_PI) / 2;
++        G3D::Vector3 offset = i == 4 ? G3D::Vector3() :
++            G3D::Vector3(std::cos(angle) * width, std::sin(angle) * width, 0);
++        auto const p = to + offset;
++        float const floor = bot.GetMap()->GetHeight(bot.GetPhaseMask(), p.x, p.y, p.z + 1, true);
++        if (!std::isfinite(floor) || floor <= INVALID_HEIGHT || std::abs(floor - p.z) > 0.75f)
++            return false;
++        auto const liquid = bot.GetMap()->GetLiquidData(bot.GetPhaseMask(), p.x, p.y, p.z, height, {});
++        if (liquid.Status == LIQUID_MAP_IN_WATER || liquid.Status == LIQUID_MAP_UNDER_WATER)
++            return false;
++        for (float lift : {0.2f, height * 0.5f, height})
++            if (!bot.GetMap()->isInLineOfSight(from.x + offset.x, from.y + offset.y, from.z + lift,
++                    p.x, p.y, p.z + lift, bot.GetPhaseMask(), LINEOFSIGHT_ALL_CHECKS,
++                    VMAP::ModelIgnoreFlags::Nothing))
++                return false;
++    }
++    return true;
++}
++bool Remaining(Player& bot)
++{
++    Movement::MoveSpline cursor = *bot.movespline;
++    if (!cursor.Initialized() || cursor.isCyclic() || cursor.isFalling() || cursor.isBoarding() ||
++        cursor.Duration() > 1000 || cursor.Velocity() <= 0)
++        return false;
++    auto previous = cursor.ComputePosition();
++    if (!Point(bot, previous, previous))
++        return false;
++    for (unsigned i = 0; !cursor.Finalized() && i < 32; ++i)
++    {
++        cursor.updateState(std::min(32, cursor.timeElapsed()));
++        auto const next = cursor.ComputePosition();
++        if (!Point(bot, previous, next))
++            return false;
++        previous = next;
++    }
++    return cursor.Finalized();
++}
++class GroundGenerator final : public MovementGenerator
++{
++public:
++    GroundGenerator(Movement::PointsArray route, uint64 generation, uint32 issued, uint64 control)
++        : _route(std::move(route)), _generation(generation), _control(control), _issued(issued) { }
++    void Initialize(Unit* unit) override
++    {
++        Player* bot = unit->ToPlayer();
++        PlayerbotAI* ai = bot ? GET_PLAYERBOT_AI(bot) : nullptr;
++        if (!ai || !Binding(*ai, _generation, _issued) || bot->GetControlIdentity() != _control)
++            return;
++        // The conditional native handoff already stopped only its yielded spline. Revalidate the
++        // actual origin/control after Finalize callbacks, before starting any checked ground path.
++        if (!bot->movespline->Finalized() || bot->IsNonMeleeSpellCast(true) || !Binding(*ai, _generation, _issued) || bot->GetControlIdentity() != _control ||
++            bot->GetExactDist(_route.front().x, _route.front().y, _route.front().z) > 0.1f)
++            return;
++        Movement::MoveSplineInit init(bot);
++        init.MovebyPath(_route);
++        init.SetWalk(false);
++        int32 const duration = init.Launch();
++        _spline = bot->movespline->GetId();
++        _launched = true;
++        if (duration <= 0 || uint32(duration) >= 1000 - uint32(getMSTime() - _issued) || !Remaining(*bot))
++        {
++            bot->StopOwnedSpline(_spline);
++            _launched = false;
++        }
++    }
++    void Finalize(Unit* unit) override
++    {
++        if (_launched)
++            unit->StopOwnedSpline(_spline);
++    }
++    void Reset(Unit*) override { } // A suspended/expired request is never implicitly relaunched.
++    bool Update(Unit* unit, uint32) override
++    {
++        Player* bot = unit->ToPlayer();
++        PlayerbotAI* ai = bot ? GET_PLAYERBOT_AI(bot) : nullptr;
++        return _launched && ai && bot->GetControlIdentity() == _control &&
++            bot->movespline->GetId() == _spline && !bot->movespline->Finalized() &&
++            Binding(*ai, _generation, _issued);
++    }
++    MovementGeneratorType GetMovementGeneratorType() override { return EFFECT_MOTION_TYPE; }
++    uint32 GetSplineId() const override { return _spline; }
++    bool Launched() const { return _launched; }
++private:
++    Movement::PointsArray _route;
++    uint64 _generation, _control;
++    uint32 _issued, _spline = 0;
++    bool _launched = false;
++};
++}
++
++void RecordScheduledMotion(PlayerbotAI& ai)
++{
++    auto* motion = ai.GetBot()->GetMotionMaster()->GetMotionSlot(MOTION_SLOT_ACTIVE);
++    auto& state = ai.raidCombat;
++    state.automaticMotion = state.scheduled && !Lease(ai) && motion &&
++        (motion->GetMovementGeneratorType() == FOLLOW_MOTION_TYPE ||
++         motion->GetMovementGeneratorType() == CHASE_MOTION_TYPE) ? motion->GetIdentity() : 0;
++}
++bool HasMovementClaim(PlayerbotAI& ai)
++{
++    auto& state = ai.raidCombat;
++    auto* active = ai.GetBot()->GetMotionMaster()->GetMotionSlot(MOTION_SLOT_ACTIVE);
++    return state.claim && Binding(ai, state.generation, state.issued) &&
++        ai.GetBot()->GetControlIdentity() == state.control &&
++        (active ? active->GetIdentity() == state.ownedMotion : !state.ownedMotion);
++}
++void ReleaseGround(PlayerbotAI& ai)
++{
++    auto& state = ai.raidCombat;
++    state.claim = false;
++    if (state.ownedMotion)
++    {
++        // Exact spline cleanup remains safe even beneath a newly installed controlled generator.
++        // ExpireOwnedMovement only removes our active slot; never clears the controller/replacement.
++        ai.GetBot()->StopOwnedSpline(state.spline);
++        if (!ai.GetBot()->GetMotionMaster()->ExpireOwnedMovement(state.ownedMotion))
++        {
++            auto* current = ai.GetBot()->GetMotionMaster()->GetMotionSlot(MOTION_SLOT_ACTIVE);
++            if (current && current->GetIdentity() == state.ownedMotion)
++                return; // Keep cleanup identity until the serialized owner can retire the slot.
++        }
++    }
++    state.ownedMotion = 0;
++    state.spline = 0;
++}
++void MaintainGround(PlayerbotAI& ai, Intent const& intent, uint64 generation, uint32 issued)
++{
++    auto& state = ai.raidCombat;
++    Player& bot = *ai.GetBot();
++    if (intent.movement == Positioning::Release || !Binding(ai, generation, issued))
++    {
++        ReleaseGround(ai);
++        state.movementReceipt = 1;
++        return;
++    }
++    auto& mm = *bot.GetMotionMaster();
++    if (mm.GetMotionSlot(MOTION_SLOT_CONTROLLED))
++    {
++        ReleaseGround(ai);
++        state.movementReceipt = 2;
++        return;
++    }
++    if (state.ownedMotion)
++    {
++        auto* current = mm.GetMotionSlot(MOTION_SLOT_ACTIVE);
++        if (!current || current->GetIdentity() != state.ownedMotion || bot.movespline->GetId() != state.spline)
++            ReleaseGround(ai);
++        else if (!bot.movespline->Finalized() && HasMovementClaim(ai) && Remaining(bot) &&
++            intent.movement == Positioning::Ground)
++            return; // Validate the actual remaining spline, never endpoint re-path authorization.
++        else
++            ReleaseGround(ai);
++    }
++    auto* current = mm.GetMotionSlot(MOTION_SLOT_ACTIVE);
++    uint64 const expected = current ? current->GetIdentity() : 0;
++    if ((expected && expected != state.automaticMotion) ||
++        (!expected && (!bot.movespline->Finalized() || mm.GetCurrentMovementGeneratorType() != IDLE_MOTION_TYPE)))
++    {
++        state.movementReceipt = 2;
++        return;
++    }
++    if (intent.movement == Positioning::Hold)
++    {
++        uint32 const yielded = bot.movespline->GetId();
++        uint64 const control = bot.GetControlIdentity();
++        if (expected && bot.IsNonMeleeSpellCast(true))
++            return;
++        if (expected && !mm.ExpireOwnedMovement(expected))
++            return;
++        if (expected)
++            bot.StopOwnedSpline(yielded);
++        if (!Binding(ai, generation, issued) || bot.GetControlIdentity() != control ||
++            !bot.movespline->Finalized() || mm.GetMotionSlot(MOTION_SLOT_CONTROLLED) ||
++            mm.GetMotionSlot(MOTION_SLOT_ACTIVE))
++            return;
++        state.claim = true;
++        state.generation = generation;
++        state.issued = issued;
++        state.control = bot.GetControlIdentity();
++        state.movementReceipt = 3;
++        return;
++    }
++    if (bot.IsNonMeleeSpellCast(true) || state.movementAttempt == issued)
++        return;
++    state.movementAttempt = issued; // At most one bounded path attempt per copied frame/actor.
++    G3D::Vector3 const origin(bot.GetPositionX(), bot.GetPositionY(), bot.GetPositionZ());
++    G3D::Vector3 delta = G3D::Vector3(intent.x, intent.y, intent.z) - origin;
++    if (!std::isfinite(delta.length()) || delta.length() > 240)
++    {
++        state.movementReceipt = 4;
++        return;
++    }
++    if (delta.length() < 0.5f)
++    {
++        Intent hold = intent;
++        hold.movement = Positioning::Hold;
++        MaintainGround(ai, hold, generation, issued);
++        return;
++    }
++    float const distance = std::min(3.0f, bot.GetSpeed(MOVE_RUN) * 0.4f);
++    auto destination = origin + delta.direction() * std::min(distance, delta.length());
++    PathGenerator path(&bot);
++    path.SetPathLengthLimit(6.0f);
++    if (!path.CalculatePath(destination.x, destination.y, destination.z, false) ||
++        path.GetPathType() != PATHFIND_NORMAL || path.GetPath().size() < 2 || path.GetPath().size() > 32 ||
++        (path.GetPath().back() - destination).length() > 0.5f)
++    {
++        state.movementReceipt = 4;
++        return;
++    }
++    auto route = path.GetPath();
++    route.front() = origin;
++    float length = 0;
++    unsigned samples = 0;
++    for (unsigned i = 1; i < route.size(); ++i)
++    {
++        auto const edge = route[i] - route[i - 1];
++        length += edge.length();
++        unsigned const count = std::max(1u, unsigned(std::ceil(edge.length() / 0.5f)));
++        if (!std::isfinite(length) || length > 6 || samples + count > 32)
++        {
++            state.movementReceipt = 4;
++            return;
++        }
++        for (unsigned j = 0; j < count; ++j)
++            if (!Point(bot, route[i - 1] + edge * (float(j) / count),
++                    route[i - 1] + edge * (float(j + 1) / count)))
++            {
++                state.movementReceipt = 4;
++                return;
++            }
++        samples += count;
++    }
++    // Proposed geometry is validated BEFORE yielding positively scheduled follow/chase.
++    // Binding/origin/motion are checked again here and in Initialize after native handoff callbacks.
++    if (!Binding(ai, generation, issued) || bot.GetExactDist(origin.x, origin.y, origin.z) > 0.01f)
++        return;
++    auto* next = new GroundGenerator(std::move(route), generation, issued, bot.GetControlIdentity());
++    if (!mm.InstallCheckedMovement(expected, next))
++    {
++        delete next;
++        state.movementReceipt = 2;
++        return;
++    }
++    state.ownedMotion = next->GetIdentity();
++    state.spline = next->GetSplineId();
++    state.claim = next->Launched();
++    state.generation = generation;
++    state.issued = issued;
++    state.control = bot.GetControlIdentity();
++    state.automaticMotion = 0;
++    state.movementReceipt = state.claim ? 5 : 4;
++    if (!state.claim)
++        ReleaseGround(ai);
++}
++}
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatLua.h b/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatLua.h
+new file mode 100644
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatLua.h
+@@ -0,0 +1,169 @@
++/* Protected Lua marshal/parser helpers. Only trivial automatic objects across Lua errors. */
++#ifndef PLAYERBOTS_RAID_COMBAT_LUA_H
++#define PLAYERBOTS_RAID_COMBAT_LUA_H
++
++namespace
++{
++void CombatGuid(lua_State* state, char const* key, uint64_t value)
++{
++    char text[32];
++    std::snprintf(text, sizeof(text), "%llu", static_cast<unsigned long long>(value));
++    lua_pushstring(state, text);
++    lua_setfield(state, -2, key);
++}
++void CombatEntity(lua_State* state, RaidCombat::Entity const& unit)
++{
++    lua_createtable(state, 0, 17);
++    CombatGuid(state, "guid", unit.guid);
++    CombatGuid(state, "victim", unit.victim);
++    CombatGuid(state, "cast_token", unit.cast);
++    Number(state, "entry", unit.entry);
++    Number(state, "visible_to", unit.visibleTo);
++    Number(state, "los_known", unit.losKnown);
++    Number(state, "los_to", unit.losTo);
++    Number(state, "x", unit.x);
++    Number(state, "y", unit.y);
++    Number(state, "z", unit.z);
++    Number(state, "facing", unit.facing);
++    Number(state, "health", unit.health);
++    Number(state, "cast_spell", unit.castSpell);
++    Boolean(state, "casting", unit.casting);
++    Boolean(state, "alive", unit.alive);
++    Boolean(state, "attackable", unit.attackable);
++    Boolean(state, "engaged", unit.engaged);
++    Boolean(state, "aura_gap", unit.auraGap);
++    lua_createtable(state, unit.auraCount, 0);
++    for (unsigned i = 0; i < unit.auraCount; ++i)
++    {
++        lua_createtable(state, 0, 3);
++        Number(state, "spell", unit.auras[i].spell);
++        Number(state, "dispel", unit.auras[i].dispel);
++        Boolean(state, "harmful", unit.auras[i].harmful);
++        lua_rawseti(state, -2, i + 1);
++    }
++    lua_setfield(state, -2, "auras");
++}
++unsigned CombatInteger(lua_State* state, char const* key, unsigned maximum)
++{
++    RawField(state, -1, key);
++    if (!lua_isinteger(state, -1) || lua_tointeger(state, -1) < 0 ||
++        lua_tointeger(state, -1) > maximum)
++        luaL_error(state, "invalid integer field %s", key);
++    unsigned const value = static_cast<unsigned>(lua_tointeger(state, -1));
++    lua_pop(state, 1);
++    return value;
++}
++float CombatCoordinate(lua_State* state, char const* key)
++{
++    RawField(state, -1, key);
++    if (lua_type(state, -1) != LUA_TNUMBER)
++        luaL_error(state, "invalid coordinate %s", key);
++    double const value = lua_tonumber(state, -1);
++    if (!std::isfinite(value) || std::abs(value) > 17066)
++        luaL_error(state, "invalid coordinate %s", key);
++    lua_pop(state, 1);
++    return static_cast<float>(value);
++}
++void CombatKeys(lua_State* state)
++{
++    unsigned count = 0;
++    lua_pushnil(state);
++    while (lua_next(state, -2))
++    {
++        if (++count > 9 || lua_type(state, -2) != LUA_TSTRING)
++            luaL_error(state, "invalid intent key");
++        char const* key = lua_tostring(state, -2);
++        bool known = false;
++        for (char const* allowed : {"movement", "x", "y", "z", "target", "operation", "spell", "aura", "action_target"})
++            known = known || !std::strcmp(key, allowed);
++        if (!known)
++            luaL_error(state, "unknown intent key %s", key);
++        lua_pop(state, 1);
++    }
++}
++}
++
++int Runtime::EvaluateCombatProtected(lua_State* state)
++{
++    EvalContext const* context = static_cast<EvalContext*>(lua_touserdata(state, 1));
++    auto const& snapshot = context->snapshot->raid;
++    if (snapshot.count > RaidCombat::MaxRoster || snapshot.entityCount > RaidCombat::MaxEntities)
++        return luaL_error(state, "native combat row budget");
++    lua_getfield(state, LUA_REGISTRYINDEX, "cthun.plan");
++    lua_createtable(state, 0, 9);
++    Number(state, "api", 2);
++    Number(state, "map", snapshot.map);
++    Number(state, "instance", snapshot.instance);
++    Number(state, "sampled_at", snapshot.sampledAt);
++    Number(state, "gaps", snapshot.gaps);
++    CombatGuid(state, "sequence", snapshot.sequence);
++    Boolean(state, "combat", snapshot.combat);
++    lua_createtable(state, snapshot.count, 0);
++    for (unsigned i = 0; i < snapshot.count; ++i)
++    {
++        auto const& member = snapshot.members[i];
++        if (member.unit.auraCount > RaidCombat::MaxAuras)
++            return luaL_error(state, "native aura budget");
++        CombatEntity(state, member.unit);
++        Boolean(state, "human", member.human);
++        Boolean(state, "eligible", member.eligible);
++        Boolean(state, "healer", member.healer);
++        Boolean(state, "tank", member.tank);
++        Boolean(state, "melee", member.melee);
++        Boolean(state, "combat", member.combat);
++        Number(state, "movement_receipt", member.movementReceipt);
++        Number(state, "action_receipt", member.actionReceipt);
++        lua_rawseti(state, -2, i + 1);
++    }
++    lua_setfield(state, -2, "members");
++    lua_createtable(state, snapshot.entityCount, 0);
++    for (unsigned i = 0; i < snapshot.entityCount; ++i)
++    {
++        if (snapshot.entities[i].auraCount > RaidCombat::MaxAuras)
++            return luaL_error(state, "native aura budget");
++        CombatEntity(state, snapshot.entities[i]);
++        lua_rawseti(state, -2, i + 1);
++    }
++    lua_setfield(state, -2, "entities");
++    lua_call(state, 1, 1);
++    if (!lua_istable(state, -1) || lua_rawlen(state, -1) != snapshot.count)
++        return luaL_error(state, "output must have one intent per member");
++    unsigned entries = 0;
++    lua_pushnil(state);
++    while (lua_next(state, -2))
++    {
++        if (++entries > snapshot.count || !lua_isinteger(state, -2) ||
++            lua_tointeger(state, -2) < 1 || lua_tointeger(state, -2) > snapshot.count)
++            return luaL_error(state, "unknown output key");
++        lua_pop(state, 1);
++    }
++    for (unsigned i = 0; i < snapshot.count; ++i)
++    {
++        lua_rawgeti(state, -1, i + 1);
++        if (!lua_istable(state, -1))
++            return luaL_error(state, "intent must be data table");
++        CombatKeys(state);
++        auto& intent = context->plan->raid.intents[i];
++        intent.movement = static_cast<RaidCombat::Positioning>(CombatInteger(state, "movement", 2));
++        intent.target = CombatInteger(state, "target", snapshot.entityCount);
++        intent.operation = static_cast<RaidCombat::Operation>(CombatInteger(state, "operation", 2));
++        intent.spell = CombatInteger(state, "spell", 100000);
++        intent.aura = CombatInteger(state, "aura", 100000);
++        intent.actionTarget = CombatInteger(state, "action_target", snapshot.entityCount);
++        if (intent.movement == RaidCombat::Positioning::Ground)
++        {
++            intent.x = CombatCoordinate(state, "x");
++            intent.y = CombatCoordinate(state, "y");
++            intent.z = CombatCoordinate(state, "z");
++        }
++        if ((!snapshot.members[i].eligible && (intent.movement != RaidCombat::Positioning::Release ||
++                intent.target || intent.operation != RaidCombat::Operation::None)) ||
++            (intent.operation != RaidCombat::Operation::None && (!intent.spell || !intent.actionTarget)) ||
++            (intent.target && (!snapshot.entities[intent.target - 1].attackable ||
++                !snapshot.entities[intent.target - 1].engaged)))
++            return luaL_error(state, "intent out of combat scope");
++        lua_pop(state, 1);
++    }
++    return 0;
++}
++#endif
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatPolicy.cpp b/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatPolicy.cpp
+new file mode 100644
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatPolicy.cpp
+@@ -0,0 +1,262 @@
++/* Generic instance dispatch over the existing single active/candidate policy owner. */
++#include "RaidCombatPolicy.h"
++#include "GenericObservation.h"
++#include "CthunPolicyScope.h"
++#include "Aq40Cthun.h"
++#include "Playerbots.h"
++#include "ObjectAccessor.h"
++#include "LastMovementValue.h"
++#include "InstanceScript.h"
++#include "Spell.h"
++#include <algorithm>
++#include <chrono>
++
++namespace RaidCombat
++{
++namespace
++{
++struct ObservationOwner : DataMap::Base
++{
++    explicit ObservationOwner(uint64 epoch) : collector(epoch) { }
++    GenericPolicy::MapCollector collector;
++};
++void CopyUnit(Unit& unit, Entity& result)
++{
++    result.guid = unit.GetGUID().GetRawValue();
++    result.entry = unit.GetEntry();
++    result.x = unit.GetPositionX();
++    result.y = unit.GetPositionY();
++    result.z = unit.GetPositionZ();
++    result.facing = unit.GetOrientation();
++    result.health = unit.GetHealthPct();
++    result.alive = unit.IsAlive();
++    result.victim = unit.GetVictim() ? unit.GetVictim()->GetGUID().GetRawValue() : 0;
++    for (auto slot : {CURRENT_GENERIC_SPELL, CURRENT_CHANNELED_SPELL})
++        if (Spell* spell = unit.GetCurrentSpell(slot))
++        {
++            result.cast = spell->GetCastIdentity();
++            result.castSpell = spell->GetSpellInfo()->Id;
++            result.casting = true;
++            break;
++        }
++    unsigned examined = 0;
++    for (auto const& [id, application] : unit.GetAppliedAuras())
++    {
++        (void)id;
++        if (++examined > 32 || result.auraCount == MaxAuras)
++        {
++            result.auraGap = true;
++            break;
++        }
++        auto* aura = application->GetBase();
++        auto const* info = aura->GetSpellInfo();
++        auto& copied = result.auras[result.auraCount++];
++        copied.spell = info->Id;
++        copied.dispel = info->Dispel;
++        copied.harmful = !application->IsPositive();
++    }
++}
++}
++
++bool UsesCombatPolicy(PlayerbotAI& ai)
++{
++    auto* scope = ai.GetBot()->GetMap()->CustomData.Get<CthunPolicy::Scope>("playerbots.cthun");
++    return scope && scope->active && scope->api == 2;
++}
++
++bool Eligible(PlayerbotAI& ai)
++{
++    Player* bot = ai.GetBot();
++    Player* master = ai.GetMaster();
++    if (ai.IsRealPlayer() || !bot || !bot->IsInWorld() || !bot->IsAlive() || !bot->GetGroup() ||
++        !bot->GetGroup()->isRaidGroup() || !master || !master->IsInWorld() ||
++        master->GetMap() != bot->GetMap() || master->GetGroup() != bot->GetGroup() ||
++        (GET_PLAYERBOT_AI(master) && !GET_PLAYERBOT_AI(master)->IsRealPlayer()) ||
++        bot->GetCharmerGUID() || bot->m_mover != bot || bot->IsBeingTeleported() || !ai.CanMove() ||
++        bot->HasUnitFlag(UNIT_FLAG_DISABLE_MOVE))
++        return false;
++    for (auto state : {BOT_STATE_COMBAT, BOT_STATE_NON_COMBAT})
++        if (ai.HasStrategy("stay", state) || ai.HasStrategy("passive", state))
++            return false;
++    auto const& last = ai.GetAiObjectContext()->GetValue<LastMovement&>("last movement")->Get();
++    return !last.cthunOwner && getMSTimeDiff(last.msTime, getMSTime()) >= last.lastdelayTime;
++}
++bool Engaged(Player const& bot, Unit const& target)
++{
++    if (!bot.GetGroup() || !bot.GetGroup()->isRaidGroup() || !target.IsInWorld() ||
++        target.GetMap() != bot.GetMap())
++        return false;
++    unsigned count = 0;
++    for (auto const& reference : bot.GetMap()->GetPlayers())
++    {
++        if (++count > MaxRoster)
++            break;
++        Player* player = reference.GetSource();
++        if (player && player->IsInWorld() && player->GetGroup() == bot.GetGroup() &&
++            player->InSamePhase(&target) && target.IsEngagedBy(player))
++            return true;
++    }
++    return false;
++}
++bool SafeBoundary(Map* map)
++{
++    auto* instance = map->ToInstanceMap();
++    return instance && GenericPolicy::CheckReloadSafety(*instance, 512).state == GenericPolicy::ReloadSafety::Safe;
++}
++void Collect(Map* map, CthunPolicy::Snapshot& legacy)
++{
++    auto* scope = map->CustomData.Get<CthunPolicy::Scope>("playerbots.cthun");
++    if (!scope)
++        return;
++    auto* owner = map->CustomData.Get<ObservationOwner>("playerbots.raid-observation");
++    if (!owner)
++    {
++        owner = new ObservationOwner(scope->generation);
++        map->CustomData.Set("playerbots.raid-observation", owner);
++    }
++    auto& snapshot = legacy.raid;
++    snapshot = {};
++    snapshot.map = map->GetId();
++    snapshot.instance = map->GetInstanceId();
++    snapshot.sampledAt = getMSTime();
++    std::vector<Player*> roster;
++    for (auto const& reference : map->GetPlayers())
++    {
++        if (roster.size() == MaxRoster)
++        {
++            snapshot.gaps |= GenericPolicy::RosterGap;
++            break;
++        }
++        if (Player* player = reference.GetSource())
++            roster.push_back(player);
++    }
++    std::sort(roster.begin(), roster.end(), [](Player* a, Player* b) { return a->GetGUID() < b->GetGUID(); });
++    std::vector<ObjectGuid> observers;
++    for (Player* player : roster)
++    {
++        auto& member = snapshot.members[snapshot.count++];
++        CopyUnit(*player, member.unit);
++        PlayerbotAI* ai = GET_PLAYERBOT_AI(player);
++        member.human = !ai || ai->IsRealPlayer();
++        member.eligible = ai && Eligible(*ai) && !(snapshot.gaps & GenericPolicy::RosterGap);
++        member.healer = PlayerbotAI::IsHeal(player);
++        member.tank = PlayerbotAI::IsTank(player);
++        member.melee = PlayerbotAI::IsMelee(player);
++        member.combat = player->IsInCombat();
++        member.movementReceipt = ai ? ai->raidCombat.movementReceipt : 0;
++        member.actionReceipt = ai ? ai->raidCombat.actionReceipt : 0;
++        snapshot.combat = snapshot.combat || member.combat;
++        observers.push_back(player->GetGUID());
++    }
++    if (auto* script = map->ToInstanceMap()->GetInstanceScript())
++        snapshot.combat = snapshot.combat || script->IsEncounterInProgress();
++    auto observed = owner->collector.Collect(*map, observers, {}, 1);
++    snapshot.gaps |= observed.gaps;
++    snapshot.sequence = observed.sequence;
++    std::stable_sort(observed.entities.begin(), observed.entities.end(), [](auto const& a, auto const& b)
++        { return a.required > b.required; });
++    unsigned geometryEntities = 0;
++    for (auto const& value : observed.entities)
++    {
++        if (!value.observers || (value.type != TYPEID_UNIT && value.type != TYPEID_PLAYER))
++            continue;
++        if (snapshot.entityCount == MaxEntities)
++        {
++            snapshot.gaps |= GenericPolicy::PopulationGap;
++            break;
++        }
++        Unit* unit = roster.empty() ? nullptr : ObjectAccessor::GetUnit(*roster.front(), value.guid);
++        if (!unit || !unit->IsInWorld() || unit->GetMap() != map)
++            continue;
++        auto& entity = snapshot.entities[snapshot.entityCount++];
++        entity.visibleTo = value.observers;
++        bool const probe = unit->IsCreature() && geometryEntities++ < 4;
++        CopyUnit(*unit, entity); // Visibility was checked independently of attackability by the native collector.
++        for (unsigned i = 0; i < roster.size(); ++i)
++            if (value.observers & (uint64(1) << i))
++            {
++                if (probe)
++                {
++                    entity.losKnown |= uint64(1) << i;
++                    if (roster[i]->IsWithinLOSInMap(unit))
++                        entity.losTo |= uint64(1) << i;
++                }
++                entity.attackable = entity.attackable || roster[i]->IsValidAttackTarget(unit);
++                entity.engaged = entity.engaged || Engaged(*roster[i], *unit);
++            }
++    }
++}
++void Update(Map* map, uint32 diff, std::string const& directory, std::string const& statusDirectory)
++{
++    if (!map->IsRaid() || !map->GetInstanceId())
++        return;
++    std::vector<Player*> players;
++    bool participant = false;
++    for (auto const& reference : map->GetPlayers())
++    {
++        Player* player = reference.GetSource();
++        if (player && player->IsInWorld())
++        {
++            players.push_back(player);
++            if (auto* ai = GET_PLAYERBOT_AI(player))
++                participant = participant || Eligible(*ai);
++        }
++        if (players.size() > MaxRoster)
++            break;
++    }
++    auto* scope = map->CustomData.Get<CthunPolicy::Scope>("playerbots.cthun");
++    if (!scope)
++    {
++        if (!participant)
++            return;
++        auto const epoch = std::chrono::duration_cast<std::chrono::nanoseconds>(
++            std::chrono::system_clock::now().time_since_epoch()).count();
++        auto const id = std::to_string(map->GetId()) + "-" + std::to_string(map->GetInstanceId()) + "-" +
++            std::to_string(epoch);
++        scope = new CthunPolicy::Scope(id, directory, statusDirectory);
++        scope->generation = epoch;
++        map->CustomData.Set("playerbots.cthun", scope);
++    }
++    // Preserve API1's native snapshot contract. Both payload versions share this same VM owner/mailbox.
++    if (map->GetId() == 531)
++        CthunPositioning::UpdatePolicy(map, players, diff, directory, statusDirectory);
++    else
++    {
++        scope->elapsed += diff;
++        scope->pollElapsed += diff;
++        if (scope->elapsed >= 250)
++        {
++            scope->elapsed = 0;
++            if (scope->pollElapsed >= 1000)
++            {
++                scope->pollElapsed = 0;
++                scope->Poll();
++            }
++            CthunPolicy::Snapshot snapshot;
++            Collect(map, snapshot);
++            scope->Update(snapshot, SafeBoundary(map), getMSTime());
++            scope->Status();
++        }
++    }
++    for (Player* player : players)
++    {
++        PlayerbotAI* ai = GET_PLAYERBOT_AI(player);
++        if (!ai || ai->IsRealPlayer())
++            continue;
++        Intent const* intent = nullptr;
++        if (scope->api == 2 && scope->Fresh(getMSTime()))
++            for (unsigned i = 0; i < scope->snapshot.raid.count; ++i)
++                if (scope->snapshot.raid.members[i].unit.guid == player->GetGUID().GetRawValue())
++                    intent = &scope->plan.raid.intents[i];
++        if (!intent)
++            ReleaseGround(*ai);
++        else
++        {
++            MaintainGround(*ai, *intent, scope->generation, scope->plannedAt);
++            ApplyCombatAction(*ai, scope->snapshot.raid, *intent, scope->generation, scope->plannedAt);
++            if (Eligible(*ai))
++                scope->Acknowledge(std::to_string(player->GetGUID().GetRawValue()));
++        }
++    }
++}
++}
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatPolicy.h b/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatPolicy.h
+new file mode 100644
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatPolicy.h
+@@ -0,0 +1,27 @@
++#ifndef PLAYERBOTS_RAID_COMBAT_POLICY_H
++#define PLAYERBOTS_RAID_COMBAT_POLICY_H
++#include "RaidCombatData.h"
++#include <string>
++
++class Map;
++class Player;
++class PlayerbotAI;
++class Unit;
++namespace CthunPolicy { struct Snapshot; }
++namespace RaidCombat
++{
++void Update(Map* map, uint32_t diff, std::string const& directory, std::string const& statusDirectory);
++void Collect(Map* map, CthunPolicy::Snapshot& snapshot);
++bool SafeBoundary(Map* map);
++bool Eligible(PlayerbotAI& ai);
++bool UsesCombatPolicy(PlayerbotAI& ai);
++bool Engaged(Player const& bot, Unit const& target);
++bool HasMovementClaim(PlayerbotAI& ai);
++Unit* PreferredTarget(PlayerbotAI& ai);
++void RecordScheduledMotion(PlayerbotAI& ai);
++void MaintainGround(PlayerbotAI& ai, Intent const& intent, uint64_t generation, uint32_t issued);
++void ReleaseGround(PlayerbotAI& ai);
++void ApplyCombatAction(PlayerbotAI& ai, Snapshot const& snapshot, Intent const& intent,
++    uint64_t generation, uint32_t issued);
++}
++#endif
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatState.h b/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatState.h
+new file mode 100644
+--- /dev/null
++++ b/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatState.h
+@@ -0,0 +1,23 @@
++#ifndef PLAYERBOTS_RAID_COMBAT_STATE_H
++#define PLAYERBOTS_RAID_COMBAT_STATE_H
++#include <cstdint>
++
++namespace RaidCombat
++{
++struct State
++{
++    bool scheduled = false, claim = false;
++    uint64_t automaticMotion = 0, ownedMotion = 0, generation = 0, control = 0, attempted = 0;
++    uint32_t issued = 0, spline = 0, movementReceipt = 0, actionReceipt = 0, movementAttempt = 0;
++};
++class ScheduleGuard
++{
++public:
++    ScheduleGuard(bool& flag, bool value) : _flag(flag), _old(flag) { _flag = value; }
++    ~ScheduleGuard() { _flag = _old; }
++private:
++    bool& _flag;
++    bool _old;
++};
++}
++#endif
+diff --git a/modules/mod-playerbots/src/Bot/Engine/Engine.cpp b/modules/mod-playerbots/src/Bot/Engine/Engine.cpp
+--- a/modules/mod-playerbots/src/Bot/Engine/Engine.cpp
++++ b/modules/mod-playerbots/src/Bot/Engine/Engine.cpp
+@@ -172,6 +172,7 @@
+             continue;
+ 
+         Event event = basket->getEvent();
++        RaidCombat::ScheduleGuard scheduled(botAI->raidCombat.scheduled, event.IsScheduled());
+         ActionNode* actionNode = queue.Pop();  // NOTE: Pop() deletes basket
+         Action* action = InitializeAction(actionNode);
+ 
+@@ -307,6 +308,8 @@
+ 
+ ActionResult Engine::ExecuteAction(std::string const name, Event event, std::string const qualifier)
+ {
++    RaidCombat::ScheduleGuard scheduled(botAI->raidCombat.scheduled, false);
++    event.SetScheduled(false);
+     bool result = false;
+ 
+     ActionNode* actionNode = CreateActionNode(name);
+@@ -503,6 +506,7 @@
+     {
+         Strategy* strategy = i->second;
+         Event emptyEvent;
++        emptyEvent.SetScheduled(true);
+         MultiplyAndPush(strategy->getDefaultActions(), 0.0f, false, emptyEvent, "default");
+     }
+ }
+@@ -576,9 +580,17 @@
+         return actionExecuted;
+     }
+ 
++    bool const origin = botAI->raidCombat.scheduled;
++    RaidCombat::ScheduleGuard listeners(botAI->raidCombat.scheduled, false);
+     if (actionExecutionListeners.Before(action, event))
+     {
+-        actionExecuted = actionExecutionListeners.AllowExecution(action, event) ? action->Execute(event) : true;
++        if (actionExecutionListeners.AllowExecution(action, event))
++        {
++            RaidCombat::ScheduleGuard scheduled(botAI->raidCombat.scheduled, origin);
++            actionExecuted = action->Execute(event);
++        }
++        else
++            actionExecuted = true;
+     }
+ 
+     if (botAI->HasStrategy("debug", BOT_STATE_NON_COMBAT))
+diff --git a/modules/mod-playerbots/src/Bot/Engine/Trigger/Trigger.cpp b/modules/mod-playerbots/src/Bot/Engine/Trigger/Trigger.cpp
+--- a/modules/mod-playerbots/src/Bot/Engine/Trigger/Trigger.cpp
++++ b/modules/mod-playerbots/src/Bot/Engine/Trigger/Trigger.cpp
+@@ -21,6 +21,7 @@
+     if (IsActive())
+     {
+         Event event(getName());
++        event.SetScheduled(true); // Predicate event, not a chat/packet trigger override.
+         return event;
+     }
+ 
+diff --git a/modules/mod-playerbots/src/Bot/Engine/WorldPacket/Event.h b/modules/mod-playerbots/src/Bot/Engine/WorldPacket/Event.h
+--- a/modules/mod-playerbots/src/Bot/Engine/WorldPacket/Event.h
++++ b/modules/mod-playerbots/src/Bot/Engine/WorldPacket/Event.h
+@@ -15,7 +15,8 @@
+ class Event
+ {
+ public:
+-    Event(Event const& other) : source(other.source), param(other.param), packet(other.packet), owner(other.owner) {}
++    Event(Event const& other) : source(other.source), param(other.param), packet(other.packet), owner(other.owner),
++        scheduled(other.scheduled) {}
+     Event() {}
+     Event(std::string const source) : source(source) {}
+     Event(std::string const source, std::string const param, Player* owner = nullptr)
+@@ -34,6 +35,8 @@
+     WorldPacket& getPacket() { return packet; }
+     ObjectGuid getObject();
+     Player* getOwner() { return owner; }
++    bool IsScheduled() const { return scheduled; }
++    void SetScheduled(bool value) { scheduled = value; }
+     bool operator!() const { return source.empty(); }
+ 
+ protected:
+@@ -41,6 +44,7 @@
+     std::string param;
+     WorldPacket packet;
+     Player* owner = nullptr;
++    bool scheduled = false;
+ };
+ 
+ #endif
+diff --git a/modules/mod-playerbots/src/Bot/PlayerbotAI.h b/modules/mod-playerbots/src/Bot/PlayerbotAI.h
+--- a/modules/mod-playerbots/src/Bot/PlayerbotAI.h
++++ b/modules/mod-playerbots/src/Bot/PlayerbotAI.h
+@@ -7,6 +7,7 @@
+ #define PLAYERBOTS_PLAYERBOTAI_H
+ 
+ #include <stack>
++#include "RaidCombatState.h"
+ 
+ #include "Chat.h"
+ #include "ChatFilter.h"
+@@ -418,6 +419,7 @@
+     void ReInitCurrentEngine();
+     void Reset(bool full = false);
+     void LeaveOrDisbandGroup();
++    RaidCombat::State raidCombat;
+     static bool IsTank(Player* player, bool bySpec = false);
+     static bool IsHeal(Player* player, bool bySpec = false);
+     static bool IsDps(Player* player, bool bySpec = false);
+diff --git a/modules/mod-playerbots/src/Script/CthunPolicyScripts.cpp b/modules/mod-playerbots/src/Script/CthunPolicyScripts.cpp
+--- a/modules/mod-playerbots/src/Script/CthunPolicyScripts.cpp
++++ b/modules/mod-playerbots/src/Script/CthunPolicyScripts.cpp
+@@ -1,6 +1,6 @@
+ /* Map-serialized Cthun policy owner hook. GPL-2.0-or-later. */
+ #include "AllMapScript.h"
+-#include "Aq40Cthun.h"
++#include "RaidCombatPolicy.h"
+ #include "Config.h"
+ #include "Map.h"
+ #include "Player.h"
+@@ -11,19 +11,7 @@
+     PlayerbotsCthunPolicyScript() : AllMapScript("PlayerbotsCthunPolicyScript", {ALLMAPHOOK_ON_MAP_UPDATE}) { }
+     void OnMapUpdate(Map* map, uint32 diff) override
+     {
+-        if (map->GetId() != 531 || !map->GetInstanceId())
+-            return;
+-        std::vector<Player*> players;
+-        // AQ is capped at40 players. A malformed/excess population releases all bounded recipients.
+-        for (auto const& ref : map->GetPlayers())
+-        {
+-            Player* player = ref.GetSource();
+-            if (player && player->IsInWorld())
+-                players.push_back(player);
+-            if (players.size() > 40)
+-                break;
+-        }
+-        CthunPositioning::UpdatePolicy(map, players, diff,
++        RaidCombat::Update(map, diff,
+             sConfigMgr->GetOption<std::string>("AiPlayerbot.CthunPolicyDirectory", "/opt/playerbot-policies", false),
+             sConfigMgr->GetOption<std::string>("AiPlayerbot.CthunPolicyStatusDirectory",
+                                                 "/opt/playerbot-policy-status", false));
+diff --git a/src/server/game/Entities/Unit/Unit.cpp b/src/server/game/Entities/Unit/Unit.cpp
+--- a/src/server/game/Entities/Unit/Unit.cpp
++++ b/src/server/game/Entities/Unit/Unit.cpp
+@@ -7714,8 +7714,22 @@
+     return HasFlag(UNIT_FIELD_AURASTATE, 1 << (flag - 1));
+ }
+ 
++#include <atomic>
++#include <cstdlib>
++
++uint64 Unit::NextControlIdentity()
++{
++    static std::atomic<uint64> next{1};
++    uint64 const identity = next.fetch_add(1, std::memory_order_relaxed);
++    if (!identity)
++        std::abort();
++    return identity;
++}
++
+ void Unit::SetOwnerGUID(ObjectGuid owner)
+ {
++    if (owner != GetOwnerGUID())
++        _controlIdentity = NextControlIdentity();
+     if (GetOwnerGUID() == owner)
+         return;
+ 
+@@ -13034,6 +13048,19 @@
+     return IDLE_MOTION_TYPE;
+ }
+ 
++bool Unit::StopOwnedSpline(uint32 identity)
++{
++    if (!IsInWorld() || movespline->GetId() != identity || movespline->Finalized())
++        return false;
++    if (movespline->HasStarted())
++        UpdateSplinePosition();
++    if (movespline->GetId() != identity || movespline->Finalized())
++        return false;
++    Movement::MoveSplineInit init(this);
++    init.Stop();
++    return true;
++}
++
+ void Unit::StopMoving()
+ {
+     ClearUnitState(UNIT_STATE_MOVING);
+diff --git a/src/server/game/Entities/Unit/Unit.h b/src/server/game/Entities/Unit/Unit.h
+--- a/src/server/game/Entities/Unit/Unit.h
++++ b/src/server/game/Entities/Unit/Unit.h
+@@ -718,7 +718,13 @@
+     [[nodiscard]] ObjectGuid GetMinionGUID() const { return GetGuidValue(UNIT_FIELD_SUMMON); }
+     void SetMinionGUID(ObjectGuid guid) { SetGuidValue(UNIT_FIELD_SUMMON, guid); }
+     [[nodiscard]] ObjectGuid GetCharmerGUID() const { return GetGuidValue(UNIT_FIELD_CHARMEDBY); }
+-    void SetCharmerGUID(ObjectGuid owner) { SetGuidValue(UNIT_FIELD_CHARMEDBY, owner); }
++    void SetCharmerGUID(ObjectGuid owner)
++    {
++        if (owner != GetCharmerGUID())
++            _controlIdentity = NextControlIdentity();
++        SetGuidValue(UNIT_FIELD_CHARMEDBY, owner);
++    }
++    uint64 GetControlIdentity() const { return _controlIdentity; }
+     [[nodiscard]] ObjectGuid GetCharmGUID() const { return  GetGuidValue(UNIT_FIELD_CHARM); }
+     void SetPetGUID(ObjectGuid guid) { m_SummonSlot[SUMMON_SLOT_PET] = guid; }
+     [[nodiscard]] ObjectGuid GetPetGUID() const { return m_SummonSlot[SUMMON_SLOT_PET]; }
+@@ -1760,6 +1766,8 @@
+ 
+     [[nodiscard]] bool IsStopped() const { return !(HasUnitState(UNIT_STATE_MOVING)); }
+     void StopMoving();
++    // Stops only this still-live spline; does not clear movement states owned by a replacement controller.
++    bool StopOwnedSpline(uint32 identity);
+     void StopMovingOnCurrentPos();   /// @brief Disable the unit movement by clearing UNIT_STATE_MOVING and stopping the spline.
+     virtual void PauseMovement(uint32 timer = 0, uint8 slot = 0); // timer in ms
+     void ResumeMovement(uint32 timer = 0, uint8 slot = 0);
+@@ -2148,6 +2156,8 @@
+ 
+     float m_createStats[MAX_STATS];
+ 
++    static uint64 NextControlIdentity();
++    uint64 _controlIdentity = NextControlIdentity();
+     AttackerSet m_attackers;
+     Unit* m_attacking;
+ 
+diff --git a/src/server/game/Grids/GridRefMgr.h b/src/server/game/Grids/GridRefMgr.h
+--- a/src/server/game/Grids/GridRefMgr.h
++++ b/src/server/game/Grids/GridRefMgr.h
+@@ -19,6 +19,8 @@
+ #define _GRIDREFMANAGER
+ 
+ #include "RefMgr.h"
++#include <algorithm>
++#include <cstdint>
+ 
+ template<class OBJECT>
+ class GridReference;
+@@ -29,6 +31,57 @@
+ public:
+     typedef LinkedListHead::Iterator< GridReference<OBJECT> > iterator;
+ 
++    GridRefMgr() = default;
++    GridRefMgr(GridRefMgr const&) = delete;
++    GridRefMgr& operator=(GridRefMgr const&) = delete;
++    GridRefMgr(GridRefMgr&&) = delete;
++    GridRefMgr& operator=(GridRefMgr&&) = delete;
++    ~GridRefMgr() override
++    {
++        // Invalidate while derived cursor state still exists; the base destructor then sees an empty list.
++        this->clearReferences();
++    }
++
++    struct BoundedVisitResult
++    {
++        uint32 examined = 0;
++        bool complete = false;
++        std::uint64_t revision = 0;
++    };
++
++    // Opt-in owner-thread traversal. No cursor escapes the container. Ordinary iteration is unchanged.
++    // The callback may unlink/delete nodes, but may not destroy this manager or bypass Reference lifecycle.
++    template<class Visitor>
++    BoundedVisitResult VisitBounded(uint32 limit, Visitor&& visit)
++    {
++        BoundedVisitResult result;
++        result.revision = _boundedRevision;
++        if (_boundedVisiting)
++            return result;
++        struct VisitingGuard
++        {
++            bool& flag;
++            explicit VisitingGuard(bool& value) : flag(value) { flag = true; }
++            ~VisitingGuard() { flag = false; }
++        } guard(_boundedVisiting);
++        uint32 const population = this->getSize();
++        uint32 const count = std::min(limit, population);
++        while (result.examined < count)
++        {
++            if (!_boundedNext)
++                _boundedNext = getFirst();
++            if (!_boundedNext)
++                break;
++            auto* current = _boundedNext;
++            _boundedNext = current->next();
++            ++result.examined;
++            visit(current->GetSource()); // Do not touch current after the callback.
++        }
++        result.complete = result.examined == population && result.revision == _boundedRevision;
++        result.revision = _boundedRevision;
++        return result;
++    }
++
+     GridReference<OBJECT>* getFirst() { return (GridReference<OBJECT>*)RefMgr<GridRefMgr<OBJECT>, OBJECT>::getFirst(); }
+     GridReference<OBJECT>* getLast() { return (GridReference<OBJECT>*)RefMgr<GridRefMgr<OBJECT>, OBJECT>::getLast(); }
+ 
+@@ -36,5 +89,19 @@
+     iterator end() { return iterator(nullptr); }
+     iterator rbegin() { return iterator(getLast()); }
+     iterator rend() { return iterator(nullptr); }
++
++private:
++    friend class GridReference<OBJECT>;
++    void BoundedLinkAdded() { ++_boundedRevision; }
++    void BoundedBeforeUnlink(GridReference<OBJECT>* reference)
++    {
++        if (_boundedNext == reference)
++            _boundedNext = reference->next();
++        ++_boundedRevision;
++    }
++
++    GridReference<OBJECT>* _boundedNext = nullptr;
++    std::uint64_t _boundedRevision = 0;
++    bool _boundedVisiting = false;
+ };
+ #endif
+diff --git a/src/server/game/Grids/GridReference.h b/src/server/game/Grids/GridReference.h
+--- a/src/server/game/Grids/GridReference.h
++++ b/src/server/game/Grids/GridReference.h
+@@ -32,19 +32,29 @@
+         // called from link()
+         this->getTarget()->insertFirst(this);
+         this->getTarget()->incSize();
++        this->getTarget()->BoundedLinkAdded();
+     }
+     void targetObjectDestroyLink() override
+     {
+         // called from unlink()
+-        if (this->isValid()) this->getTarget()->decSize();
++        if (this->isValid())
++        {
++            this->getTarget()->BoundedBeforeUnlink(this);
++            this->getTarget()->decSize();
++        }
+     }
+     void sourceObjectDestroyLink() override
+     {
+-        // called from invalidate()
++        // called from invalidate(), before Reference::invalidate detaches this node.
++        this->getTarget()->BoundedBeforeUnlink(this);
+         this->getTarget()->decSize();
+     }
+ public:
+     GridReference() : Reference<GridRefMgr<OBJECT>, OBJECT>() {}
++    GridReference(GridReference const&) = delete;
++    GridReference& operator=(GridReference const&) = delete;
++    GridReference(GridReference&&) = delete;
++    GridReference& operator=(GridReference&&) = delete;
+     ~GridReference() override { this->unlink(); }
+     GridReference* next() { return (GridReference*)Reference<GridRefMgr<OBJECT>, OBJECT>::next(); }
+ };
+diff --git a/src/server/game/Movement/MotionMaster.cpp b/src/server/game/Movement/MotionMaster.cpp
+--- a/src/server/game/Movement/MotionMaster.cpp
++++ b/src/server/game/Movement/MotionMaster.cpp
+@@ -897,6 +897,44 @@
+     Mutate(mgen, MOTION_SLOT_CONTROLLED);
+ }
+ 
++bool MotionMaster::InstallCheckedMovement(uint64 expected, MovementGenerator* next)
++{
++    if (!next || (_cleanFlag & (MMCF_UPDATE | MMCF_INUSE)) || Impl[MOTION_SLOT_CONTROLLED])
++        return false;
++    MovementGenerator* current = Impl[MOTION_SLOT_ACTIVE];
++    if (expected ? (!current || current->GetIdentity() != expected) :
++        (current || GetCurrentMovementGeneratorType() != IDLE_MOTION_TYPE || !_owner->movespline->Finalized()))
++        return false;
++    if (current)
++    {
++        uint32 const yieldedSpline = _owner->movespline->GetId();
++        Impl[MOTION_SLOT_ACTIVE] = nullptr;
++        while (!empty() && !top())
++            --_top;
++        DirectDelete(current);
++        _owner->StopOwnedSpline(yieldedSpline);
++        // Finalize may install replacement/manual/control movement. Unlike ordinary Mutate's
++        // replacement loop, a checked handoff must not delete that new work to make room.
++        if (Impl[MOTION_SLOT_ACTIVE] || Impl[MOTION_SLOT_CONTROLLED] ||
++            (_cleanFlag & (MMCF_UPDATE | MMCF_INUSE)) ||
++            GetCurrentMovementGeneratorType() != IDLE_MOTION_TYPE)
++            return false;
++    }
++    Mutate(next, MOTION_SLOT_ACTIVE);
++    return true;
++}
++
++bool MotionMaster::ExpireOwnedMovement(uint64 identity)
++{
++    if (!identity || (_cleanFlag & (MMCF_UPDATE | MMCF_INUSE)))
++        return false;
++    MovementGenerator* current = Impl[MOTION_SLOT_ACTIVE];
++    if (!current || current->GetIdentity() != identity)
++        return false;
++    DirectExpireSlot(MOTION_SLOT_ACTIVE, false);
++    return true;
++}
++
+ void MotionMaster::Mutate(MovementGenerator* m, MovementSlot slot)
+ {
+     bool const delayed = (_cleanFlag & MMCF_UPDATE);
+diff --git a/src/server/game/Movement/MotionMaster.h b/src/server/game/Movement/MotionMaster.h
+--- a/src/server/game/Movement/MotionMaster.h
++++ b/src/server/game/Movement/MotionMaster.h
+@@ -224,6 +224,11 @@
+             DirectExpireSlot(slot, reset);
+     }
+ 
++    // Serialized checked handoff. Zero expects finalized idle; nonzero identifies the exact active generator.
++    // Caller retains next on failure. No controlled generator can be displaced.
++    bool InstallCheckedMovement(uint64 expected, MovementGenerator* next);
++    bool ExpireOwnedMovement(uint64 identity);
++
+     void MoveIdle();
+     void MoveTargetedHome(bool walk = false);
+     void MoveRandom(float wanderDistance = 0.0f);
+diff --git a/src/server/game/Movement/MovementGenerator.cpp b/src/server/game/Movement/MovementGenerator.cpp
+--- a/src/server/game/Movement/MovementGenerator.cpp
++++ b/src/server/game/Movement/MovementGenerator.cpp
+@@ -18,6 +18,17 @@
+ #include "MovementGenerator.h"
+ #include "IdleMovementGenerator.h"
+ 
++#include <atomic>
++#include <cstdlib>
++
++MovementGenerator::MovementGenerator()
++{
++    static std::atomic<uint64> next{1};
++    _identity = next.fetch_add(1, std::memory_order_relaxed);
++    if (!_identity)
++        std::abort(); // Never recycle a positive movement ownership identity.
++}
++
+ MovementGenerator::~MovementGenerator()
+ {
+ }
+diff --git a/src/server/game/Movement/MovementGenerator.h b/src/server/game/Movement/MovementGenerator.h
+--- a/src/server/game/Movement/MovementGenerator.h
++++ b/src/server/game/Movement/MovementGenerator.h
+@@ -27,7 +27,11 @@
+ class MovementGenerator
+ {
+ public:
++    MovementGenerator();
+     virtual ~MovementGenerator();
++    MovementGenerator(MovementGenerator const&) = delete;
++    MovementGenerator& operator=(MovementGenerator const&) = delete;
++    uint64 GetIdentity() const { return _identity; }
+ 
+     virtual void Initialize(Unit*) = 0;
+     virtual void Finalize(Unit*) = 0;
+@@ -49,6 +53,8 @@
+ 
+     // used by Evade code for select point to evade with expected restart default movement
+     virtual bool GetResetPosition(float& /*x*/, float& /*y*/, float& /*z*/) { return false; }
++private:
++    uint64 _identity;
+ };
+ 
+ template<class T, class D>
+diff --git a/src/server/game/Spells/Spell.cpp b/src/server/game/Spells/Spell.cpp
+--- a/src/server/game/Spells/Spell.cpp
++++ b/src/server/game/Spells/Spell.cpp
+@@ -568,11 +568,18 @@
+     ForcedCritResult = false;
+ }
+ 
++#include <atomic>
++#include <cstdlib>
++
+ Spell::Spell(Unit* caster, SpellInfo const* info, TriggerCastFlags triggerFlags, ObjectGuid originalCasterGUID, bool skipCheck) :
+     m_spellInfo(sSpellMgr->GetSpellForDifficultyFromSpell(info, caster)),
+     m_caster((info->HasAttribute(SPELL_ATTR6_ORIGINATE_FROM_CONTROLLER) && caster->GetCharmerOrOwner()) ? caster->GetCharmerOrOwner() : caster)
+     , m_spellValue(new SpellValue(m_spellInfo)), _spellEvent(nullptr)
+ {
++    static std::atomic<uint64> nextCast{1};
++    _castIdentity = nextCast.fetch_add(1, std::memory_order_relaxed);
++    if (!_castIdentity)
++        std::abort();
+     m_customError = SPELL_CUSTOM_ERROR_NONE;
+     m_skipCheck = skipCheck;
+     m_selfContainer = nullptr;
+@@ -3917,6 +3924,16 @@
+         m_caster->ToPlayer()->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_CAST_SPELL, m_spellInfo->Id, 0, (m_targets.GetUnitTarget() ? m_targets.GetUnitTarget() : m_caster));
+     }
+ 
++    // Opt-in policy requests only. Check the complete collected effect set after script callbacks,
++    // before remaining costs and launch. Earlier native prepare/GCD/script work is not rolled back.
++    if (_combatAdmissionCheck && !_combatAdmissionCheck(*this))
++    {
++        SendInterrupted(0);
++        finish(false);
++        SetExecutedCurrently(false);
++        return;
++    }
++
+     if (!HasTriggeredCastFlag(TRIGGERED_IGNORE_POWER_AND_REAGENT_COST))
+     {
+         // Powers have to be taken before SendSpellGo
+diff --git a/src/server/game/Spells/Spell.h b/src/server/game/Spells/Spell.h
+--- a/src/server/game/Spells/Spell.h
++++ b/src/server/game/Spells/Spell.h
+@@ -588,6 +588,14 @@
+     CurrentSpellTypes GetCurrentContainer() const;
+ 
+     Unit* GetCaster() const { return m_caster; }
++    uint64 GetCastIdentity() const { return _castIdentity; }
++    void SetCombatAdmissionCheck(bool (*check)(Spell const&)) { _combatAdmissionCheck = check; }
++    std::list<TargetInfo> const& GetCollectedCombatTargets() const { return m_UniqueTargetInfo; }
++
++private:
++    uint64 _castIdentity = 0;
++    bool (*_combatAdmissionCheck)(Spell const&) = nullptr;
++public:
+     Unit* GetOriginalCaster() const { return m_originalCaster; }
+     Unit* GetOriginalTarget() const;
+     SpellInfo const* GetSpellInfo() const { return m_spellInfo; }
