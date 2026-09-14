@@ -137,7 +137,13 @@ aiming for15 yards rather than trusting assigned slots alone. Three short escape
 are compared for improved minimum clearance within the sampled room disk. Coincident bots
 use distinct slot headings; dead/CC/ineligible roster members retain formation slots so
 survivors are not reshuffled. Already spaced bots clear of the entrance can hold suitable
-positions without snapping back. Observed red-facing avoidance takes precedence.
+positions without snapping back. Observed red-facing avoidance takes precedence: facing
+changes determine sweep direction, with no guessed boss timer. Bots ahead of the sweep
+start escaping within1.3 radians and keep moving until1.8 radians clear; the unknown-direction
+opening and trailing edge use separate conservative margins. Short0.3-radian arc waypoints
+replace large chords, with a retained20–40-yard orbit radius and escape away from the current
+beam if it overtakes a delayed runner. These margins are tuning values, not immunity;
+existing casts are still not forcibly cancelled.
 Keep moving clear of the doorway yourself: Lua cannot reposition you. Casts, simultaneous
 movement and path rejection mean this is not guaranteed separation or zero beam damage.
 It requires an observed Eye and known route position; casts/manual/CC/nonpolicy movement

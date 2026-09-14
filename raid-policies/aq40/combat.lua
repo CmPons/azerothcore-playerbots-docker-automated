@@ -96,6 +96,43 @@ local function roomSpacing(s, index, eye, angle)
     end
     return best,false
 end
+-- Infer sweep direction only from observed facing changes, never from a hidden boss timer.
+local glare
+local function observeGlare(s, eye)
+    if not eye or not aura(eye,22518) then glare=nil; return false end
+    if not glare or glare.guid ~= eye.guid then
+        glare={guid=eye.guid,facing=eye.facing,at=s.sampled_at,direction=0,running={},radii={}}
+    else
+        local delta=math.atan(math.sin(eye.facing-glare.facing),math.cos(eye.facing-glare.facing))
+        local elapsed=s.sampled_at-glare.at
+        if elapsed <= 0 or elapsed > 2000 or math.abs(delta) > 0.3 then glare.direction=0
+        elseif math.abs(delta) > 0.01 then glare.direction=delta < 0 and -1 or 1 end
+        glare.facing,glare.at=eye.facing,s.sampled_at
+    end
+    -- Retain only this copied roster's values, bounded to at most40 members.
+    local running,radii={},{}
+    for _,m in ipairs(s.members) do
+        running[m.guid],radii[m.guid]=glare.running[m.guid],glare.radii[m.guid]
+    end
+    glare.running,glare.radii=running,radii
+    return true
+end
+local function glareGoal(member, eye)
+    local bearing=math.atan(member.y-eye.y,member.x-eye.x)
+    local relative=math.atan(math.sin(bearing-eye.facing),math.cos(bearing-eye.facing))
+    local ahead=glare.direction ~= 0 and relative*glare.direction > 0
+    local trigger=ahead and 1.3 or (glare.direction==0 and 1.15 or 0.5)
+    local clearance=ahead and 1.8 or (glare.direction==0 and 1.65 or 0.9)
+    if math.abs(relative) >= clearance then glare.running[member.guid]=nil end
+    if math.abs(relative) >= trigger and not glare.running[member.guid] then return nil end
+    glare.running[member.guid]=true
+    -- Always escape away from the current beam, even if it has overtaken a delayed runner.
+    local side=relative < 0 and -1 or 1
+    local angle=bearing+side*math.min(0.3,clearance-math.abs(relative))
+    local radius=glare.radii[member.guid] or math.max(20,math.min(40,distance(member,eye)))
+    glare.radii[member.guid]=radius
+    return {eye.x+radius*math.cos(angle),eye.y+radius*math.sin(angle),100.446}
+end
 -- Kill nearby eye stalks without undoing the working entrance/spacing movement.
 -- Only select visible, already-engaged enemies. Unknown LOS is left to native cast checks.
 local function eyeTentacle(s, member, memberIndex)
@@ -148,6 +185,7 @@ return {api=2, plan=function(s)
     for i,e in ipairs(s.entities) do
         if e.entry == 15589 and e.alive and e.health > 0 then eye,eyeIndex=e,i end
     end
+    local red=observeGlare(s,eye)
     -- No entity observation is a whole-map absence claim. Outside this encounter leave native AI alone.
     for i,m in ipairs(s.members) do
         local point,progress = entry(m)
@@ -182,21 +220,15 @@ return {api=2, plan=function(s)
             elseif (s.combat or committed) and m.z > 98 and m.z < 104 then
                 local radius = m.melee and not m.healer and 22 or 35
                 local angle = 2*math.pi*(slot-1)/math.max(1,count)
-                -- Red facing is observed, not a guessed native sweep direction/timer.
-                if aura(eye,22518) then
-                    local relative = math.atan(m.y-eye.y,m.x-eye.x)-eye.facing
-                    relative = math.atan(math.sin(relative),math.cos(relative))
-                    if math.abs(relative) < 0.7 then
-                        angle = eye.facing+(relative < 0 and -1 or 1)*1.1
-                    else
-                        angle = math.atan(m.y-eye.y,m.x-eye.x)
-                        radius = distance(m,eye)
-                    end
-                end
                 local x,y = eye.x+radius*math.cos(angle),eye.y+radius*math.sin(angle)
                 intent.movement=1
-                if math.sqrt((m.x-x)^2+(m.y-y)^2) > 2 then goal(intent,x,y,100.446) end
-                if not aura(eye,22518) then
+                if red then
+                    -- Short arc waypoints avoid large chords through the boss/beam. Keep escaping
+                    -- until well clear, rather than stopping at the edge of the old narrow trigger.
+                    local p=glareGoal(m,eye)
+                    if p then goal(intent,p[1],p[2],p[3]) end
+                else
+                    if math.sqrt((m.x-x)^2+(m.y-y)^2) > 2 then goal(intent,x,y,100.446) end
                     local escape,spaced=roomSpacing(s,i,eye,angle)
                     local currentRadius=distance(m,eye)
                     local exitGap=math.sqrt((m.x+8612)^2+(m.y-1980)^2)
