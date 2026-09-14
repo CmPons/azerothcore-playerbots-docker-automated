@@ -128,8 +128,15 @@ fall back to native behavior.
 
 `aq40/combat.lua` selects the observed Eye of C'Thun entry 15589, uses the existing
 west-entry landmarks, spreads ground positions and reacts to observed red-facing
-hazards. It is initial tunable content, not a zero-damage guarantee or exhaustive
-phase-two strategy. The first Viscidus live-tuning policy now asks eligible non-healer
+hazards. Entry now holds bots on the known route while a living human approaches,
+then advances them with a 15-yard proximity margin behind humans/ahead-of-queue members.
+Route progress orders the queue, with roster order breaking ties. Entrants also wait
+for nearby members just inside the room to clear; once inside they use the existing
+spread goals. Keep moving clear of the doorway yourself: Lua cannot reposition you.
+This is local entrance staggering, not guaranteed separation throughout room traversal.
+It requires an observed Eye and known route position; casts/manual/CC/nonpolicy movement
+and incomplete observations still limit enforcement. It is initial tunable content,
+not a zero-damage guarantee or exhaustive phase-two strategy. The first Viscidus live-tuning policy now asks eligible non-healer
 melee bots (including bot tanks) to approach on their current side and hold within
 4.5 yards of his center, reapproaching toward a 3.5-yard goal if needed. It prioritizes
 the already-engaged boss but does not change rotations or force caster melee attacks.

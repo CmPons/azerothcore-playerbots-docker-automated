@@ -72,7 +72,8 @@ int main(int argc, char** argv)
         if (argc > 2)
         {
             assert(plan.raid.intents[0].movement == RaidCombat::Positioning::Release);
-            assert(plan.raid.intents[1].movement == RaidCombat::Positioning::Ground);
+            // This entrant is beside the human: keep the entrance gap instead of rushing past.
+            assert(plan.raid.intents[1].movement == RaidCombat::Positioning::Hold);
         }
         CthunPolicy::Snapshot empty;
         assert(runtime.Evaluate(empty, plan));

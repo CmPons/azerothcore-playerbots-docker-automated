@@ -21,7 +21,7 @@ local route = {
     {-8625,1974,100.713}, {-8612,1980,100.446}
 }
 local function entry(member)
-    local best, point = 12, nil
+    local best, point, progress, travelled = 12, nil, nil, 0
     for i=2,#route do
         local a,b = route[i-1],route[i]
         local dx,dy,dz = b[1]-a[1],b[2]-a[2],b[3]-a[3]
@@ -30,9 +30,28 @@ local function entry(member)
         local gap = math.sqrt((member.x-a[1]-dx*t)^2+(member.y-a[2]-dy*t)^2+(member.z-a[3]-dz*t)^2)
         if gap < best and math.abs(member.z-a[3]-dz*t) < 4 then
             best,point = gap,(t*length > length-4 and route[i+1]) or b
+            progress = travelled+t*length
+        end
+        travelled = travelled+length
+    end
+    return point,progress
+end
+-- Keep a single-file gap through the narrow entrance. A 15-yard stop margin leaves
+-- room for the already-admitted short native step; it is not a zero-chain guarantee.
+local function entryClear(s, paths, index)
+    local member, progress = s.members[index],paths[index].progress
+    for j,other in ipairs(s.members) do
+        if j ~= index and other.alive and math.abs(other.z-member.z) < 12 and
+           distance(member,other) < 15 then
+            local ahead = paths[j].progress
+            -- Humans lead; equal-progress bots use stable roster order rather than oscillating.
+            if other.human or (other.x >= -8620 and other.z > 98 and other.z < 104) or
+               (ahead and (ahead > progress+0.75 or (math.abs(ahead-progress) <= 0.75 and j < index))) then
+                return false
+            end
         end
     end
-    return point
+    return true
 end
 -- Viscidus: first live iteration deliberately favors sustained melee, not cloud avoidance.
 -- Approach on the bot's current side, then hold; boss-facing changes do not reshuffle slots.
@@ -64,27 +83,36 @@ end
 return {api=2, plan=function(s)
     local melee = viscidus(s)
     if melee then return melee end
-    local out, eye, eyeIndex, committed, count = {},nil,0,false,0
+    local out, eye, eyeIndex, committed, approaching, count = {},nil,0,false,false,0
+    local paths = {}
     for i,e in ipairs(s.entities) do
         if e.entry == 15589 and e.alive and e.health > 0 then eye,eyeIndex=e,i end
     end
     -- No entity observation is a whole-map absence claim. Outside this encounter leave native AI alone.
-    for _,m in ipairs(s.members) do
+    for i,m in ipairs(s.members) do
+        local point,progress = entry(m)
+        paths[i] = {point=point,progress=progress}
+        if m.human and m.alive and point then approaching=true end
         if m.eligible then count=count+1 end
-        if m.human and m.z > 98 and m.z < 104 and
+        if m.human and m.alive and m.z > 98 and m.z < 104 and
            m.x > -8638 and m.x < -8530 and m.y > 1964 and m.y < 2032 then committed=true end
     end
     local slot = 0
     for i,m in ipairs(s.members) do
         local intent = release()
         out[i] = intent
-        if s.map == 531 and eye and m.eligible and (s.combat or committed) and
+        if s.map == 531 and eye and m.eligible and (s.combat or committed or approaching) and
            not aura(m,26476) and distance(m,eye) < 160 then
             slot=slot+1
             if m.x < -8620 or m.z > 104 then
-                local p=entry(m)
-                if p then goal(intent,p[1],p[2],p[3]) end
-            elseif m.z > 98 and m.z < 104 then
+                local p=paths[i].point
+                if p then
+                    intent.movement=1
+                    if (s.combat or committed) and entryClear(s,paths,i) then
+                        goal(intent,p[1],p[2],p[3])
+                    end
+                end
+            elseif (s.combat or committed) and m.z > 98 and m.z < 104 then
                 local radius = m.melee and not m.healer and 22 or 35
                 local angle = 2*math.pi*(slot-1)/math.max(1,count)
                 -- Red facing is observed, not a guessed native sweep direction/timer.
