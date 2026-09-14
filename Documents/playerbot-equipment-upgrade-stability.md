@@ -1,5 +1,8 @@
 # Playerbot automatic equipment stability
 
+**Deployed September 14, 2026, at 19:39 CEST.** Live shoulder/tell stability still needs
+observation after logging in; build and preservation verification passed.
+
 Incremental source publication: `patches/0036-playerbot-equipment-upgrade-stability.patch`.
 Apply after the actual post-0035 source, not an unmodified nested Git HEAD.
 
@@ -89,5 +92,44 @@ source hashes, reproduction inputs/harness, syntax logs and scoped style result.
 
 Patch SHA-256: `7cff8b2163d7c6d20809e61c7842a02f4c4b6ffb8d201e858c0942fa6a78fb28`.
 
-No full-image build, database operation, service operation, commit, push or deployment was performed
-by the implementation worker. Parent review/build/deployment and an in-game stability check remain.
+The implementation worker made no live changes. Independent review returned **OK with notes**;
+parent accepted the fix and published source commit `3474056`. The subsequent build and
+parent-controlled deployment completed as follows.
+
+## Deployment and preservation
+
+- Image tag: `acore/ac-wotlk-worldserver:equipment-stability-20260914-191736`, also `:master`.
+- Image ID: `sha256:5ab143a217699f822bcce947c614ac744251ee0579f91b84b8ecb47ff161796b`.
+- Worldserver SHA256: `a59d036586d7e4b8a1b5df9ac4894f0383715cc1b34e028feb1c95d6df75f1a5`.
+- Started: `2026-09-14T17:39:24.24655726Z`; ready/running, restart count0, no OOM.
+- Build exit0; exact six-file native delta reconstructed against the prior deployed build.
+  Never-started image inspection verified new equipment symbols/call order, retained Lua/Ouro/scaling,
+  and interpreter/library closure. No checker rebuild or Lua publication was required.
+
+The user explicitly authorized rebuilding/restarting while taking a dinner break. Fresh checks
+found zero online non-random-bot characters before shutdown. Only worldserver was cleanly
+stopped/recreated; authserver, database and Pi bridge identities stayed unchanged.
+
+Fresh actual-source/config/policy/image and four-database backups were verified. Another complete
+four-database dump and save/item snapshots were taken after worldserver stopped. Separate
+post-start verification matched all saved instances, binds, deadlines, AQ respawns and ten-character
+roster inventory/item rows exactly to stopped state. At deployment AQ623 retained mask127/stage2,
+data `A Q T 5 3 3 3 3 3 3 3 5 0`, reset1789657599 and extended reset1789916799.
+No gear was forced, restored, removed or normalized.
+
+Configuration and the 1.1 upgrade threshold were unchanged. Core updater remains disabled;
+the existing enabled PB updater's28 name/hash/state entries matched source before and after.
+No SQL migration, setup replay, reset, bind extension or rollback of gameplay data was performed.
+Pi health used `/api/tags`, never generation.
+
+The existing Lua default/revision and checker were preserved byte-for-byte, including Viscidus
+revision `0f18d3e7112c1b9fc642fdfd684558c86cde278db1a0b4c47f59b9ed93f94192`.
+
+Private evidence/backups (contain secrets; do not publish):
+
+- `backups/equipment-stability-build-20260914-191736/`
+- `backups/equipment-stability-predeploy-20260914-193813/`
+
+Rollback tag: `acore/ac-wotlk-worldserver:pre-equipment-stability-20260914-193813`,
+image `sha256:58904b1ba207bf91189916c33a09f5363c2ebed70551211139dbdea05b518062`.
+Its availability does not authorize another restart or a gameplay-data rewind.
