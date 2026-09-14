@@ -129,11 +129,17 @@ fall back to native behavior.
 `aq40/combat.lua` selects the observed Eye of C'Thun entry 15589, uses the existing
 west-entry landmarks, spreads ground positions and reacts to observed red-facing
 hazards. Entry now holds bots on the known route while a living human approaches,
-then advances them with a 15-yard proximity margin behind humans/ahead-of-queue members.
-Route progress orders the queue, with roster order breaking ties. Entrants also wait
-for nearby members just inside the room to clear; once inside they use the existing
-spread goals. Keep moving clear of the doorway yourself: Lua cannot reposition you.
-This is local entrance staggering, not guaranteed separation throughout room traversal.
+then advances them with a 13.5-yard proximity margin and one-yard approach goals when
+within17 yards of the preceding member. Route progress orders the queue, with roster
+order breaking ties. Entrants also wait for nearby members just inside the room to clear.
+Inside, green-phase positioning reacts to actual living-member distances (including humans),
+aiming for15 yards rather than trusting assigned slots alone. Three short escape candidates
+are compared for improved minimum clearance within the sampled room disk. Coincident bots
+use distinct slot headings; dead/CC/ineligible roster members retain formation slots so
+survivors are not reshuffled. Already spaced bots clear of the entrance can hold suitable
+positions without snapping back. Observed red-facing avoidance takes precedence.
+Keep moving clear of the doorway yourself: Lua cannot reposition you. Casts, simultaneous
+movement and path rejection mean this is not guaranteed separation or zero beam damage.
 It requires an observed Eye and known route position; casts/manual/CC/nonpolicy movement
 and incomplete observations still limit enforcement. It is initial tunable content,
 not a zero-damage guarantee or exhaustive phase-two strategy. The first Viscidus live-tuning policy now asks eligible non-healer

@@ -36,22 +36,65 @@ local function entry(member)
     end
     return point,progress
 end
--- Keep a single-file gap through the narrow entrance. A 15-yard stop margin leaves
--- room for the already-admitted short native step; it is not a zero-chain guarantee.
+-- A tighter entry gap, with one-yard approach goals near the preceding member.
 local function entryClear(s, paths, index)
-    local member, progress = s.members[index],paths[index].progress
+    local member, progress, nearest = s.members[index],paths[index].progress,1e9
     for j,other in ipairs(s.members) do
-        if j ~= index and other.alive and math.abs(other.z-member.z) < 12 and
-           distance(member,other) < 15 then
+        if j ~= index and other.alive and math.abs(other.z-member.z) < 12 then
             local ahead = paths[j].progress
-            -- Humans lead; equal-progress bots use stable roster order rather than oscillating.
             if other.human or (other.x >= -8620 and other.z > 98 and other.z < 104) or
                (ahead and (ahead > progress+0.75 or (math.abs(ahead-progress) <= 0.75 and j < index))) then
-                return false
+                nearest=math.min(nearest,distance(member,other))
             end
         end
     end
-    return true
+    return nearest >= 13.5,nearest
+end
+-- React to actual living-player spacing, including the human, not only assigned slots.
+-- Three short escape candidates keep work bounded; native ground checks still decide legality.
+local function roomSpacing(s, index, eye, angle)
+    local m,near,fx,fy = s.members[index],1e9,0,0
+    for j,o in ipairs(s.members) do
+        if j ~= index and o.alive and math.abs(o.z-m.z) < 6 then
+            local dx,dy = m.x-o.x,m.y-o.y
+            local d2 = dx*dx+dy*dy
+            near=math.min(near,d2)
+            if d2 < 15*15 then
+                if d2 < 0.25 then
+                    -- Coincident bots need different escape headings, not the same flock direction.
+                    fx,fy=fx+15*math.cos(angle),fy+15*math.sin(angle)
+                else
+                    local weight=(15-math.sqrt(d2))/d2
+                    fx,fy=fx+dx*weight,fy+dy*weight
+                end
+            end
+        end
+    end
+    if near >= 15*15 then return nil,true end
+    local length=math.sqrt(fx*fx+fy*fy)
+    if length < 0.01 then fx,fy=math.cos(angle),math.sin(angle)
+    else fx,fy=fx/length,fy/length end
+    local best,clearance=nil,near
+    for k=1,3 do
+        local dx,dy=fx,fy
+        if k==2 then dx,dy=-fy,fx elseif k==3 then dx,dy=fy,-fx end
+        local x,y=m.x+5*dx,m.y+5*dy
+        local ex,ey=x-eye.x,y-eye.y
+        local radius=math.sqrt(ex*ex+ey*ey)
+        if radius > 0.01 then
+            local bounded=math.max(18,math.min(42,radius))
+            x,y=eye.x+ex*bounded/radius,eye.y+ey*bounded/radius
+            local minimum=1e9
+            for j,o in ipairs(s.members) do
+                if j ~= index and o.alive and math.abs(o.z-m.z) < 6 then
+                    local ox,oy=x-o.x,y-o.y
+                    minimum=math.min(minimum,ox*ox+oy*oy)
+                end
+            end
+            if minimum > clearance+0.5 then best,clearance={x,y,100.446},minimum end
+        end
+    end
+    return best,false
 end
 -- Viscidus: first live iteration deliberately favors sustained melee, not cloud avoidance.
 -- Approach on the bot's current side, then hold; boss-facing changes do not reshuffle slots.
@@ -93,7 +136,8 @@ return {api=2, plan=function(s)
         local point,progress = entry(m)
         paths[i] = {point=point,progress=progress}
         if m.human and m.alive and point then approaching=true end
-        if m.eligible then count=count+1 end
+        -- Dead/CC/ineligible bots retain their slot: one casualty must not rotate everyone.
+        if not m.human then count=count+1 end
         if m.human and m.alive and m.z > 98 and m.z < 104 and
            m.x > -8638 and m.x < -8530 and m.y > 1964 and m.y < 2032 then committed=true end
     end
@@ -101,15 +145,21 @@ return {api=2, plan=function(s)
     for i,m in ipairs(s.members) do
         local intent = release()
         out[i] = intent
+        if not m.human then slot=slot+1 end
         if s.map == 531 and eye and m.eligible and (s.combat or committed or approaching) and
            not aura(m,26476) and distance(m,eye) < 160 then
-            slot=slot+1
             if m.x < -8620 or m.z > 104 then
                 local p=paths[i].point
                 if p then
                     intent.movement=1
-                    if (s.combat or committed) and entryClear(s,paths,i) then
-                        goal(intent,p[1],p[2],p[3])
+                    local clear,gap=entryClear(s,paths,i)
+                    if (s.combat or committed) and clear then
+                        if gap < 17 then
+                            local dx,dy,dz=p[1]-m.x,p[2]-m.y,p[3]-m.z
+                            local length=math.sqrt(dx*dx+dy*dy+dz*dz)
+                            local step=1/math.max(1,length)
+                            goal(intent,m.x+dx*step,m.y+dy*step,m.z+dz*step)
+                        else goal(intent,p[1],p[2],p[3]) end
                     end
                 end
             elseif (s.combat or committed) and m.z > 98 and m.z < 104 then
@@ -129,6 +179,20 @@ return {api=2, plan=function(s)
                 local x,y = eye.x+radius*math.cos(angle),eye.y+radius*math.sin(angle)
                 intent.movement=1
                 if math.sqrt((m.x-x)^2+(m.y-y)^2) > 2 then goal(intent,x,y,100.446) end
+                if not aura(eye,22518) then
+                    local escape,spaced=roomSpacing(s,i,eye,angle)
+                    local currentRadius=distance(m,eye)
+                    local exitGap=math.sqrt((m.x+8612)^2+(m.y-1980)^2)
+                    local melee=m.melee and not m.healer
+                    -- Keep an already safe position rather than repeatedly snapping back to a slot.
+                    if spaced and exitGap >= 15 and currentRadius >= (melee and 18 or 26) and
+                       currentRadius <= (melee and 25 or 42) then
+                        intent.movement=1
+                    elseif not spaced then
+                        intent.movement=1
+                        if escape then goal(intent,escape[1],escape[2],escape[3]) end
+                    end
+                end
             end
             if eye.attackable and eye.engaged and not m.healer then intent.target=eyeIndex end
         end
