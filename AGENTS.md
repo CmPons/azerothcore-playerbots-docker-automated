@@ -228,10 +228,14 @@ XP_QUEST_RATE=3
 XP_EXPLORE_RATE=3
 REPUTATION_RATE=5
 HONOR_RATE=5
-MAX_PLAYER_LEVEL=60
-RANDOM_BOT_MAX_LEVEL=60
+MAX_PLAYER_LEVEL=70
+RANDOM_BOT_MAX_LEVEL=70
 BOT_LEVEL_BRACKET_EXCLUDE_NAMES=Meliah,Arinerica
 ```
+
+Level70 caps were configured September15 but still require an explicitly authorized
+worldserver restart to become active. `MaxPlayerLevel` is not reloadable. See
+`Documents/tbc-level-cap.md` for the pending activation record.
 
 ## Database access reminders
 
