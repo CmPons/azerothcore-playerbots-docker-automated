@@ -147,8 +147,12 @@ human/ineligible/wrong-map controls were respected. The required installed produ
 checker also passed. These show Lua decisions, not successful live path execution.
 Runtime movement receipts distinguish hold(3), path rejection(4) and launched movement(5);
 source inspection confirms the old C'Thun `PolicyChoice` mover yields for active API2.
-Other native movement/cast constraints still apply. Do not equate adoption or a stored
-receipt with measured player displacement; capture native feedback and user observation.
+Other native movement/cast constraints still apply. After publishing the probe, scope
+`531-623-1789482719355167609` adopted it for all nine bots without a Lua fault. All nine
+reported movement receipt4, whereas the pre-adoption snapshot showed release receipts.
+This localizes a real failure to native movement validation/launch, not mere publication.
+Receipt4 is shared by multiple rejection branches; the precise failing guard has not yet
+been identified. Do not equate adoption or a stored receipt with measured displacement.
 
 Historical targeting finding: `attack` writes the selected GUID into `prioritized targets`,
 which overrides Lua's preferred target. Between pulls, `follow` clears that list and
