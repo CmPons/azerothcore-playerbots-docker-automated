@@ -126,43 +126,43 @@ fall back to native behavior.
 
 ## Initial content and evidence limits
 
-**C'Thun is currently a minimal proximity-movement diagnostic, not a boss strategy.**
-The user still observed clumping at attack range after the room-formation iteration.
-The entry queue, station solver, healer-coverage scoring, glare avoidance and tentacle
-priorities have therefore been removed from the active Lua file, not layered further.
-Historical policies remain in git/private pre-publication backups.
+**C'Thun's prior encounter tactics were restored on September15 at the user's request,**
+after the deployed native path-capacity correction made the proximity probe work
+“a lot better.” `combat.lua` is byte-for-byte the last full policy from `66c637f`,
+revision `c783d670381a797db9adfb85b65cd1d3abfaad8e79421fe7d8ffb229aa5d331a`.
+The required installed production-Lua checker passes. Publication is Lua-only;
+existing scopes adopt between pulls/out of combat, with no server restart.
 
-The diagnostic is 33 lines after the preserved Viscidus helper. Within120 yards of
-C'Thun's room center, at height98–112, eligible living bots hold when clear. A living
-human within15 horizontal yards (height difference below6) triggers three-yard goals
-directly away from that human, continuing until20 yards clear. Coincident positions
-use distinct roster bearings. It runs out of combat and needs no observed boss or enemies.
-Humans/ineligible bots are never controlled; no attacks, spell operations, route or
-formation decisions are issued. Test on flat approach ground well away from boss aggro,
-not by pulling C'Thun. Walls, slopes, casts and protected native movement can prevent a step.
+Restored behavior:
 
-Focused execution of the actual Lua source produced away goals for all nine synthetic
-roster bots at10 yards (requested13 yards), retained retreat until beyond20, then held;
-human/ineligible/wrong-map controls were respected. The required installed production-Lua
-checker also passed. These show Lua decisions, not successful live path execution.
-Runtime movement receipts distinguish hold(3), path rejection(4) and launched movement(5);
-source inspection confirms the old C'Thun `PolicyChoice` mover yields for active API2.
-Other native movement/cast constraints still apply. After publishing the probe, scope
-`531-623-1789482719355167609` adopted it for all nine bots without a Lua fault. All nine
-reported movement receipt4, whereas the pre-adoption snapshot showed release receipts.
-This localizes a real failure to native movement validation/launch, not mere publication.
-Receipt4 is shared by multiple rejection branches. Investigation identified a native
-point-capacity defect: the intended six-yard setting allocated only one path point,
-rejecting short routes across polygon boundaries. The source correction and production-
-method regression are documented in [ground path capacity](raid-combat-ground-path-capacity.md).
-The correction was deployed with explicit permission on September15 at19:42 CEST;
-the proximity probe and checker stayed unchanged. This does not establish the cause
-of every rejection or live movement reliability. Do not equate adoption or a stored
-receipt with measured displacement.
+- Human-led entry queue with17-yard clearance and short approach steps near the leader.
+- Room-wide stations: alternating healers/melee on a22-yard inner ring, ranged on a
+  40-yard outer ring, with a human sector and stable slots across deaths/CC.
+- Short movement goals scored for17-yard living-player spacing and36-yard proximity
+  to another living healer. Travel goes around the outside instead of across the raid.
+- Red-glare avoidance using observed facing/direction and short arc waypoints.
+- Visible, attackable, already-engaged small/giant eye-tentacle priority, within28 yards
+  for ranged and4.5 yards for melee; healers are not retargeted.
+
+These are restored tactics, not a claim of reliable encounter execution or a completed
+C'Thun strategy. Native path/support/LOS checks, casts and protected movement still win;
+healer distance alone does not prove healing LOS. The main movement policy requires an
+observed Eye; body-phase support is limited to the existing eye-tentacle selection.
+The diagnostic's unconditional out-of-combat flight from nearby humans is no longer active.
+
+Historical diagnostic revision
+`ab1ad41024fed0ac4689921e1703633cb1f8abae3ac5612df798242a36bf50cb` remains retained for
+rollback. It exposed aggregate native receipt4 rejections despite successful adoption.
+Investigation proved that the intended six-yard path limit allocated only one point,
+rejecting short cross-polygon routes. See [ground path capacity](raid-combat-ground-path-capacity.md)
+for the source-bound regression and September15 deployment. The user subsequently reported
+improved retreat; this does not establish the cause of every rejection. Do not equate
+adoption or a stored receipt with measured displacement.
 
 Historical targeting finding: `attack` writes the selected GUID into `prioritized targets`,
 which overrides Lua's preferred target. Between pulls, `follow` clears that list and
-re-enables noncombat following. The current diagnostic deliberately has no tentacle policy.
+re-enables noncombat following. Before a fresh pull, `/ra follow` clears the old attack
+lock; personally pull without issuing another `attack` if Lua should choose tentacles.
 
 The unchanged Viscidus live-tuning policy asks eligible non-healer
 melee bots (including bot tanks) to approach on their current side and hold within

@@ -5,8 +5,9 @@
 **Deployed with explicit permission at 19:42 CEST.**
 Patch: `patches/0037-playerbot-raid-ground-path-capacity.patch`, incremental against
 our actual layered source through0036. Source/tests were committed as `f86056c`.
-The worldserver is running the corrected image; the minimal Lua proximity probe is
-unchanged. Live movement reliability still needs user testing.
+The worldserver is running the corrected image. The user subsequently reported that
+proximity retreat works “a lot better” and requested restoration of the prior C'Thun
+tactics; see [current policy](raid-combat-lua.md). Encounter execution still needs live testing.
 
 ## Defect
 
@@ -81,8 +82,9 @@ stack. Its standalone UBSan run disables alignment checking because vendored Det
 packs links at four-byte boundaries with64-bit references; other UBSan checks remain.
 The separate lifecycle test's sanitizer configuration is unchanged.
 
-Now that the authorized deployment is complete, keep the small proximity probe and
-verify visible retreat plus native movement feedback before restoring encounter tactics. If failures
+After the authorized deployment and the user's improved-retreat report, the prior
+encounter tactics were restored on request. Continue checking actual displacement
+and encounter behavior rather than treating policy adoption as execution proof. If failures
 remain, distinguish individual native rejection stages; do not loosen geometry or
 control guards based solely on receipt4. No claim of reliable live C'Thun spacing,
 glare avoidance or tentacle handling is made by this correction.
@@ -116,8 +118,8 @@ Runtime configurations and auth/database/Pi service identities stayed unchanged.
 updates remain disabled; the independently enabled playerbots updater matched all28
 applied SQL files before and after startup, with nothing pending or changed.
 
-The installed default remains the proximity diagnostic revision
+At deployment, the installed default was the proximity diagnostic revision
 `ab1ad41024fed0ac4689921e1703633cb1f8abae3ac5612df798242a36bf50cb`; the installed checker
-remains unchanged. Container policy-read/status-write access passed. No live eligible
-raid or gameplay success was inferred from startup. Further restarts require fresh
-permission.
+was unchanged. Container policy-read/status-write access passed. No live eligible
+raid or gameplay success was inferred from startup. The later tactics restoration was
+a separate Lua-only publication. Further restarts require fresh permission.
