@@ -126,29 +126,38 @@ fall back to native behavior.
 
 ## Initial content and evidence limits
 
-**C'Thun's prior encounter tactics were restored on September15 at the user's request,**
-after the deployed native path-capacity correction made the proximity probe work
-“a lot better.” `combat.lua` is byte-for-byte the last full policy from `66c637f`,
-revision `c783d670381a797db9adfb85b65cd1d3abfaad8e79421fe7d8ffb229aa5d331a`.
-The required installed production-Lua checker passes. Publication is Lua-only;
-existing scopes adopt between pulls/out of combat, with no server restart.
+**C'Thun is now spacing-only, including the run-in.** The user still did not see
+reliable separation after restoring the full policy, so formations, healer scoring,
+glare avoidance and all C'Thun target overrides have been removed again.
 
-Restored behavior:
+- Minimum15 yards from living players/bots, with a17-yard warning buffer and18-yard
+  settling distance. Humans and ineligible bots are obstacles, never controlled.
+- Nearby bots trigger separation just like humans. Two short escape candidates are
+  evaluated; proposed straight segments may not cross an already-clear neighbour's
+  15-yard boundary. Native code still checks the actual navigable route.
+- Human-led entry follows the existing corridor landmarks, then continues into the
+  room toward its center until within22 yards. This is an entry stopping distance,
+  not assigned formation slots. Spacing takes precedence over entry movement.
+- Once the human is deep in the room, entry continues regardless of attack range,
+  combat state or boss observation. It does not require `nc/co +follow`.
+- Clear bots hold rather than letting ordinary follow undo spacing. No glare,
+  tentacle targeting, spell operations or healer coverage decisions are supplied.
 
-- Human-led entry queue with17-yard clearance and short approach steps near the leader.
-- Room-wide stations: alternating healers/melee on a22-yard inner ring, ranged on a
-  40-yard outer ring, with a human sector and stable slots across deaths/CC.
-- Short movement goals scored for17-yard living-player spacing and36-yard proximity
-  to another living healer. Travel goes around the outside instead of across the raid.
-- Red-glare avoidance using observed facing/direction and short arc waypoints.
-- Visible, attackable, already-engaged small/giant eye-tentacle priority, within28 yards
-  for ranged and4.5 yards for melee; healers are not retargeted.
+Intended pull: `/ra nc -follow`, `/ra co -follow`, then personally run into the middle.
+Bots enter under policy movement and separate from you and one another. Existing
+explicit `attack` target locks are not changed by this policy.
 
-These are restored tactics, not a claim of reliable encounter execution or a completed
-C'Thun strategy. Native path/support/LOS checks, casts and protected movement still win;
-healer distance alone does not prove healing LOS. The main movement policy requires an
-observed Eye; body-phase support is limited to the existing eye-tentacle selection.
-The diagnostic's unconditional out-of-combat flight from nearby humans is no longer active.
+This is a desired clearance, **not a guarantee that actors are never closer**: initial
+clumps, moving humans/neighbours, navmesh detours, walls, casts and protected movement
+can violate or delay it. A two-candidate local escape can also get stuck; no global
+collision solver is claimed. Native rejection remains preferable to unsafe movement.
+
+The installed production-Lua checker passes. Focused real-Lua assertions cover a
+clear bot continuing inward from attack range, entry without follow/combat/boss
+observation, mutual bot/human separation requests, zero target/operation overrides,
+and a40-member overlapping roster within the VM budget. An initial unoptimized
+version exceeded the instruction budget and was not published. These checks prove
+requested decisions, not live displacement or continuous pairwise clearance.
 
 Historical diagnostic revision
 `ab1ad41024fed0ac4689921e1703633cb1f8abae3ac5612df798242a36bf50cb` remains retained for
@@ -160,9 +169,8 @@ improved retreat; this does not establish the cause of every rejection. Do not e
 adoption or a stored receipt with measured displacement.
 
 Historical targeting finding: `attack` writes the selected GUID into `prioritized targets`,
-which overrides Lua's preferred target. Between pulls, `follow` clears that list and
-re-enables noncombat following. Before a fresh pull, `/ra follow` clears the old attack
-lock; personally pull without issuing another `attack` if Lua should choose tentacles.
+which overrides Lua's preferred target; `follow` clears that list. The current spacing-
+only policy has no preferred-target override, and does not require `follow` to run in.
 
 The unchanged Viscidus live-tuning policy asks eligible non-healer
 melee bots (including bot tanks) to approach on their current side and hold within
