@@ -126,9 +126,9 @@ fall back to native behavior.
 
 ## Initial content and evidence limits
 
-**C'Thun is now spacing-only, including the run-in.** The user still did not see
-reliable separation after restoring the full policy, so formations, healer scoring,
-glare avoidance and all C'Thun target overrides have been removed again.
+**C'Thun now has two states: eye-beam avoidance and glare avoidance.** The user
+reported good results from the simplified spacing policy. Its spacing/entry body is
+preserved unchanged as eye-beam avoidance; no formation or healer solver was restored.
 
 - Minimum15 yards from living players/bots, with a17-yard warning buffer and18-yard
   settling distance. Humans and ineligible bots are obstacles, never controlled.
@@ -140,12 +140,38 @@ glare avoidance and all C'Thun target overrides have been removed again.
   not assigned formation slots. Spacing takes precedence over entry movement.
 - Once the human is deep in the room, entry continues regardless of attack range,
   combat state or boss observation. It does not require `nc/co +follow`.
-- Clear bots hold rather than letting ordinary follow undo spacing. No glare,
-  tentacle targeting, spell operations or healer coverage decisions are supplied.
+- Clear bots hold rather than letting ordinary follow undo spacing. In this state,
+  no target overrides, spell operations or healer coverage decisions are supplied.
 
 Intended pull: `/ra nc -follow`, `/ra co -follow`, then personally run into the middle.
-Bots enter under policy movement and separate from you and one another. Existing
-explicit `attack` target locks are not changed by this policy.
+Bots enter under policy movement and separate from you and one another during green
+beams. Existing explicit `attack` target locks are not changed by this policy.
+
+### Glare avoidance
+
+Seeing the Eye's red warning aura22518 switches immediately to glare avoidance,
+before the first damaging cast (the core gives a3-second warning). An observed
+active cast26029 is also a trigger. During glare, spacing and entry advancement do
+not run: surface bots escape the current beam using short arc goals, while safe
+bots hold even when clumped. Direction comes from observed facing changes, not an
+assumed clockwise sweep or hidden encounter timer. Near-center bots step sideways.
+
+Nonhealers prefer visible, attackable, already-engaged tentacles within native
+attack reach: eye types15726/15334 first, then claw types15725/15728; ranged limit28
+yards, melee4.5. Known blocked LOS is rejected. This does not pursue distant adds,
+retarget healers, cancel casts, grant free attacks or override manual target locks.
+
+A complete observed aura list without the warning or a glare cast restores spacing.
+Death/out-of-combat also resets the state. Missing/truncated observations alone do
+not end glare; after1.5 seconds without a fresh cue, bots hold rather than keep
+steering from stale facing. Humans, protected actors and stomach occupants remain
+outside policy control. State names are internal Lua state, not new status fields.
+
+Focused real-Lua checks pass for red-warning and cast-only entry, both sweep directions,
+safe clumps ignoring spacing, eye-over-claw targeting, healer/LOS/engagement guards,
+observation gaps/stale facing and return to spacing. The prior spacing assertions,
+including40 overlapping members, also pass. These are decision checks, not proof
+of live beam survival; movement/casting constraints still apply.
 
 This is a desired clearance, **not a guarantee that actors are never closer**: initial
 clumps, moving humans/neighbours, navmesh detours, walls, casts and protected movement
@@ -170,7 +196,9 @@ adoption or a stored receipt with measured displacement.
 
 Historical targeting finding: `attack` writes the selected GUID into `prioritized targets`,
 which overrides Lua's preferred target; `follow` clears that list. The current spacing-
-only policy has no preferred-target override, and does not require `follow` to run in.
+state has no preferred-target override, and does not require `follow` to run in.
+Glare tentacle preferences still yield to an explicit attack lock: if one is left
+from a previous pull, clear it with `follow`, then disable `nc/co follow` again.
 
 The unchanged Viscidus live-tuning policy asks eligible non-healer
 melee bots (including bot tanks) to approach on their current side and hold within

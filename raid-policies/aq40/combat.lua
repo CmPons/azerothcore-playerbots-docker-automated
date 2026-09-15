@@ -1,4 +1,4 @@
--- Raid combat API2. C'Thun: spacing only, including entry; no target/glare/formation policy.
+-- Raid combat API2. C'Thun: eye-beam spacing OR glare escape/tentacles; no formation slots.
 local function release()
     return {movement=0, target=0, operation=0, spell=0, aura=0, action_target=0}
 end
@@ -98,9 +98,95 @@ local function measure(list,dx,dy,dz)
     return cost,nearest
 end
 
-return {api=2, plan=function(s)
-    local melee=viscidus(s)
-    if melee then return melee end
+local state,glare="eye_beam_avoidance",nil
+local function resetGlare()
+    state,glare="eye_beam_avoidance",nil
+end
+local function observeState(s)
+    if s.map~=531 or not s.combat then resetGlare(); return end
+    local eye
+    for _,e in ipairs(s.entities) do if e.entry==15589 then eye=e; break end end
+    if eye and (not eye.alive or eye.health<=0) then resetGlare(); return end
+    local red=eye and (aura(eye,22518) or (eye.casting and eye.cast_spell==26029))
+    if red then
+        if not glare or glare.guid~=eye.guid then
+            glare={guid=eye.guid,facing=eye.facing,at=s.sampled_at,direction=0,running={}}
+            separating={}
+        else
+            local delta=math.atan(math.sin(eye.facing-glare.facing),math.cos(eye.facing-glare.facing))
+            local elapsed=s.sampled_at-glare.at
+            if elapsed<=0 or elapsed>1500 or math.abs(delta)>0.3 then glare.direction=0
+            elseif math.abs(delta)>0.01 then glare.direction=delta<0 and -1 or 1 end
+        end
+        state="glare_avoidance"
+        glare.eye,glare.facing,glare.at=eye,eye.facing,s.sampled_at
+    elseif eye and not eye.aura_gap then
+        -- Complete observed aura list + no glare cast confirms the return to green beams.
+        if glare then separating={} end
+        resetGlare()
+    end
+    -- Missing/truncated observations are not evidence the glare ended. Never steer from
+    -- a stale facing indefinitely; retain the state but hold until fresh evidence returns.
+end
+local function glareGoal(m,eye,index)
+    local radius=distance(m,eye)
+    local bearing=math.atan(m.y-eye.y,m.x-eye.x)
+    local relative=math.atan(math.sin(bearing-eye.facing),math.cos(bearing-eye.facing))
+    local ahead=glare.direction~=0 and relative*glare.direction>0
+    local trigger=ahead and 1.3 or (glare.direction==0 and 1.15 or 0.5)
+    local clearance=ahead and 1.8 or (glare.direction==0 and 1.65 or 0.9)
+    if math.abs(relative)>=clearance then glare.running[m.guid]=nil end
+    if radius>=8 and math.abs(relative)>=trigger and not glare.running[m.guid] then return end
+    glare.running[m.guid]=true
+    local side=relative<0 and -1 or 1
+    if radius<8 then
+        local angle=eye.facing+(index%2==0 and 1 or -1)*math.pi/2
+        return {m.x+3*math.cos(angle),m.y+3*math.sin(angle),m.z}
+    end
+    local angle=bearing+side*math.min(0.3,math.max(0,clearance-math.abs(relative)))
+    return {eye.x+radius*math.cos(angle),eye.y+radius*math.sin(angle),m.z}
+end
+local function tentacle(s,m,index)
+    local range=m.melee and 4.5 or 28
+    local mask=1 << (index-1)
+    local best,bestPriority,bestDistance=0,0,range*range
+    for i,e in ipairs(s.entities) do
+        local priority=(e.entry==15726 or e.entry==15334) and 2 or
+                       ((e.entry==15725 or e.entry==15728) and 1 or 0)
+        if priority>0 and e.alive and e.health>0 and e.attackable and e.engaged and
+           (e.visible_to & mask)~=0 and ((e.los_known & mask)==0 or (e.los_to & mask)~=0) and
+           math.abs(e.z-m.z)<5 then
+            local d=(m.x-e.x)^2+(m.y-e.y)^2
+            if d<=range*range and (priority>bestPriority or (priority==bestPriority and d<bestDistance)) then
+                best,bestPriority,bestDistance=i,priority,d
+            end
+        end
+    end
+    return best
+end
+local function glarePlan(s)
+    local out,running={},{}
+    for _,m in ipairs(s.members) do running[m.guid]=glare.running[m.guid] end
+    glare.running=running -- Bounded to the current roster.
+    local eye=(s.sampled_at>=glare.at and s.sampled_at-glare.at<=1500) and glare.eye or nil
+    for i,m in ipairs(s.members) do
+        local intent=release(); out[i]=intent
+        if m.eligible and m.alive and not m.human and not aura(m,26476) and
+           m.z>98 and m.z<112 and (m.x+8578.79)^2+(m.y-1986.18)^2<120*120 then
+            intent.movement=1
+            -- Do not run the spacing or entry policy during glare, even in a clump.
+            if m.z<104 and (m.x+8578.79)^2+(m.y-1986.18)^2<55*55 then
+                if eye then
+                    local p=glareGoal(m,eye,i)
+                    if p then goal(intent,p[1],p[2],p[3]) end
+                end
+                if not m.healer then intent.target=tentacle(s,m,i) end
+            end
+        end
+    end
+    return out
+end
+local function eyeBeamPlan(s)
     local out,nextSeparating,paths={}, {}, {}
     local humanInRoom,humanDeep=false,false
     for i,m in ipairs(s.members) do
@@ -165,4 +251,11 @@ return {api=2, plan=function(s)
     end
     separating=nextSeparating
     return out
+end
+return {api=2, plan=function(s)
+    local melee=viscidus(s)
+    if melee then resetGlare(); return melee end
+    observeState(s)
+    if state=="glare_avoidance" then return glarePlan(s) end
+    return eyeBeamPlan(s)
 end}
