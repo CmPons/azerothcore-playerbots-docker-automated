@@ -129,15 +129,21 @@ fall back to native behavior.
 `aq40/combat.lua` selects the observed Eye of C'Thun entry 15589, uses the existing
 west-entry landmarks, spreads ground positions and reacts to observed red-facing
 hazards. Entry now holds bots on the known route while a living human approaches,
-then advances them with a 13.5-yard proximity margin and one-yard approach goals when
-within17 yards of the preceding member. Route progress orders the queue, with roster
+then advances them with a 17-yard proximity margin and one-yard approach goals when
+within 21 yards of the preceding member. Route progress orders the queue, with roster
 order breaking ties. Entrants also wait for nearby members just inside the room to clear.
-Inside, green-phase positioning reacts to actual living-member distances (including humans),
-aiming for15 yards rather than trusting assigned slots alone. Three short escape candidates
-are compared for improved minimum clearance within the sampled room disk. Coincident bots
-use distinct slot headings; dead/CC/ineligible roster members retain formation slots so
-survivors are not reshuffled. Already spaced bots clear of the entrance can hold suitable
-positions without snapping back. Observed red-facing avoidance takes precedence: facing
+Green-phase positioning now requires room-wide stations instead of accepting any locally
+spaced position near the entrance. Humans reserve inner sectors; alternating healers/melee
+use a 22-yard ring and ranged DPS a 40-yard ring. The anchor freezes during combat and
+dead/CC/ineligible members retain their places. For the current ten-member composition,
+ideal station spacing is at least 18.54 yards; every station is within 34.40 yards of another
+healer station. This is a geometry calculation, not guaranteed live coverage.
+Travel uses outer arc waypoints before peeling inward. Each proposed step is capped at
+2.5 yards and scored against actual living-player spacing (17-yard margin, including nearby
+stair occupants) and distance to a living healer (36-yard margin). Out-of-coverage bots can
+move toward a healer. Local detours/escape take priority over reaching a station; arrival
+alone is not accepted while crowded. Hypothetical healing LOS is not exposed by this API.
+Observed red-facing avoidance takes precedence: facing
 changes determine sweep direction, with no guessed boss timer. Bots ahead of the sweep
 start escaping within1.3 radians and keep moving until1.8 radians clear; the unknown-direction
 opening and trailing edge use separate conservative margins. Short0.3-radian arc waypoints
@@ -153,7 +159,12 @@ ranged and4.5 yards for melee, without changing entry/spacing movement. Only vis
 attackable, raid-engaged tentacles qualify; known blocked LOS is excluded, unknown LOS
 still requires native cast validation. This priority also works without the central Eye
 observed during body phase, but does not handle stomach tactics. Explicit/manual target
-priorities still win. It is initial tunable content, not a zero-damage guarantee or
+priorities still win. In particular, `AttackMyTargetAction` writes the selected GUID into
+`prioritized targets`, which blocks `CurrentTargetValue` from using Lua's preferred target.
+The user confirmed using `attack` to start C'Thun pulls. Between pulls, `follow` clears that
+list (and re-enables noncombat following); pull personally without another `attack` order
+when testing autonomous tentacle selection. This identifies an override, not live proof
+that tentacle killing now works. It is initial tunable content, not a zero-damage guarantee or
 exhaustive phase-two strategy. The first Viscidus live-tuning policy now asks eligible non-healer
 melee bots (including bot tanks) to approach on their current side and hold within
 4.5 yards of his center, reapproaching toward a 3.5-yard goal if needed. It prioritizes
