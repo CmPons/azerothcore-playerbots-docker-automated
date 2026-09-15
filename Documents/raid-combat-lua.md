@@ -126,46 +126,35 @@ fall back to native behavior.
 
 ## Initial content and evidence limits
 
-`aq40/combat.lua` selects the observed Eye of C'Thun entry 15589, uses the existing
-west-entry landmarks, spreads ground positions and reacts to observed red-facing
-hazards. Entry now holds bots on the known route while a living human approaches,
-then advances them with a 17-yard proximity margin and one-yard approach goals when
-within 21 yards of the preceding member. Route progress orders the queue, with roster
-order breaking ties. Entrants also wait for nearby members just inside the room to clear.
-Green-phase positioning now requires room-wide stations instead of accepting any locally
-spaced position near the entrance. Humans reserve inner sectors; alternating healers/melee
-use a 22-yard ring and ranged DPS a 40-yard ring. The anchor freezes during combat and
-dead/CC/ineligible members retain their places. For the current ten-member composition,
-ideal station spacing is at least 18.54 yards; every station is within 34.40 yards of another
-healer station. This is a geometry calculation, not guaranteed live coverage.
-Travel uses outer arc waypoints before peeling inward. Each proposed step is capped at
-2.5 yards and scored against actual living-player spacing (17-yard margin, including nearby
-stair occupants) and distance to a living healer (36-yard margin). Out-of-coverage bots can
-move toward a healer. Local detours/escape take priority over reaching a station; arrival
-alone is not accepted while crowded. Hypothetical healing LOS is not exposed by this API.
-Observed red-facing avoidance takes precedence: facing
-changes determine sweep direction, with no guessed boss timer. Bots ahead of the sweep
-start escaping within1.3 radians and keep moving until1.8 radians clear; the unknown-direction
-opening and trailing edge use separate conservative margins. Short0.3-radian arc waypoints
-replace large chords, with a retained20–40-yard orbit radius and escape away from the current
-beam if it overtakes a delayed runner. These margins are tuning values, not immunity;
-existing casts are still not forcibly cancelled.
-Keep moving clear of the doorway yourself: Lua cannot reposition you. Casts, simultaneous
-movement and path rejection mean this is not guaranteed separation or zero beam damage.
-It requires an observed Eye and known route position; casts/manual/CC/nonpolicy movement
-and incomplete observations still limit enforcement. Surface-room non-healer DPS now prefer
-nearby small/giant eye tentacles (15726/15334) over the central Eye: up to28 yards for
-ranged and4.5 yards for melee, without changing entry/spacing movement. Only visible,
-attackable, raid-engaged tentacles qualify; known blocked LOS is excluded, unknown LOS
-still requires native cast validation. This priority also works without the central Eye
-observed during body phase, but does not handle stomach tactics. Explicit/manual target
-priorities still win. In particular, `AttackMyTargetAction` writes the selected GUID into
-`prioritized targets`, which blocks `CurrentTargetValue` from using Lua's preferred target.
-The user confirmed using `attack` to start C'Thun pulls. Between pulls, `follow` clears that
-list (and re-enables noncombat following); pull personally without another `attack` order
-when testing autonomous tentacle selection. This identifies an override, not live proof
-that tentacle killing now works. It is initial tunable content, not a zero-damage guarantee or
-exhaustive phase-two strategy. The first Viscidus live-tuning policy now asks eligible non-healer
+**C'Thun is currently a minimal proximity-movement diagnostic, not a boss strategy.**
+The user still observed clumping at attack range after the room-formation iteration.
+The entry queue, station solver, healer-coverage scoring, glare avoidance and tentacle
+priorities have therefore been removed from the active Lua file, not layered further.
+Historical policies remain in git/private pre-publication backups.
+
+The diagnostic is 33 lines after the preserved Viscidus helper. Within120 yards of
+C'Thun's room center, at height98–112, eligible living bots hold when clear. A living
+human within15 horizontal yards (height difference below6) triggers three-yard goals
+directly away from that human, continuing until20 yards clear. Coincident positions
+use distinct roster bearings. It runs out of combat and needs no observed boss or enemies.
+Humans/ineligible bots are never controlled; no attacks, spell operations, route or
+formation decisions are issued. Test on flat approach ground well away from boss aggro,
+not by pulling C'Thun. Walls, slopes, casts and protected native movement can prevent a step.
+
+Focused execution of the actual Lua source produced away goals for all nine synthetic
+roster bots at10 yards (requested13 yards), retained retreat until beyond20, then held;
+human/ineligible/wrong-map controls were respected. The required installed production-Lua
+checker also passed. These show Lua decisions, not successful live path execution.
+Runtime movement receipts distinguish hold(3), path rejection(4) and launched movement(5);
+source inspection confirms the old C'Thun `PolicyChoice` mover yields for active API2.
+Other native movement/cast constraints still apply. Do not equate adoption or a stored
+receipt with measured player displacement; capture native feedback and user observation.
+
+Historical targeting finding: `attack` writes the selected GUID into `prioritized targets`,
+which overrides Lua's preferred target. Between pulls, `follow` clears that list and
+re-enables noncombat following. The current diagnostic deliberately has no tentacle policy.
+
+The unchanged Viscidus live-tuning policy asks eligible non-healer
 melee bots (including bot tanks) to approach on their current side and hold within
 4.5 yards of his center, reapproaching toward a 3.5-yard goal if needed. It prioritizes
 the already-engaged boss but does not change rotations or force caster melee attacks.
