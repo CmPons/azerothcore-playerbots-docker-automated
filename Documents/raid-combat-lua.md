@@ -155,8 +155,10 @@ Receipt4 is shared by multiple rejection branches. Investigation identified a na
 point-capacity defect: the intended six-yard setting allocated only one path point,
 rejecting short routes across polygon boundaries. The source correction and production-
 method regression are documented in [ground path capacity](raid-combat-ground-path-capacity.md).
-It is not deployed and does not establish the cause of every rejection. Do not equate
-adoption or a stored receipt with measured displacement.
+The correction was deployed with explicit permission on September15 at19:42 CEST;
+the proximity probe and checker stayed unchanged. This does not establish the cause
+of every rejection or live movement reliability. Do not equate adoption or a stored
+receipt with measured displacement.
 
 Historical targeting finding: `attack` writes the selected GUID into `prioritized targets`,
 which overrides Lua's preferred target. Between pulls, `follow` clears that list and

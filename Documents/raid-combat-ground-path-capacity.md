@@ -2,11 +2,11 @@
 
 ## Status — September 15, 2026
 
-**Fixed in source and validated offline; not built into a server image or deployed.**
+**Deployed with explicit permission at 19:42 CEST.**
 Patch: `patches/0037-playerbot-raid-ground-path-capacity.patch`, incremental against
-our actual layered source through0036. A worldserver image rebuild and authorized
-restart/recreation are still required. The running server and the minimal Lua
-proximity probe remain unchanged.
+our actual layered source through0036. Source/tests were committed as `f86056c`.
+The worldserver is running the corrected image; the minimal Lua proximity probe is
+unchanged. Live movement reliability still needs user testing.
 
 ## Defect
 
@@ -81,11 +81,43 @@ stack. Its standalone UBSan run disables alignment checking because vendored Det
 packs links at four-byte boundaries with64-bit references; other UBSan checks remain.
 The separate lifecycle test's sanitizer configuration is unchanged.
 
-After an authorized deployment, keep the small proximity probe and verify visible
-retreat plus native movement feedback before restoring encounter tactics. If failures
+Now that the authorized deployment is complete, keep the small proximity probe and
+verify visible retreat plus native movement feedback before restoring encounter tactics. If failures
 remain, distinguish individual native rejection stages; do not loosen geometry or
 control guards based solely on receipt4. No claim of reliable live C'Thun spacing,
 glare avoidance or tentacle handling is made by this correction.
 
 Private baseline, logs, source hashes, saved-coordinate queries and server-identity
 checks are retained under `backups/raid-ground-rejection-20260915-173124/`.
+
+## Deployment record
+
+- Image: `acore/ac-wotlk-worldserver:ground-capacity-20260915-192437`, also `:master`.
+- Image ID: `sha256:84fd791315036dab9574e135b37fe9ca1dd526812f5b8b09b000e57e7f281ae2`.
+- Running binary SHA256: `e6311ef319ac7682913775ca8bb2b0262c61b2c9ddd5a119af84cad38882d3af`.
+- Started: `2026-09-15T17:42:37.062286767Z`; ready, restart count0, no OOM.
+- Rollback: `acore/ac-wotlk-worldserver:pre-ground-capacity-20260915-194045`,
+  image `sha256:5ab143a217699f822bcce947c614ac744251ee0579f91b84b8ecb47ff161796b`.
+
+Build evidence: `backups/ground-capacity-build-20260915-192437/`. Exactly one native
+COPY input changed; there were no git-metadata deltas. Independent parent ELF comparison
+confirmed exactly one changed byte in the entire code section: inlined capacity1→33.
+The inspected image binary exactly matches the running binary. Full source, configuration,
+old/new image and checksum evidence is retained privately.
+
+Fresh deployment backup: `backups/ground-capacity-predeploy-20260915-194045/`.
+A final check found zero online non-random characters immediately before the worldserver-
+only stop. It exited cleanly; all four databases were dumped again while it was stopped.
+Post-start comparisons exactly matched all saved instances, binds, deadlines, AQ respawns,
+and ten-character inventory/item rows to that latest stopped state. No historical save
+was restored, and no reset, extension, gear rewrite, setup or SQL import was performed.
+
+Runtime configurations and auth/database/Pi service identities stayed unchanged. Core
+updates remain disabled; the independently enabled playerbots updater matched all28
+applied SQL files before and after startup, with nothing pending or changed.
+
+The installed default remains the proximity diagnostic revision
+`ab1ad41024fed0ac4689921e1703633cb1f8abae3ac5612df798242a36bf50cb`; the installed checker
+remains unchanged. Container policy-read/status-write access passed. No live eligible
+raid or gameplay success was inferred from startup. Further restarts require fresh
+permission.
