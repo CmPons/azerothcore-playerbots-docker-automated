@@ -151,8 +151,12 @@ Other native movement/cast constraints still apply. After publishing the probe, 
 `531-623-1789482719355167609` adopted it for all nine bots without a Lua fault. All nine
 reported movement receipt4, whereas the pre-adoption snapshot showed release receipts.
 This localizes a real failure to native movement validation/launch, not mere publication.
-Receipt4 is shared by multiple rejection branches; the precise failing guard has not yet
-been identified. Do not equate adoption or a stored receipt with measured displacement.
+Receipt4 is shared by multiple rejection branches. Investigation identified a native
+point-capacity defect: the intended six-yard setting allocated only one path point,
+rejecting short routes across polygon boundaries. The source correction and production-
+method regression are documented in [ground path capacity](raid-combat-ground-path-capacity.md).
+It is not deployed and does not establish the cause of every rejection. Do not equate
+adoption or a stored receipt with measured displacement.
 
 Historical targeting finding: `attack` writes the selected GUID into `prioritized targets`,
 which overrides Lua's preferred target. Between pulls, `follow` clears that list and

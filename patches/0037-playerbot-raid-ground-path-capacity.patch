@@ -1,0 +1,19 @@
+diff --git a/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatGround.cpp b/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatGround.cpp
+--- a/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatGround.cpp
++++ b/modules/mod-playerbots/src/Ai/Raid/Policy/RaidCombatGround.cpp
+@@ -247,9 +247,13 @@
+     float const distance = std::min(3.0f, bot.GetSpeed(MOVE_RUN) * 0.4f);
+     auto destination = origin + delta.direction() * std::min(distance, delta.length());
+     PathGenerator path(&bot);
+-    path.SetPathLengthLimit(6.0f);
++    uint32 constexpr maxRoutePoints = 32;
++    // This API divides by the smooth step size to set point capacity, not geometric length.
++    // Reserve one extra point: the core rejects a saturated buffer. Enforce six yards below.
++    path.SetPathLengthLimit((maxRoutePoints + 1) * SMOOTH_PATH_STEP_SIZE);
+     if (!path.CalculatePath(destination.x, destination.y, destination.z, false) ||
+-        path.GetPathType() != PATHFIND_NORMAL || path.GetPath().size() < 2 || path.GetPath().size() > 32 ||
++        path.GetPathType() != PATHFIND_NORMAL || path.GetPath().size() < 2 ||
++        path.GetPath().size() > maxRoutePoints ||
+         (path.GetPath().back() - destination).length() > 0.5f)
+     {
+         state.movementReceipt = 4;

@@ -61,6 +61,20 @@ int main()
     RaidCombat::MaintainGround(ai, goal, 9, clockNow);
     CHECK(PathGenerator::calculations == paths); // Bounded failed-frame retry.
     map.blocked = false;
+    PathGenerator::custom = {{0, 0, 0}, {0, 4, 0}, {2.8f, 0, 0}};
+    frame();
+    CHECK(!ai.raidCombat.claim && ai.raidCombat.movementReceipt == 4);
+    CHECK(mm.GetMotionSlot(MOTION_SLOT_ACTIVE)->GetIdentity() == scheduled); // Still bounded to six actual yards.
+    PathGenerator::custom.clear();
+    map.floor = 2;
+    frame();
+    CHECK(!ai.raidCombat.claim && ai.raidCombat.movementReceipt == 4); // Unsupported floor still rejects.
+    map.floor = 0;
+    map.water = true;
+    frame();
+    CHECK(!ai.raidCombat.claim && ai.raidCombat.movementReceipt == 4); // No swimming fallback.
+    map.water = false;
+    CHECK(mm.GetMotionSlot(MOTION_SLOT_ACTIVE)->GetIdentity() == scheduled);
     frame();
     CHECK(ai.raidCombat.claim && ai.raidCombat.ownedMotion != scheduled);
     CHECK(RaidCombat::HasMovementClaim(ai));

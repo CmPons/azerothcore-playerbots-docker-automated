@@ -41,6 +41,49 @@ def native_includes():
     return ["-I" + str(p) for p in sorted(paths)]
 
 
+class RaidCombatGroundPathTests(unittest.TestCase):
+    """No CMake setup: compile real point-path methods and synthetic Detour geometry only."""
+
+    def test_native_ground_path_capacity(self):
+        path = CORE / "src/server/game/Movement/MovementGenerators/PathGenerator.cpp"
+        header = path.with_suffix(".h")
+        with tempfile.TemporaryDirectory() as directory:
+            out = Path(directory)
+            declarations = header.read_text()
+            declarations = declarations[declarations.index("class Unit;"):]
+            declarations = declarations[:declarations.rindex("#endif")]
+            (out / "GroundPathDeclarations.inc").write_text(declarations.replace("private:", "public:"))
+            signatures = ("void PathGenerator::BuildPointPath(", "void PathGenerator::BuildShortcut()",
+                          "uint32 PathGenerator::FixupCorridor(", "bool PathGenerator::GetSteerTarget(",
+                          "dtStatus PathGenerator::FindSmoothPath(", "bool PathGenerator::InRangeYZX(",
+                          "bool PathGenerator::InRange(", "float PathGenerator::Dist3DSqr(")
+            (out / "GroundPathMethods.inc").write_text("\n\n".join(body(path, s) for s in signatures))
+            detour = CORE / "deps/recastnavigation/Detour"
+            binary = out / "ground-path"
+            adapter = (POLICY / "RaidCombatGround.cpp").read_text()
+            start = adapter.index("    PathGenerator path(&bot);") + len("    PathGenerator path(&bot);")
+            end = adapter.index("    if (!path.CalculatePath(", start)
+            capacity = out / "GroundAdapterCapacity.inc"
+            capacity.write_text(adapter[start:end])
+            command = ["g++", "-std=gnu++20", "-O1", "-Wall", "-Wextra", "-Werror",
+                 "-Wno-deprecated-copy", "-Wno-unused-parameter", "-Wno-class-memaccess", "-fsanitize=undefined",
+                 # Vendored Detour packs dtLink at four-byte offsets even with 64-bit poly refs.
+                 "-fno-sanitize=alignment", "-fno-sanitize-recover=all",
+                 "-I" + str(out), "-I" + str(detour / "Include"),
+                 "-I" + str(CORE / "deps/g3dlite/include"),
+                 ROOT / "scripts/tests/cpp/RaidCombatGroundPathTest.cpp",
+                 *sorted((detour / "Source").glob("*.cpp")), "-o", binary]
+            run(command)
+            print(run([binary]).stdout.strip())
+            # Replay the original adapter setting against the same actual native point-path bodies.
+            capacity.write_text("path.SetPathLengthLimit(6.0f);\n")
+            run(command)
+            failed = run([binary], success=False)
+            self.assertNotEqual(failed.returncode, 0)
+            self.assertIn("path.GetPathType() == PATHFIND_NORMAL", failed.stderr)
+            print("Expected original-capacity red:", failed.stderr.strip())
+
+
 class RaidCombatTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -132,7 +175,13 @@ class RaidCombatTests(unittest.TestCase):
     def test_exact_ground_lifecycle_and_scheduled_handoff(self):
         from raid_combat_ground_fixture import execute
         with tempfile.TemporaryDirectory() as directory:
-            print(execute(ROOT, CORE, Path(directory), self.build, self.crypto, run, body).strip())
+            out = Path(directory)
+            header = CORE / "src/server/game/Movement/MovementGenerators/PathGenerator.h"
+            constants = "\n".join(line for line in header.read_text().splitlines()
+                                  if line.startswith(("#define SMOOTH_PATH_STEP_SIZE ",
+                                                      "#define MAX_POINT_PATH_LENGTH ")))
+            (out / "GroundPathLimit.inc").write_text(constants + "\n" + body(header, "void SetPathLengthLimit("))
+            print(execute(ROOT, CORE, out, self.build, self.crypto, run, body).strip())
 
     def test_exact_native_collector_and_grid_lifecycle(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -285,24 +285,33 @@ inline Unit* GetUnit(Unit& requester,ObjectGuid guid)
     return it!=objects.end() && it->second->map==requester.map ? it->second : nullptr;
 }
 }
-constexpr int PATHFIND_NORMAL=1, PATHFIND_NOPATH=2;
+constexpr int PATHFIND_NORMAL=1, PATHFIND_SHORTCUT=2, PATHFIND_NOPATH=8, PATHFIND_SHORT=32;
 struct PathGenerator
 {
+    // Constants and setter copied from the actual core header by the test runner.
+#include "GroundPathLimit.inc"
+    uint32 _pointPathLimit=MAX_POINT_PATH_LENGTH;
+    int type=PATHFIND_NORMAL;
     Unit* actor; Movement::PointsArray route;
     inline static bool valid=true;
     inline static Movement::PointsArray custom;
     inline static unsigned calculations=0;
+    inline static bool samePolygon=false;
     explicit PathGenerator(Unit* u):actor(u) { }
-    void SetPathLengthLimit(float) { }
     bool CalculatePath(float x,float y,float z,bool)
     {
         ++calculations;
         route=custom.empty() ? Movement::PointsArray{{actor->x,actor->y,actor->z},{x,y,z}} : custom;
+        type=valid ? PATHFIND_NORMAL : PATHFIND_NOPATH;
+        // Capacity classification double, separately verified with real BuildPointPath/Detour.
+        // Its one-poly/single-point special case bypasses the saturated-buffer rejection.
+        if (valid && route.size() >= _pointPathLimit && !(samePolygon && _pointPathLimit == 1))
+            type=PATHFIND_SHORTCUT | (_pointPathLimit < 2 ? PATHFIND_NOPATH : PATHFIND_SHORT);
         return valid;
     }
     bool CalculatePath(float,float,float,float x,float y,float z,bool force)
     { return CalculatePath(x,y,z,force); }
-    int GetPathType() const { return valid ? PATHFIND_NORMAL : 0; }
+    int GetPathType() const { return type; }
     Movement::PointsArray const& GetPath() const { return route; }
 };
 constexpr int SMSG_MONSTER_MOVE=1, SMSG_MONSTER_MOVE_TRANSPORT=2;
