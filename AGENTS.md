@@ -233,9 +233,11 @@ RANDOM_BOT_MAX_LEVEL=70
 BOT_LEVEL_BRACKET_EXCLUDE_NAMES=Meliah,Arinerica
 ```
 
-Level70 caps were configured September15 but still require an explicitly authorized
-worldserver restart to become active. `MaxPlayerLevel` is not reloadable. See
-`Documents/tbc-level-cap.md` for the pending activation record.
+Level70 caps became active after the explicitly authorized September15 restart.
+`MaxPlayerLevel` is not reloadable. See `Documents/tbc-level-cap.md` for verification.
+For an existing stopped worldserver container, use `docker start ac-worldserver`:
+`docker compose start ac-worldserver` also starts dependency helpers, including the
+DB importer. Do not use that Compose start command for a worldserver-only operation.
 
 ## Database access reminders
 
