@@ -535,7 +535,9 @@ namespace
             job.channel          = ChannelForGroup(group);
             job.systemPrompt     = g_PBChatSystemPrompt;
             job.prompt           = PBChatterAmbientPrompt::Build(PBChatterAmbientPrompt::MODE_EVENT,
-                                                                 bot, AMB_GROUP, {}, hint);
+                                                                 bot, AMB_GROUP, {}, hint,
+                                                                 ev.kind == EventKind::GroupJoin
+                                                                     ? FindByCounter(ev.joinedMemberGuid) : nullptr);
             job.ambient          = true;
             job.ambientKind      = AMB_GROUP;
             job.ambientIdent     = ev.groupGuid;

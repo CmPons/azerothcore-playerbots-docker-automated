@@ -41,7 +41,7 @@ bool PBChatterQueue::TrySubmitAmbient(PBChatJob job)
     return true;
 }
 std::string PBChatterAmbientPrompt::Build(int, Player*, uint8_t kind,
-    std::vector<std::pair<std::string, std::string>> const& recent, std::string const&)
+    std::vector<std::pair<std::string, std::string>> const& recent, std::string const&, Player*)
 {
     std::string result = std::to_string(kind);
     for (auto const& line : recent)

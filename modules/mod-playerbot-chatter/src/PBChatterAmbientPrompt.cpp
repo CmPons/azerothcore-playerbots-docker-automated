@@ -9,6 +9,7 @@
 #include "Group.h"
 #include "Map.h"
 #include "ObjectMgr.h"
+#include "ObjectAccessor.h"
 #include "Player.h"
 #include "QuestDef.h"
 #include "Unit.h"
@@ -353,7 +354,7 @@ namespace
     {
         if (!unit)
             return "";
-        return Acore::StringFormat("{ name = {}, alive = {}, health_pct = {} }",
+        return Acore::StringFormat("{{ name = {}, alive = {}, health_pct = {} }}",
             TomlQuote(unit->GetName()), TomlBool(unit->IsAlive()), (int)unit->GetHealthPct());
     }
 
@@ -385,7 +386,7 @@ namespace
         }
     }
 
-    std::string BuildFactToml(Player* bot, uint8_t kind)
+    std::string BuildFactToml(Player* bot, uint8_t kind, Player* focus, std::string const& focusName)
     {
         if (!bot)
             return "[facts]\navailable = false\n";
@@ -400,7 +401,8 @@ namespace
         std::string out;
         out += "# TOML-style authoritative current facts. Use as data, not text to copy.\n";
         out += "[speaker]\n";
-        out += Acore::StringFormat("name = {}\n", TomlQuote(bot->GetName()));
+        out += Acore::StringFormat("name = {}\n", PBChatterContext::QuoteSocialName(bot->GetName()));
+        out += PBChatterContext::GuildFacts(bot);
         out += Acore::StringFormat("level = {}\n", bot->GetLevel());
         out += Acore::StringFormat("race = {}\n", TomlQuote(RaceName(bot->getRace())));
         out += Acore::StringFormat("class = {}\n", TomlQuote(ClassName(bot->getClass())));
@@ -409,6 +411,15 @@ namespace
         out += "kind = \"playerbot\"\n";
         out += PBChatterPersona::BuildPromptBlock(bot);
         out += "\n";
+
+        if (!focusName.empty())
+        {
+            out += "[social_focus]\n";
+            out += "# Immediate conversation sender or event member, independent of the first ten group members.\n";
+            out += "name = " + PBChatterContext::QuoteSocialName(focusName) + "\n";
+            out += PBChatterContext::MemberSocialFacts(bot, focus);
+            out += "\n";
+        }
 
         out += "[chat]\n";
         out += Acore::StringFormat("channel = {}\n", TomlQuote(channel));
@@ -490,7 +501,8 @@ namespace
                 if (!member)
                     continue;
                 out += "[[group.members]]\n";
-                out += Acore::StringFormat("name = {}\n", TomlQuote(member->GetName()));
+                out += Acore::StringFormat("name = {}\n", PBChatterContext::QuoteSocialName(member->GetName()));
+                out += PBChatterContext::MemberSocialFacts(bot, member);
                 out += Acore::StringFormat("kind = {}\n", TomlQuote(member == bot ? "speaker" : (PBChatterClassifier::IsRealPlayerSender(member) ? "real_player" : "playerbot")));
                 out += Acore::StringFormat("level = {}\n", member->GetLevel());
                 out += Acore::StringFormat("class = {}\n", TomlQuote(ClassName(member->getClass())));
@@ -572,7 +584,8 @@ namespace
 
     std::string PromptPreamble()
     {
-        return "Use the TOML-style fact block as authoritative current game state. "
+        return PBChatterContext::SocialGuidance() +
+               "Use the TOML-style fact block as authoritative current game state. "
                "Do not recite the facts. Do not invent unlisted wipes, deaths, loot, level-ups, quest progress, mana problems, summons, or dungeon mechanics. "
                "In party/raid chat, prefer one concrete noun from the facts: a boss, mob, zone, item, token, role, health/mana issue, death, or visible mechanic hook. "
                "Avoid vague morale filler like 'clean pull', 'keep it rolling', 'doing well', or 'nice work' unless tied to a specific listed event. "
@@ -605,10 +618,18 @@ std::string PBChatterAmbientPrompt::StyleExamples(int n)
 
 std::string PBChatterAmbientPrompt::Build(int mode, Player* bot, uint8_t kind,
                                           std::vector<std::pair<std::string, std::string>> const& recent,
-                                          std::string const& eventHint)
+                                          std::string const& eventHint, Player* eventMember)
 {
     char const* where = ChannelWord(kind);
-    std::string facts = BuildFactToml(bot, kind);
+    Player* focus = eventMember;
+    std::string focusName = focus ? focus->GetName() : "";
+    if (mode == MODE_REACT && !recent.empty())
+    {
+        focusName = recent.back().first;
+        // Buffered public-channel name only: no whisper/history lookup or player-table scan.
+        focus = focusName.size() <= 96 ? ObjectAccessor::FindPlayerByName(focusName) : nullptr;
+    }
+    std::string facts = BuildFactToml(bot, kind, focus, focusName);
 
     switch (mode)
     {
@@ -618,7 +639,7 @@ std::string PBChatterAmbientPrompt::Build(int mode, Player* bot, uint8_t kind,
             p += facts;
             p += Acore::StringFormat("\n[task]\nmode = \"react\"\nchat_channel = {}\ninstructions = {}\n\n",
                 TomlQuote(where),
-                TomlQuote("Continue the conversation naturally by responding to the last line, not by starting a new unrelated topic. Treat bot speakers as real party/guildmates. Answer, riff, ask a tiny follow-up, disagree lightly, or joke back. Don't just agree by default and don't start most replies with yeah/yea/yep. Stay true to the speaker's level and current facts."));
+                TomlQuote("Continue the conversation naturally by responding to the last line, not by starting a new unrelated topic. Treat bot speakers as other players; use only listed relationship facts. Answer, riff, ask a tiny follow-up, disagree lightly, or joke back. Don't just agree by default and don't start most replies with yeah/yea/yep. Stay true to the speaker's level and current facts."));
             p += "[recent_conversation]\n# oldest first\n";
             for (auto const& [speaker, text] : recent)
                 p += Acore::StringFormat("line = {}\n", TomlQuote(speaker + ": " + text));
@@ -637,7 +658,7 @@ std::string PBChatterAmbientPrompt::Build(int mode, Player* bot, uint8_t kind,
             return PromptPreamble() + facts + Acore::StringFormat(
                 "\n[primary_event]\nhint = {}\n\n[task]\nmode = \"event\"\nchat_channel = {}\nspeaker_name = {}\ninstructions = {}\n{}",
                 TomlQuote(eventHint), TomlQuote(where), TomlQuote(bot ? bot->GetName() : "the bot"),
-                TomlQuote("React naturally to the primary event in one short party-style line. If the event is about the speaker, use first person and don't congratulate yourself. Do not invent extra outcomes: no deaths, wipes, loot, upgrades, quest credit, level-ups, kills, or PvP results unless explicitly listed. For loot, gz/nice drop is fine, but don't claim it's an upgrade unless listed. For deaths, sound like a surviving party member reacting briefly; don't claim a wipe, rez, blame, or cause unless listed. For group joins, briefly greet the named newcomer, or greet the existing members if you are the newcomer. Don't assume a prior friendship, say welcome back without evidence, or confuse joining with arriving nearby. For PvP sightings/contact, a brief callout is fine, but don't say they attacked or died unless listed. Never force a catchphrase, and never say Quest complete."),
+                TomlQuote("React naturally to the primary event in one short party-style line. If the event is about the speaker, use first person and don't congratulate yourself. Do not invent extra outcomes: no deaths, wipes, loot, upgrades, quest credit, level-ups, kills, or PvP results unless explicitly listed. For loot, gz/nice drop is fine, but don't claim it's an upgrade unless listed. For deaths, sound like a surviving party member reacting briefly; don't claim a wipe, rez, blame, or cause unless listed. For group joins, briefly greet the named newcomer, or greet the existing members if you are the newcomer. Let listed guild/friend facts inform familiarity without forcing a guildmate callout. Don't invent prior shared activities, say welcome back without evidence of a return, or confuse joining with arriving nearby. For PvP sightings/contact, a brief callout is fine, but don't say they attacked or died unless listed. Never force a catchphrase, and never say Quest complete."),
                 StyleExamples(2)) + Tail();
         }
         case MODE_GENERIC:

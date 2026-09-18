@@ -4,6 +4,15 @@
 class Player;
 namespace PBChatterContext
 {
+    // Bounded, quoted data for social names (not prompt instructions).
+    std::string QuoteSocialName(std::string const& name);
+    std::string SocialGuidance();
+
+    // Prompt-collection thread only. Live reads, returned as copied text; no player pointers retained.
+    std::string GuildFacts(Player* player);
+    std::string MemberSocialFacts(Player* speaker, Player* member);
+    std::string BuildSocialContext(Player* speaker, Player* sender);
+
     // World-thread only (reads live game state). Returns a one-paragraph snapshot.
     std::string BuildSnapshot(Player* bot);
 

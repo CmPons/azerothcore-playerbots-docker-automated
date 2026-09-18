@@ -177,10 +177,13 @@ namespace
     std::string MemberFactLine(Player* bot, Player* member)
     {
         char const* who = (member == bot) ? "you" : (PBChatterClassifier::IsRealPlayerSender(member) ? "real player" : "party bot");
-        std::string line = Acore::StringFormat("- {}: {}, role {}, level {} {}", member->GetName(), who, RoleName(member), member->GetLevel(), ClassName(member->getClass()));
+        std::string line = Acore::StringFormat("- {}: {}, role {}, level {} {}",
+            PBChatterContext::QuoteSocialName(member->GetName()), who, RoleName(member),
+            member->GetLevel(), ClassName(member->getClass()));
+        std::string const social = "\n" + PBChatterContext::MemberSocialFacts(bot, member);
 
         if (!member->IsAlive())
-            return line + ", dead";
+            return line + ", dead" + social;
 
         line += Acore::StringFormat(", {}% hp", (int)member->GetHealthPct());
         if (member->GetMaxPower(POWER_MANA) > 0)
@@ -201,7 +204,7 @@ namespace
             if (attacker != member->GetVictim())
                 line += Acore::StringFormat(", being attacked by {}", UnitLabel(attacker));
 
-        return line;
+        return line + social;
     }
 
     std::string BuildTacticalNeeds(Player* bot)
@@ -364,6 +367,8 @@ namespace
         std::string p = PBChatterContext::BuildSnapshot(bot);
         p += PBChatterPersona::BuildPromptBlock(bot);
         p += GroundingRules();
+        // All reactive channels, even when sender/speaker are outside the bounded group list.
+        p += PBChatterContext::BuildSocialContext(bot, sender);
         p += BuildGroupContext(bot, sender, group, channel);
         auto recent = PBChatterMemory::Recent(bot->GetGUID().GetCounter(), sender->GetGUID().GetCounter());
         if (!recent.empty())

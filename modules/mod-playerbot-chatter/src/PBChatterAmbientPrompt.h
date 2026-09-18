@@ -17,9 +17,10 @@ namespace PBChatterAmbientPrompt
     //   kind:    AMB_ZONE / AMB_GROUP / AMB_GUILD (names the channel for tone)
     //   recent:  rolling buffer as (speaker, text), oldest first (used by MODE_REACT)
     //   eventHint: phrase for MODE_EVENT (e.g. "you just dinged level 40")
+    //   eventMember: optional current event subject; used only during collection, never retained.
     std::string Build(int mode, Player* bot, uint8_t kind,
                       std::vector<std::pair<std::string, std::string>> const& recent,
-                      std::string const& eventHint);
+                      std::string const& eventHint, Player* eventMember = nullptr);
 
     // Few-shot STYLE block: a random run of n example lines with a lead-in telling
     // the model to match tone/length, not content. Draws from the file-loaded pool
