@@ -91,6 +91,28 @@ protection and its max-five cap are unchanged, including its existing effect on
 level-up equipment initialization. No special inventory-preservation, security or
 global-cheat rules were added.
 
+## Pending friend-protection cap increase — not deployed
+
+At the user's request, `PERSISTENT_COMPANION_MAX_PER_ACCOUNT=9` is staged in both
+private `.env` copies, with public documentation in `.env.example` and setup wiring
+for `AiPlayerbot.PersistentCompanionMaxPerAccount`. An omitted env value retains 5.
+
+**The running configuration remains 5.** No runtime file was changed, setup applied,
+image built, config reloaded or server restarted. The user is playing; do not apply
+this pending setting without fresh permission. A plain restart alone will not apply
+an env-only staged value: the runtime playerbots config must first be updated during
+an authorized change. No C++ rebuild is needed, and full `setup.sh` should not be run
+casually on the live server.
+
+With friend protection enabled and the current friend list, 9 covers Arinerica,
+Meliah and all seven selected world bots. It expands the existing protections from
+automatic BG queues and scheduler teleports, plus their existing maintenance effects;
+it is not a new PvP-only filter or an equipment freeze. Selection remains per human
+account, ordered by eligible bot GUID, not friend-list display order.
+
+Offline test: `python3 -m unittest scripts.tests.test_companion_cap_setup -v`.
+It exercises the actual setup setter against temporary files only.
+
 ## Offline evidence and reconstruction
 
 Run `python -m unittest scripts.tests.test_roster_world_bots -v`. It compiles actual

@@ -419,6 +419,8 @@ set_conf "AiPlayerbot.Enabled"            "1"      "$PB_CONF"
 set_conf "AiPlayerbot.RandomBotAutologin" "1"      "$PB_CONF"
 set_conf "AiPlayerbot.MinRandomBots"      "$BOTS"  "$PB_CONF"
 set_conf "AiPlayerbot.MaxRandomBots"      "$BOTS"  "$PB_CONF"
+# Friend protection includes BG queues and scheduler teleports, not only matchmaking.
+set_conf "AiPlayerbot.PersistentCompanionMaxPerAccount" "${PERSISTENT_COMPANION_MAX_PER_ACCOUNT:-5}" "$PB_CONF"
 set_conf "AiPlayerbot.RandomBotMaxLevel"  "${RANDOM_BOT_MAX_LEVEL:-${MAX_PLAYER_LEVEL:-80}}" "$PB_CONF"
 # Loot rolls: let bots Need real upgrades, but keep Greed off to avoid vendor/AH/trash rolls.
 set_conf "AiPlayerbot.LootNeedRollLevel"  "${LOOT_NEED_ROLL_LEVEL:-2}" "$PB_CONF"
