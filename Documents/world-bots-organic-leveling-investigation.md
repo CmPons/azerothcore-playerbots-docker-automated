@@ -1,5 +1,9 @@
 # Solo world-bot leveling investigation — September 19, 2026
 
+**Follow-up:** [the source correction](world-bots-solo-strategy-fix.md) is committed
+and pushed as `f63a04634971d666744ea68f7d1a281c1b0eb715`; it is not deployed yet.
+The observations below describe the pre-fix running server.
+
 ## Finding
 
 Enrollment/logins work, but saved raid strategy profiles override the normal solo

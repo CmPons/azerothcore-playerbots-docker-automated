@@ -57,6 +57,37 @@ class RosterWorldBotsTests(unittest.TestCase):
             result = subprocess.run([str(binary)], check=True, capture_output=True, text=True)
             self.assertIn("all lifecycle cases passed", result.stdout)
 
+    def test_saved_profiles_restore_solo_activity(self):
+        manager = (PB / "src/Bot/RandomPlayerbotMgr.cpp").read_text()
+        login = (PB / "src/Bot/PlayerbotMgr.cpp").read_text()
+        repository = (PB / "src/Db/PlayerbotRepository.cpp").read_text()
+        ai = (PB / "src/Bot/PlayerbotAI.cpp").read_text()
+        factory = (PB / "src/Bot/Factory/AiFactory.cpp").read_text()
+        harness = (ROOT / "scripts/tests/cpp/WorldBotSoloStrategiesTest.cpp").read_text()
+        methods = [block(repository, "void PlayerbotRepository::Load("),
+                   block(manager, "void RandomPlayerbotMgr::RestoreWorldBotSoloStrategies("),
+                   block(ai, "void PlayerbotAI::UpdateAIGroupMaster()")]
+        harness = harness.replace("// PRODUCTION_METHODS", "\n\n".join(methods))
+        on_login = block(login, "void PlayerbotHolder::OnBotLogin(")
+        start = on_login.index("    PlayerbotRepository::instance().Load(botAI);")
+        end = on_login.index("    if (master &&", start)
+        hook = on_login[start:end]
+        self.assertIn("sRandomPlayerbotMgr.RestoreWorldBotSoloStrategies(bot);", hook)
+        self.assertEqual(on_login.count("RestoreWorldBotSoloStrategies(bot)"), 1)
+        harness = harness.replace("// LOGIN_LOAD_AND_REPAIR", hook)
+        start = factory.index('            nonCombatEngine->addStrategy("grind", false);')
+        end = factory.index("            if (sPlayerbotAIConfig.randomBotJoinBG)", start)
+        harness = harness.replace("// FACTORY_SOLO_CHOICES", factory[start:end])
+        with tempfile.TemporaryDirectory() as directory:
+            cpp = Path(directory) / "solo.cpp"
+            binary = Path(directory) / "solo"
+            cpp.write_text(harness)
+            subprocess.run([os.environ.get("CXX", "g++"), "-std=c++20", "-Wall", "-Wextra", "-Werror",
+                            "-fsanitize=undefined", "-fno-sanitize-recover=all", str(cpp), "-o", str(binary)],
+                           check=True)
+            result = subprocess.run([str(binary)], check=True, capture_output=True, text=True)
+            self.assertIn("saved profile and solo strategy cases passed", result.stdout)
+
     def test_startup_initialization_order_and_existing_event_cleanup(self):
         core = ROOT / "azerothcore-wotlk"
         world = block((core / "src/server/game/World/World.cpp").read_text(),

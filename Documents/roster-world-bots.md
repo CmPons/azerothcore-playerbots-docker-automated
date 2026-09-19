@@ -5,6 +5,12 @@ All seven selected bots were confirmed online. See
 [deployment verification](world-bots-deployment-20260919.md) for backups, preservation
 checks and remaining live-behavior limits. Further restarts require fresh permission.
 
+**Follow-up fix prepared, not deployed:** saved raid profiles were found to overwrite
+solo questing/grinding defaults. The correction is committed in playerbots fork
+`f63a04634971d666744ea68f7d1a281c1b0eb715`; see
+[the correction and its tests](world-bots-solo-strategy-fix.md). Being online alone
+was not proof of autonomous leveling.
+
 ## Active settings
 
 The deployed incremental patch `0038-playerbot-roster-world-bots.patch` uses this
@@ -100,12 +106,13 @@ accounts, assigns account-type lists, then calls Init/LoadWorldBotGuids.
 These are not linked server or real quest progression tests; async callbacks,
 full scheduler execution, DB event expiry and invitation success remain unverified live.
 
-The parent independently reran all three focused tests and the exact patch roundtrip;
-independent review found no issues. Both changed native translation units also pass offline
-`-fsyntax-only` against real production headers using `scripts/tests/raid_combat_syntax.py`.
-Focused C++ style checks retain the same 11 pre-existing alignment findings, with no new
-findings. No CMake or native/image build was run. Patch 0038 is an incremental diff of the **actual pre-task layered bytes**
-from `backups/roster-world-bots-20260919-161532/source-before.tar.gz`, not nested HEAD.
-Apply after existing layers from the core tree (`git apply`), never replay/reset them.
-Private `actual-task.diff` and `validation.txt` in that backup directory record full
-review scope, patch roundtrip/byte equality, commands, and retained baseline state.
+The original0038 source acceptance included three focused tests, an incremental patch
+roundtrip, production-header syntax checks and independent review. That coverage did
+not exercise the saved-strategy replacement responsible for the later live stall.
+The suite now also compiles the real repository-load and post-load repair methods;
+see the correction document for the added cases and limits.
+
+Source recovery now uses our committed forks and `repo-pins.txt`, not patch replay.
+Patch0038 remains historical reference. Its older temporary source/review backup was
+removed during the explicitly requested cleanup; the latest deployment backup remains.
+Do not reset native trees or try to reconstruct the current source by replaying old patches.
