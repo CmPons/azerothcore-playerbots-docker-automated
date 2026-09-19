@@ -112,6 +112,7 @@ account, ordered by eligible bot GUID, not friend-list display order.
 
 Offline test: `python3 -m unittest scripts.tests.test_companion_cap_setup -v`.
 It exercises the actual setup setter against temporary files only.
+Also staged for a future authorized change: [ignore `stats` in chatter](chatter-command-filter.md).
 
 ## Offline evidence and reconstruction
 

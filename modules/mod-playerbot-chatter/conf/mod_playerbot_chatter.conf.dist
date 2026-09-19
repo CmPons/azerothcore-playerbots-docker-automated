@@ -60,7 +60,7 @@ PlayerbotChatter.HistoryLen = 10
 #   Comma-separated. A message whose first word/phrase matches is treated as a playerbot
 #   command and left for playerbots to handle (no AI reply). Seeded from playerbots'
 #   ChatCommandHandlerStrategy trigger names. Lowercased on load.
-PlayerbotChatter.CommandKeywords = "follow,stay,flee,grind,attack,tank attack,do attack,accept,talk,reset,runaway,summon,q,c,u,e,ue,t,nt,s,b,r,rep,items,inv,pvp stats,add all loot,move from group,enter vehicle,leave vehicle,buy,sell,trade,cast,co,nc,rti,los,ll,talents,spells,glyphs,glyph equip,autogear,equip upgrade,lfg,roll"
+PlayerbotChatter.CommandKeywords = "follow,stay,flee,grind,attack,tank attack,do attack,accept,talk,reset,runaway,summon,stats,q,c,u,e,ue,t,nt,s,b,r,rep,items,inv,pvp stats,add all loot,move from group,enter vehicle,leave vehicle,buy,sell,trade,cast,co,nc,rti,los,ll,talents,spells,glyphs,glyph equip,autogear,equip upgrade,lfg,roll"
 
 ########################################
 # Ambient (self-initiated) chatter — Phase 2

@@ -198,7 +198,7 @@ void PBChatterLoadConfig()
     g_PBChatEventPvpScanBattlegrounds = sConfigMgr->GetOption<bool>("PlayerbotChatter.EventPvpScanBattlegrounds", false);
 
     std::string kw = sConfigMgr->GetOption<std::string>("PlayerbotChatter.CommandKeywords",
-        "follow,stay,flee,grind,attack,tank attack,do attack,accept,talk,reset,runaway,summon,"
+        "follow,stay,flee,grind,attack,tank attack,do attack,accept,talk,reset,runaway,summon,stats,"
         "q,c,u,e,ue,t,nt,s,b,r,rep,items,inv,pvp stats,add all loot,move from group,"
         "enter vehicle,leave vehicle,buy,sell,trade,cast,co,nc,rti,los,ll");
     g_PBChatCommandKeywords = SplitCsvLower(kw);
