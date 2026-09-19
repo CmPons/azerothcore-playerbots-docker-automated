@@ -1,8 +1,9 @@
 # Solo world-bot leveling investigation — September 19, 2026
 
 **Follow-up:** [the source correction](world-bots-solo-strategy-fix.md) is committed
-and pushed as `f63a04634971d666744ea68f7d1a281c1b0eb715`; it is not deployed yet.
-The observations below describe the pre-fix running server.
+and pushed as `f63a04634971d666744ea68f7d1a281c1b0eb715`, then
+[deployed with separate authorization](world-bots-solo-deployment-20260919.md)
+at 17:36:30 UTC September 19. The observations below describe the pre-fix server.
 
 ## Finding
 

@@ -1,8 +1,10 @@
-# Saved-profile solo strategy fix — source prepared, not deployed
+# Saved-profile solo strategy fix — deployed September 19, 2026
 
 Playerbots fork commit:
 [`f63a04634971d666744ea68f7d1a281c1b0eb715`](https://github.com/CmPons/mod-playerbots/commit/f63a04634971d666744ea68f7d1a281c1b0eb715).
 Root `repo-pins.txt` records this published revision. No historical patch replay is needed.
+The authorized worldserver-only deployment became ready at **17:36:30 UTC**;
+see [deployment evidence and initial activity](world-bots-solo-deployment-20260919.md).
 
 This addresses the [observed solo stall](world-bots-organic-leveling-investigation.md):
 login creates free-world-bot defaults, then a saved raid profile clears/replaces them.
@@ -50,16 +52,17 @@ Group-transition factory scaffolding is an API double, not a linked live server 
 
 Both modified `.cpp` files passed `scripts/tests/raid_combat_syntax.py` against real
 production headers. Native whitespace checks passed; focused codestyle findings matched
-the pre-existing baseline exactly, with no new findings. No full build/link or live
-behavior validation has been performed for this revision.
+the pre-existing baseline exactly, with no new findings. The subsequent authorized image build/link and runtime dependency checks
+also passed; initial live observations are recorded in the deployment document.
 
 ## Activation and acceptance
 
-The running image is still the earlier deployment. **This fix is not active yet.**
-It requires building the pinned image and a separately authorized worldserver deployment;
-no restart was performed or assumed authorized during the source fix.
+**This fix is active.** The user separately authorized building and restarting after
+source acceptance. Only the worldserver was recreated; future interruptions require
+fresh permission. Initial observations include new quests, two turn-ins by Pilbok,
+and XP gains among previously stalled bots, with the human offline and bots solo.
 
-After activation, verify actual non-combat strategies and observe an ungrouped bot
+For continuing acceptance, verify actual non-combat strategies and observe an ungrouped bot
 accepting/progressing/turning in ordinary quests or earning sustained solo combat XP.
 Being online, receiving scheduler teleports or earning XP in the human's party is not
 sufficient acceptance. Also verify invitation/follow behavior and explicit stay/passive

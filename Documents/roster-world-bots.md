@@ -5,11 +5,12 @@ All seven selected bots were confirmed online. See
 [deployment verification](world-bots-deployment-20260919.md) for backups, preservation
 checks and remaining live-behavior limits. Further restarts require fresh permission.
 
-**Follow-up fix prepared, not deployed:** saved raid profiles were found to overwrite
-solo questing/grinding defaults. The correction is committed in playerbots fork
-`f63a04634971d666744ea68f7d1a281c1b0eb715`; see
-[the correction and its tests](world-bots-solo-strategy-fix.md). Being online alone
-was not proof of autonomous leveling.
+**Follow-up fix deployed September 19 at 17:36:30 UTC:** saved raid profiles were
+found to overwrite solo questing/grinding defaults. The correction is in playerbots
+fork `f63a04634971d666744ea68f7d1a281c1b0eb715`; see
+[the correction and its tests](world-bots-solo-strategy-fix.md) and
+[initial quest/XP observations](world-bots-solo-deployment-20260919.md).
+Being online alone was not proof of autonomous leveling.
 
 ## Active settings
 
