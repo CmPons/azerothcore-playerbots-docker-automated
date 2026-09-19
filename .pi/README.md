@@ -1,28 +1,18 @@
 # Project-local Pi tooling
 
 Start Pi from the workspace root (`/home/chrisp/Documents/AzerothCore`).
-Project settings are cwd-scoped; this is not a global installation.
+Project settings are cwd-scoped; user-level Pi packages remain separate.
 
-## Subagents
+## Subagents removed
 
-`settings.json` pins `pi-subagents` to **0.67.0**. Pi installs missing project
-packages after the project is trusted. To install explicitly from this root:
+`pi-subagents` was uninstalled at the user's request on September 19, 2026,
+after the world-bot/chatter deployment completed. `settings.json` no longer
+registers it, so Pi will not automatically reinstall it for this project.
+Its project-local npm package and unused dependencies were removed.
 
-```bash
-npm_config_ignore_scripts=true pi install npm:pi-subagents@0.67.0 -l --approve
-```
+Use `/reload` in an already-open Pi session to unload the extension still held
+in memory. No AzerothCore or Pi bridge restart is needed. Existing session,
+review and deployment evidence was retained; unrelated user-level packages
+and settings were not changed.
 
-In an existing Pi session, use `/reload` to load the extension, then
-`/subagents-doctor` to inspect setup. No AzerothCore or bridge restart is needed.
-Example request: “Ask oracle to review this plan without editing files.”
-
-The package supplies built-in agents; no global agent definitions or model
-settings were added. Installation does not launch any AI workers automatically.
-Children must follow the applicable `AGENTS.md` instructions, including server
-restart restrictions. Keep parallel edits in disjoint files; do not assume Git
-worktrees contain this workspace's untracked or modified nested server sources.
-
-Package caches and generated project subagent artifacts are ignored by Git.
-The installation was load-checked with Pi 0.84.4 / Node 22.21.1 using an empty
-non-interactive session: no load errors and no model requests. Actual child
-execution remains to be checked after reloading the interactive session.
+Package caches and historical generated artifacts remain ignored by Git.
