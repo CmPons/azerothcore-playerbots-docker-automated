@@ -4,7 +4,28 @@
 
 Do NOT restart, recreate, stop, or otherwise interrupt the AzerothCore server unless the user explicitly says to do so.
 
-Keep git clean after each change so we can easily revert: inspect diffs/status, commit completed work, and push it to the fork/remote when network credentials are available.
+**All source, script, test and documentation changes MUST be committed and pushed to our GitHub forks.** A task is not complete while its changes exist only locally, in patches, in an ignored nested checkout, or in a temporary backup. If pushing fails, report the failure and the exact unpushed commits; never imply the work is safely published.
+
+## Mandatory Git workflow
+
+This workspace contains separate Git repositories. A clean root status does NOT mean the native sources are saved.
+
+| Working directory | Our fork | Working branch |
+| --- | --- | --- |
+| `.` | `CmPons/azerothcore-playerbots-docker-automated` | `main` |
+| `azerothcore-wotlk/` | `CmPons/azerothcore-wotlk` | `local-playerbot` |
+| `azerothcore-wotlk/modules/mod-playerbots/` | `CmPons/mod-playerbots` | `local-playerbot` |
+| `azerothcore-wotlk/modules/mod-player-bot-level-brackets/` | `CmPons/mod-player-bot-level-brackets` | `local-playerbot` |
+
+- Inspect status/diffs in every affected repository, including untracked source files. Use `scripts/repo-status.sh` for a workspace overview.
+- Commit and push each changed native repository with `git push fork HEAD:local-playerbot`. Do not push our work to upstream `origin`.
+- Record the new native commit IDs in root `repo-pins.txt`, then commit and push the root with `git push fork HEAD:main`. Root-authored modules under `modules/` belong in the root fork; keep their build-tree copies synchronized.
+- Verify remote branch tips match local HEADs before saying work is saved. Report commit IDs and any remaining dirty/unpushed work to the user. Checkpoint unfinished work before pausing rather than leaving invisible changes.
+- If another external module needs changes, create/use our fork and publish them there too; update its source URL and pin. Never leave local-only module commits.
+- Our forks are the source of truth. `patches/` is historical reference, not the primary storage or an automatic replay mechanism.
+- Never use `reset --hard`, `git clean`, force-push, automatic stashing, or overwrite a differing module mirror to make status look clean. Preserve and report unexpected changes.
+- Never commit `.env`, credentials, database dumps, live configs, build output or temporary backups. Preserve non-secret reproducible configuration through templates/scripts instead.
+- No Git publication task authorizes a server or bridge restart. See `Documents/source-workflow.md` for the source layout and safe update behavior.
 
 Building images, editing files, reading logs, and checking status are OK. If a change requires a restart to take effect, tell the user that and wait for permission.
 

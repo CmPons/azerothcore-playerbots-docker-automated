@@ -1,12 +1,21 @@
 #!/usr/bin/env bash
-# AzerothCore + Playerbots LAN server bootstrap. Run ON THE SERVER. Idempotent.
+# AzerothCore + Playerbots bootstrap. Full setup configures/builds/starts services.
+# --sources-only safely prepares pinned source without touching runtime services/config.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AC_DIR="$ROOT/azerothcore-wotlk"
 
-FORK_URL="https://github.com/mod-playerbots/azerothcore-wotlk.git"
-FORK_BRANCH="Playerbot"
+SOURCES_ONLY=0
+case "${1:-}" in
+  --sources-only) SOURCES_ONLY=1 ;;
+  "") ;;
+  *) echo "Usage: $0 [--sources-only]" >&2; exit 2 ;;
+esac
+[[ $# -le 1 ]] || { echo "Too many arguments" >&2; exit 2; }
+
+FORK_URL="https://github.com/CmPons/azerothcore-wotlk.git"
+FORK_BRANCH="local-playerbot"
 
 # Server-side modules compiled into the build (name|git-url):
 #   mod-playerbots ................. the bot engine (required)
@@ -15,13 +24,14 @@ FORK_BRANCH="Playerbot"
 #   mod-junk-to-gold .............. auto-sell gray trash (less bag clutter for bots/players)
 #   mod-multibot-bridge ........... server half of the in-game "MultiBot" control addon
 MODULES=(
-  "mod-playerbots|https://github.com/mod-playerbots/mod-playerbots.git"
+  "mod-playerbots|https://github.com/CmPons/mod-playerbots.git"
   # mod-aoe-loot DISABLED 2026-06-21: its area-loot aggregation invalidates pending
   # group-loot rolls when looting a pile of corpses at once — an item you roll Need on
   # vanishes from the corpse and nobody receives it (cf. mod-aoe-loot#43/#44). The
-  # reconcile below prunes the existing clone on the next run. Uncomment to restore.
+  # source preflight refuses an unlisted clone rather than deleting it. To restore,
+  # deliberately enable the module here and add a reviewed pin.
   # "mod-aoe-loot|https://github.com/azerothcore/mod-aoe-loot.git"
-  "mod-player-bot-level-brackets|https://github.com/DustinHendrickson/mod-player-bot-level-brackets.git"
+  "mod-player-bot-level-brackets|https://github.com/CmPons/mod-player-bot-level-brackets.git"
   "mod-junk-to-gold|https://github.com/noisiver/mod-junk-to-gold.git"
   "mod-multibot-bridge|https://github.com/Wishmaster117/mod-multibot-bridge.git"
   "mod-ah-bot-plus|https://github.com/NathanHandley/mod-ah-bot-plus.git"
@@ -30,72 +40,32 @@ MODULES=(
 # Modules we author and ship from THIS repo (copied in, not git-cloned). Kept by the reconcile.
 LOCAL_MODULES=( "mod-playerbot-chatter" "mod-raid-roster" "mod-raid-scaling" "mod-ahbot-price" "mod-wintergrasp-bots" "mod-arena-roster" )
 
-# Optional commit pins (repo-pins.txt): freeze the fork and/or a module at a known-good commit
-# instead of its branch tip — used to hold a stable upstream when the latest HEAD is broken.
-# update.sh honors the same file. Applied right after ensuring each repo exists.
+# Published commits are required for every cloned repository. Forks already include
+# our modifications; historical patches must NOT be replayed on top of them.
 PINS_FILE="$ROOT/repo-pins.txt"
-pin_for () {
-  [[ -f "$PINS_FILE" ]] || return 0
-  awk -v r="$1" '!/^[[:space:]]*#/ && NF>=2 && $1==r {print $2; exit}' "$PINS_FILE"
-}
-apply_pin () {  # $1 = repo dir, $2 = basename used in repo-pins.txt
-  local dir="$1" name="$2" pin; pin="$(pin_for "$name")"
-  [[ -n "$pin" && -d "$dir/.git" ]] || return 0
-  echo "    Pinning $name to $pin (repo-pins.txt)"
-  git -C "$dir" cat-file -e "${pin}^{commit}" 2>/dev/null || git -C "$dir" fetch --depth 1 origin "$pin"
-  git -C "$dir" reset --hard "$pin"
-  # Scrub patch-CREATED (untracked) files so apply_patches never hits "already exists" after a
-  # reset. src/ only — patches never create files elsewhere; env/, config/, modules/ must survive.
-  git -C "$dir" clean -fd -- src/ 2>/dev/null || true
-}
-
-# Tracked source patches for the upstream fork. The fork is gitignored/regenerated, so any core
-# change we depend on lives as a patches/*.patch here and is re-applied after the fork is
-# cloned/pinned and before the build. Idempotent: an already-applied patch is skipped; one that
-# no longer applies (upstream moved that code) aborts loudly rather than silently building
-# without it. MUST run after apply_pin — a pin's `reset --hard` wipes a previously-applied patch.
-apply_patches () {
-  local pdir="$ROOT/patches"
-  [[ -d "$pdir" && -d "$AC_DIR/.git" ]] || return 0
-  local patch name
-  for patch in "$pdir"/*.patch; do
-    [[ -e "$patch" ]] || continue
-    name="$(basename "$patch")"
-    if git -C "$AC_DIR" apply --reverse --check "$patch" >/dev/null 2>&1; then
-      echo "    Patch already applied: $name"
-    elif git -C "$AC_DIR" apply --check "$patch" >/dev/null 2>&1; then
-      git -C "$AC_DIR" apply "$patch"
-      echo "    Applied patch: $name"
-    else
-      echo "    ERROR: $name no longer applies (upstream moved?). Regenerate it against the" >&2
-      echo "           current fork or remove it from patches/. Refusing to build without it." >&2
-      exit 1
-    fi
-  done
-}
+source "$ROOT/scripts/source-repos.sh"
+require_clean_repo "$ROOT"
+# Preflight every existing checkout before advancing any source.
+for repo in "$AC_DIR" "$AC_DIR"/modules/*; do
+  [[ ! -e "$repo/.git" ]] || require_clean_repo "$repo"
+done
 
 echo "==> 1/10 Cloning AzerothCore playerbots fork (if missing)"
-[[ -d "$AC_DIR/.git" ]] || git clone "$FORK_URL" --branch="$FORK_BRANCH" "$AC_DIR"
-apply_pin "$AC_DIR" "azerothcore-wotlk"
+sync_source_repo "$AC_DIR" "$FORK_URL" "$FORK_BRANCH"
 
 echo "==> 2/10 Cloning modules (if missing)"
 for entry in "${MODULES[@]}"; do
   name="${entry%%|*}"; url="${entry#*|}"
-  [[ -d "$AC_DIR/modules/$name/.git" ]] || git clone "$url" "$AC_DIR/modules/$name"
-  apply_pin "$AC_DIR/modules/$name" "$name"
+  case "$name" in
+    mod-playerbots|mod-player-bot-level-brackets) branch=local-playerbot ;;
+    mod-multibot-bridge) branch=main ;;
+    *) branch=master ;;
+  esac
+  sync_source_repo "$AC_DIR/modules/$name" "$url" "$branch"
 done
 
-# Patches must apply AFTER the module clones/pins: several (0002+) target files inside
-# modules/mod-playerbots, which doesn't exist yet on a fresh install at fork-clone time —
-# applying earlier made a fresh install abort on a perfectly good patch.
-apply_patches
-
-# Reconcile: the build compiles EVERY module dir under modules/ (CMake globs the tree), so a
-# module dropped from MODULES above must be physically removed or it keeps getting compiled.
-# Prune any module clone that's no longer listed, making MODULES the source of truth. Module
-# dirs are just git clones (regenerable); any DB data a module created lives in the DB volume
-# and is left untouched. The git-managed mod-playerbots-required 'mod-eluna' etc. would be
-# listed too, so nothing essential is caught here.
+# CMake compiles every module directory. Unknown modules need explicit review,
+# not automatic deletion: they may contain unpublished work.
 if [[ -d "$AC_DIR/modules" ]]; then
   for moddir in "$AC_DIR"/modules/*/; do
     [[ -d "$moddir" ]] || continue
@@ -104,20 +74,20 @@ if [[ -d "$AC_DIR/modules" ]]; then
     for entry in "${MODULES[@]}"; do [[ "${entry%%|*}" == "$mod" ]] && { keep=1; break; }; done
     for lm in "${LOCAL_MODULES[@]}"; do [[ "$lm" == "$mod" ]] && { keep=1; break; }; done
     if [[ "$keep" -eq 0 ]]; then
-      echo "    Pruning unlisted module: $mod"
-      rm -rf "$moddir"
+      echo "ERROR: Unlisted module $moddir; review/publish it before removing or enabling it." >&2
+      exit 1
     fi
   done
 fi
 
-# Sync in-repo modules into the build tree (fresh copy each run so edits propagate).
+# Existing differing mirrors are never overwritten; review and sync them first.
 for lm in "${LOCAL_MODULES[@]}"; do
-  if [[ -d "$ROOT/modules/$lm" ]]; then
-    echo "    Syncing local module: $lm"
-    rm -rf "$AC_DIR/modules/$lm"
-    cp -a "$ROOT/modules/$lm" "$AC_DIR/modules/$lm"
-  fi
+  sync_local_module "$lm"
 done
+if [[ "$SOURCES_ONLY" == 1 ]]; then
+  echo "Pinned sources ready. No build, runtime configuration or service changes."
+  exit 0
+fi
 
 # Persist KEY=VALUE into the repo-root .env (the source of truth, copied to the live env on
 # every run) AND the live $AC_DIR/.env (used by THIS run's containers). Replaces an existing

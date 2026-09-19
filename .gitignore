@@ -1,4 +1,5 @@
-# The AzerothCore fork + modules are cloned by setup.sh on the server.
+# Separate maintained forks/modules, not disposable source. Commit/push inside each
+# affected repo too; exact published revisions are recorded in repo-pins.txt.
 azerothcore-wotlk/
 
 # Client addons are fetched by fetch-client-addons.sh.

@@ -19,10 +19,12 @@ modules); this repo's job is to assemble and manage it. See
 **What lives in *this* repo:** the orchestration scripts (`setup.sh`, `update.sh`, `start.sh` /
 `stop.sh`, `backup.sh`, `restore.sh`, `fetch-client-addons.sh`), the Windows/WSL2 wrapper layer
 (`windows/`), the custom components (the local modules under `modules/`, `lore-sidecar/`, `webreg/`,
-the client addons under `client-addons-src/`, and the fork patches under `patches/`), and this
-documentation. The core, the bot engine, and every community module are fetched from their own
-upstream repos at build time (and are gitignored here) — none of their code is redistributed in
-this repo.
+the client addons under `client-addons-src/`, and historical patches under `patches/`), and this
+documentation. Native code lives in separate repositories: our maintained **CmPons forks** for
+the core, playerbots and level brackets, and pinned upstream repositories for unmodified modules.
+These checkouts are gitignored here, but **their changes must be committed and pushed separately**.
+See [Source workflow and fork ownership](Documents/source-workflow.md).
+Run `./scripts/repo-status.sh --remote` to see working-tree and publication status.
 
 > **Note on version:** this is **Wrath of the Lich King (3.3.5a)** — clients must be 3.3.5a.
 
@@ -38,7 +40,7 @@ this repo.
   authored strategies for a growing list of hard raid mechanics — Sunwell Plateau (all six
   bosses), AQ40 Twin Emperors, Ulduar Kologarn, ICC Lich King phase 3, Naxxramas Heigan, and
   more — so a bot raid can actually clear fights that would otherwise wipe on the mechanics.
-  These ship as tracked fork patches applied automatically by `setup.sh`/`update.sh`.
+  These are committed in our forks; historical patches remain for reference only.
 - Optional **AI bot chat** (`mod-playerbot-chatter`): bots hold natural conversations through a
   local Ollama LLM — both **reactive** (they reply when you whisper, `/say`, or talk in
   party/raid) and **ambient** (bots self-initiate WoW small-talk and banter in General / party /
@@ -433,56 +435,30 @@ Key conf knobs: `Rate.XP.Kill/Quest/Explore`, `AiPlayerbot.MinRandomBots`,
 `AiPlayerbot.MaxRandomBots`. Note that **re-running `./setup.sh` re-applies the values from `.env`**,
 overwriting hand-edits — so for anything you want to keep, set it in `.env`, not just the conf.
 
-## Updating to the latest from upstream
-To pull the newest code from the AzerothCore fork and all cloned modules (and re-sync the
-in-repo `mod-playerbot-chatter`), then rebuild:
+## Updating published source (without restarting)
+
+Our forks contain the native changes as commits. [`repo-pins.txt`](repo-pins.txt) records
+an exact published revision for every cloned repository; missing pins are an error.
+
 ```bash
-cd AzerothCore
-./update.sh
+./scripts/repo-status.sh --remote  # inspect all repos and verify our published tips
+./update.sh --sources-only        # prepare pinned sources; no build/config/service changes
+./update.sh                       # same checks, then build only ac-worldserver
 ```
-This fetches the latest commits, recompiles only what changed, and re-runs the database
-migration step automatically. Your tuned config (`env/dist/etc/*.conf`) and your database
-(named Docker volume) are **preserved**.
 
-### Why this repo pins its upstreams (read before updating)
+Existing repos must be clean and may only fast-forward to their pins. Dirty, ahead or
+divergent work is refused, never discarded. Unknown modules and differing local-module
+mirrors also require manual review; scripts do not silently delete or overwrite them.
+Historical `patches/*.patch` files are **not replayed**.
 
-Out of the box, this repo **freezes the AzerothCore fork and the `mod-playerbots` engine at
-specific, known-good commits** rather than tracking their branch tips. Those two pins live in
-[`repo-pins.txt`](repo-pins.txt) and are active by default. Here's why, because it directly shapes
-how you update:
+`update.sh` no longer starts containers, imports databases, changes volume ownership or
+restarts services. Deploying a built image is a separate, explicitly authorized operation.
+Full `setup.sh` still configures/builds/starts a new installation; use `--sources-only`
+when you only intend to prepare source.
 
-- **Several features here are shipped as *patches* against upstream source.** The scripted raid
-  encounters, the Wintergrasp siege AI, the arena AI, and a handful of core fixes aren't separate
-  modules — they're `patches/*.patch` files that `setup.sh`/`update.sh` apply directly onto the
-  fork and the bot engine after cloning them. A patch is tied to the exact lines of code it edits.
-- **An upstream push can move those lines and break the patch.** The playerbots fork and engine are
-  actively developed community projects; a refactor upstream can make a patch fail to apply, which
-  aborts the build. Pinning to commits where **every patch is verified to apply cleanly** means a
-  routine `./update.sh` can't be broken by someone else's push at an inconvenient time.
-- So on this repo, an update is a **deliberate act**, not a moving target: `update.sh` resets every
-  *unpinned* repo to its branch tip, but the pinned fork/engine stay exactly where they are until
-  *you* decide to move them.
-
-**How pins work.** Each non-comment line in `repo-pins.txt` is `<repo-basename> <commit>` — e.g.
-`azerothcore-wotlk <sha>` (the fork) or `mod-playerbots <sha>` (the engine). Both `setup.sh` and
-`update.sh` honor it. Comment out (or delete) a line to let that repo resume tracking its branch tip.
-
-**Moving to newer upstream** (when you want the latest fork/engine code):
-
-1. **Back up first** — code rollback doesn't undo DB migrations, so pair any risky update with a
-   fresh backup (`./backup.sh`, or the `mysqldump` below).
-2. **Un-pin** the repo(s) you want to advance — comment out their line(s) in `repo-pins.txt`.
-3. **Run `./update.sh`.** It pulls the branch tips and re-applies every patch in `patches/`.
-4. **If a patch fails to apply,** that patch's upstream code moved. Each patch has a
-   `tools/regen-*.sh` helper to regenerate it against the new source; regenerate, re-run, and test
-   the affected feature. (This is real work — it's exactly the breakage the pins exist to prevent
-   on a normal day.)
-5. **Once it builds and tests clean, re-pin** at the new commits (put the new SHAs back in
-   `repo-pins.txt`) so your good state is frozen again for next time.
-
-You can pin/un-pin any *cloned module* the same way (`mod-junk-to-gold <sha>`, etc.) if a specific
-module HEAD misbehaves — the local modules authored in this repo aren't cloned, so they're never
-pinned.
+To take newer upstream code, merge and test it deliberately in our fork branches, commit
+and push them, then update the pins and commit/push this repository. Never unpin/reset the
+working server tree as an update shortcut. See [the workflow](Documents/source-workflow.md).
 
 Tips:
 - Updates to the community fork occasionally introduce breaking changes. Before a big update, back
@@ -736,8 +712,8 @@ lower `WGBOTS_PER_FACTION` if a battle makes your server feel laggy.
 **Console extras** (GM/console): `.wgbots status` shows the live battle picture (bots per side,
 workshops, vehicles, breach stage); `.bf start 1` / `.bf stop 1` force a battle for testing.
 
-Under the hood the module ships with two tracked fork patches (`patches/0003`, `0004`) that
-`setup.sh`/`update.sh` apply automatically — bots auto-accepting the battle invite and the
+Under the hood our playerbots fork includes the changes recorded historically in
+`patches/0003` and `0004` — bots auto-accepting the battle invite and the
 siege-vehicle AI live there.
 
 ## Rated arena with bots (mod-arena-roster)
@@ -778,8 +754,8 @@ gearing requires the partners to be **level 80** and online.
 > `.arenaroster forcequeue` exists but is **test-only** — it fields a lineup without a real queue.
 
 Under the hood the arena AI (team-shared kill target, rating-banded aggression, and a PvP-trinket
-use that works while crowd-controlled) ships as tracked fork patch `patches/0005`, applied
-automatically by `setup.sh`/`update.sh`.
+use that works while crowd-controlled) is committed in our playerbots fork
+(historically `patches/0005`).
 
 ## Backups & data safety
 Everything (characters, gear, gold, guilds, AH) lives in MySQL in a persistent Docker volume,
@@ -970,7 +946,7 @@ star and support the original projects; they did the hard part.
   **`AHPrice`** client addon (`client-addons-src/AHPrice/`).
 - **Scripted raid strategies** (`patches/0002`, `0006`, `0007`, `0014`, `0016`, …) — authored bot
   AI for hard raid encounters (Heigan, Kologarn, Lich King p3, Sunwell, AQ40 Twins), plus core
-  performance and correctness patches, applied onto the fork by `setup.sh`/`update.sh`.
+  performance and correctness changes, now committed directly in our maintained forks.
 - **`lore-sidecar/`** — a Python sidecar that answers whispered factual questions from real game
   data.
 - **`webreg/`** — a Go self-service account-registration and client-download site.
