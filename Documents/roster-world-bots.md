@@ -1,14 +1,14 @@
-# Selected roster characters as ordinary world bots (source only)
+# Selected roster characters as ordinary world bots
 
-Source implementation accepted after independent review and parent validation; not
-activated or deployed. No service interruptions, live bot commands, DB writes or runtime
-config edits were performed. Do not restart while the user is playing.
-Build/deployment/configuration/restart require a separate authorized step.
+Activated September 19 after the explicitly authorized worldserver-only deployment.
+All seven selected bots were confirmed online. See
+[deployment verification](world-bots-deployment-20260919.md) for backups, preservation
+checks and remaining live-behavior limits. Further restarts require fresh permission.
 
-## Required activation settings (do not apply now)
+## Active settings
 
-After deploying incremental patch `0038-playerbot-roster-world-bots.patch`, the
-startup-only playerbots option would be:
+The deployed incremental patch `0038-playerbot-roster-world-bots.patch` uses this
+startup-only playerbots option:
 
 ```ini
 AiPlayerbot.WorldBotGuids = "1118,1159,1180,1274,1297,1315,1433"
@@ -20,16 +20,16 @@ accounts only; invalid entries are logged/ignored and duplicates collapse. It do
 not select whole accounts or read/change saved roster membership. Arinerica (142),
 Meliah (815), and the other 33 saved roster characters are not opted in.
 
-**Required before activation:** extend the existing level-bracket exclusions to
-include all seven names, retaining Arinerica, Meliah and any other existing entries.
-The known nine-name list is:
+**Required alongside enrollment:** the existing level-bracket exclusions now include
+all seven names, retaining Arinerica and Meliah. Preserve other existing exclusions
+when adapting this setup. The active nine-name list is:
 
 ```ini
 BotLevelBrackets.ExcludeNames = "Meliah,Arinerica,Raney,Beliona,Ailina,Pilbok,Kaaren,Keilmere,Feelesia"
 ```
 
-The existing setup source is `BOT_LEVEL_BRACKET_EXCLUDE_NAMES` in `.env`. Update both
-through the established deployment/setup process later, not by this source patch.
+The existing setup source is `BOT_LEVEL_BRACKET_EXCLUDE_NAMES` in `.env`. Both env
+copies and the mounted bracket config were updated during the authorized deployment.
 The bracket module directly calls factory randomization independently of the world
 scheduler; **enrollment alone cannot guarantee quest-earned levels** without this
 exclusion. Neither bracket source nor setup/env wiring was changed.
@@ -38,7 +38,7 @@ Requires the existing Enabled/RandomBotAutologin switches. Existing
 DisabledWithoutRealPlayer=0 permits operation with the human offline; a value of 1
 still enforces its normal delay/logout policy. Ordinary periodic-online/offline,
 death-knight-login, fixed-level and AI activity settings continue to apply.
-No option is turned on by this change.
+The source default is empty; the local deployment explicitly enables these seven GUIDs.
 
 ## Lifetime versus behavior
 
