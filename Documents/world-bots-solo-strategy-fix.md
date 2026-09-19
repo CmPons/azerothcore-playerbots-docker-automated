@@ -2,7 +2,9 @@
 
 Playerbots fork commit:
 [`f63a04634971d666744ea68f7d1a281c1b0eb715`](https://github.com/CmPons/mod-playerbots/commit/f63a04634971d666744ea68f7d1a281c1b0eb715).
-Root `repo-pins.txt` records this published revision. No historical patch replay is needed.
+This revision was deployed from root acceptance `8ce3f53`. Current `repo-pins.txt`
+may include later staged changes, such as [solo battleground eligibility](solo-companion-battlegrounds.md).
+No historical patch replay is needed.
 The authorized worldserver-only deployment became ready at **17:36:30 UTC**;
 see [deployment evidence and initial activity](world-bots-solo-deployment-20260919.md).
 

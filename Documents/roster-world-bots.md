@@ -105,10 +105,13 @@ an authorized change. No C++ rebuild is needed, and full `setup.sh` should not b
 casually on the live server.
 
 With friend protection enabled and the current friend list, 9 covers Arinerica,
-Meliah and all seven selected world bots. It expands the existing protections from
-automatic BG queues and scheduler teleports, plus their existing maintenance effects;
-it is not a new PvP-only filter or an equipment freeze. Selection remains per human
-account, ordered by eligible bot GUID, not friend-list display order.
+Meliah and all seven selected world bots. The user subsequently requested that solo
+BG participation remain possible for leveling. The [pending solo BG policy](solo-companion-battlegrounds.md)
+therefore replaces the blanket BG exclusion: friends and selected world bots may
+queue while free/solo, but not in a party or raid. The cap of 9 remains staged for
+other existing protections (scheduler teleports, LFG filler and maintenance effects).
+It is not an equipment freeze. Selection remains per human account, ordered by
+eligible bot GUID, not friend-list display order.
 
 Offline test: `python3 -m unittest scripts.tests.test_companion_cap_setup -v`.
 It exercises the actual setup setter against temporary files only.

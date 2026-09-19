@@ -39,7 +39,10 @@ struct WorldPosition
     bool isOverworld() const { return player->overworld; }
 };
 bool IsInWintergraspWar(Player* p) { return p->wintergrasp; }
-struct Config { bool enableNewRpgStrategy = true, autoDoQuests = true; } sPlayerbotAIConfig;
+struct Config
+{
+    bool enableNewRpgStrategy = true, autoDoQuests = true, randomBotJoinBG = true;
+} sPlayerbotAIConfig;
 struct Context
 {
     std::vector<std::string> saved;
@@ -193,6 +196,12 @@ int main()
     assert(ai.HasStrategy("grind", BOT_STATE_NON_COMBAT));
     assert(ai.HasStrategy("new rpg", BOT_STATE_NON_COMBAT));
     AssertPreferences(ai);
+    assert(ai.HasStrategy("bg", BOT_STATE_NON_COMBAT));
+    sPlayerbotAIConfig.randomBotJoinBG = false;
+    LoginProfile(&bot);
+    assert(!ai.HasStrategy("bg", BOT_STATE_NON_COMBAT));
+    sPlayerbotAIConfig.randomBotJoinBG = true;
+    LoginProfile(&bot);
     auto repaired = ai.strategies;
     sRandomPlayerbotMgr.RestoreWorldBotSoloStrategies(&bot);
     assert(ai.strategies == repaired);
