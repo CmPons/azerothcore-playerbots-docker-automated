@@ -23,6 +23,8 @@ struct PlayerbotAI;
 struct Player
 {
     uint32 guid;
+    uint32 mapId = 530;
+    uint32 GetMapId() const { return mapId; }
     PlayerbotAI* ai = nullptr;
     Group* group = nullptr;
     bool overworld = true, bg = false, queue = false, wintergrasp = false;
@@ -42,6 +44,12 @@ bool IsInWintergraspWar(Player* p) { return p->wintergrasp; }
 struct Config
 {
     bool enableNewRpgStrategy = true, autoDoQuests = true, randomBotJoinBG = true;
+    bool restrictHealerDPS = true;
+    std::set<uint32> restrictedHealerDPSMaps;
+    bool IsRestrictedHealerDPSMap(uint32 id) const
+    {
+        return restrictHealerDPS && restrictedHealerDPSMaps.contains(id);
+    }
 } sPlayerbotAIConfig;
 struct Context
 {
@@ -64,6 +72,10 @@ struct PlayerbotAI
     Player* FindNewMaster() { return nextMaster; }
     void SetMaster(Player* p) { master = p; }
     bool IsRealPlayer() const { return real; }
+    static bool IsHeal(Player* p)
+    {
+        return p->ai->HasStrategy("resto", BOT_STATE_COMBAT) || p->ai->HasStrategy("heal", BOT_STATE_COMBAT);
+    }
     Context* GetAiObjectContext() { return &context; }
     void ClearStrategies(BotState state) { strategies[state].clear(); }
     bool HasStrategy(std::string const& name, BotState state) const { return strategies[state].contains(name); }
@@ -192,7 +204,11 @@ int main()
     assert(ai.HasStrategy("new rpg", BOT_STATE_NON_COMBAT));
     PlayerbotRepository::instance().Load(&ai);
     AssertNoRoaming(ai);
+    assert(!ai.HasStrategy("healer dps", BOT_STATE_COMBAT));
     LoginProfile(&bot);
+    assert(ai.HasStrategy("healer dps", BOT_STATE_COMBAT));
+    assert((ai.strategies[BOT_STATE_COMBAT] ==
+            std::set<std::string>{"chat", "resto", "cc", "threat", "tranquility", "healer dps"}));
     assert(ai.HasStrategy("grind", BOT_STATE_NON_COMBAT));
     assert(ai.HasStrategy("new rpg", BOT_STATE_NON_COMBAT));
     AssertPreferences(ai);
@@ -205,6 +221,35 @@ int main()
     auto repaired = ai.strategies;
     sRandomPlayerbotMgr.RestoreWorldBotSoloStrategies(&bot);
     assert(ai.strategies == repaired);
+
+    // Priest healers also recover damage options, without replacing their healing role.
+    Player priest{1315}; PlayerbotAI priestAI(&priest); Profile(priest.guid);
+    PlayerbotsDatabase.rows[priest.guid][0][1].value = "+heal,+cure,+save mana";
+    LoginProfile(&priest);
+    assert((priestAI.strategies[BOT_STATE_COMBAT] ==
+            std::set<std::string>{"chat", "heal", "cure", "save mana", "healer dps"}));
+
+    // Non-healers retain their exact combat profile; do not infer a role from enrollment.
+    Player mage{1118}; PlayerbotAI mageAI(&mage); Profile(mage.guid);
+    PlayerbotsDatabase.rows[mage.guid][0][1].value = "+frost,+dps assist,+threat";
+    LoginProfile(&mage);
+    assert((mageAI.strategies[BOT_STATE_COMBAT] ==
+            std::set<std::string>{"chat", "frost", "dps assist", "threat"}));
+
+    // Configured restrictions can include overworld maps. Do not add DPS there.
+    sPlayerbotAIConfig.restrictedHealerDPSMaps.insert(bot.GetMapId());
+    LoginProfile(&bot);
+    assert(!ai.HasStrategy("healer dps", BOT_STATE_COMBAT));
+    assert(ai.HasStrategy("new rpg", BOT_STATE_NON_COMBAT));
+    sPlayerbotAIConfig.restrictHealerDPS = false;
+    LoginProfile(&bot);
+    assert(ai.HasStrategy("healer dps", BOT_STATE_COMBAT));
+    sPlayerbotAIConfig = {};
+
+    // The login repair is additive and does not continually undo manual DPS suppression.
+    ai.ChangeStrategy("-healer dps", BOT_STATE_COMBAT);
+    ai.UpdateAIGroupMaster();
+    assert(!ai.HasStrategy("healer dps", BOT_STATE_COMBAT));
 
     // All opt-ins, no saved profile, and factory's ordinary NC follow default.
     for (auto guid : sRandomPlayerbotMgr.selected)
@@ -243,6 +288,7 @@ int main()
         if (gate == 6) p.wintergrasp = true;
         Profile(p.guid, ",+grind,+new rpg,+rpg,+move random"); LoginProfile(&p);
         AssertNoRoaming(a); AssertPreferences(a);
+        assert(!a.HasStrategy("healer dps", BOT_STATE_COMBAT));
     }
 
     // Explicit manual orders survive. Neither state gets wiped or rewritten.
@@ -255,6 +301,7 @@ int main()
             ai.ChangeStrategy(std::string("+") + order, state);
             sRandomPlayerbotMgr.RestoreWorldBotSoloStrategies(&bot);
             AssertNoRoaming(ai); AssertPreferences(ai);
+            assert(!ai.HasStrategy("healer dps", BOT_STATE_COMBAT));
             assert(ai.HasStrategy(order, state));
             ai.ChangeStrategy(std::string("-") + order, state);
         }

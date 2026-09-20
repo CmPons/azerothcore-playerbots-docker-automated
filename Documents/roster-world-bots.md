@@ -15,6 +15,10 @@ Being online alone was not proof of autonomous leveling.
 **September20 follow-up:** [solo-only BG admission, friend cap15 and the `stats`
 filter are deployed](solo-companion-deployment-20260920.md).
 
+**Staged, not deployed:** [solo healer-DPS restoration and druid travel-form exits](solo-healer-dps-and-druid-forms.md).
+Ailina's subsequent aquatic-form stall was confirmed by the user; the follow-up keeps
+swimming behavior while allowing offensive casts after selecting a target.
+
 ## Active settings
 
 The deployed incremental patch `0038-playerbot-roster-world-bots.patch` uses this

@@ -16,8 +16,10 @@ Only the worldserver was stopped/recreated. Ready: **2026-09-20 07:47:48.7537460
 - [Bare `stats` chatter suppression](chatter-command-filter.md): appended to the live
   command list without removing/reordering any existing keywords.
 
-The automatic solo-healer correction is **not implemented**. Ailina's and Keilmere's
-manually saved `healer dps` strategies survived this restart unchanged.
+The automatic solo-healer correction was **not part of this deployment**. Ailina's
+and Keilmere's manually saved `healer dps` strategies survived this restart unchanged.
+A later [healer-DPS / druid form-switching follow-up](solo-healer-dps-and-druid-forms.md)
+is now staged in source, not deployed.
 
 ## Revisions, build and recovery
 

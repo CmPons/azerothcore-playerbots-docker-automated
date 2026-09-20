@@ -85,7 +85,8 @@ class RosterWorldBotsTests(unittest.TestCase):
             subprocess.run([os.environ.get("CXX", "g++"), "-std=c++20", "-Wall", "-Wextra", "-Werror",
                             "-fsanitize=undefined", "-fno-sanitize-recover=all", str(cpp), "-o", str(binary)],
                            check=True)
-            result = subprocess.run([str(binary)], check=True, capture_output=True, text=True)
+            result = subprocess.run([str(binary)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn("saved profile and solo strategy cases passed", result.stdout)
 
     def test_startup_initialization_order_and_existing_event_cleanup(self):
