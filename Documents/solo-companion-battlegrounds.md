@@ -1,5 +1,10 @@
 # Solo companion battlegrounds — deployed September 20
 
+**September 20 follow-up:** the deployed safeguard also cancels deliberate human-led
+party queues. A [player-led group-queue repair](player-led-battleground-queues.md)
+is now staged in source, **not deployed**. It separates autonomous submission from
+human-authorized entry and preserves other members' queues during bot cleanup.
+
 The user observed Kaaren earning XP in Arathi Basin and requested BG participation
 when the bots are not in a party or raid. This supersedes the earlier intent to use
 the friend cap to exclude them from all automatic PvP matchmaking.
@@ -38,8 +43,10 @@ that packet was queued. Leaving a queue/BG is never vetoed by this policy.
 
 Bots already inside a BG are not forcibly extracted from its automatic raid. This
 change guards new queueing/entry, not immediate recall out of a match already underway.
-Explicit bot BG-entry actions are subject to the same safety guards; human clients'
-manual queueing is unchanged.
+Explicit bot BG-entry actions were subject to the same safety guards. Although the
+human join hook passes through, the deployed bot cancellation path also cancels
+that human's queued group. The earlier claim that manual group queueing was
+unchanged was incorrect; see the staged repair linked above.
 
 ## Related deployed settings
 

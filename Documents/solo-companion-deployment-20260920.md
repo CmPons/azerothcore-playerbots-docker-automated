@@ -21,6 +21,10 @@ and Keilmere's manually saved `healer dps` strategies survived this restart unch
 A later [healer-DPS / druid form-switching follow-up](solo-healer-dps-and-druid-forms.md)
 is now staged in source, not deployed.
 
+A subsequent [human-led group-queue regression repair](player-led-battleground-queues.md)
+is also staged, not deployed. The active bot safeguard cancels the whole queued
+party after a human uses Join as Group; this was missed by the original tests.
+
 ## Revisions, build and recovery
 
 - Core: `b6e03792268af131467f46f2e7455dc5e1e82c5d` (unchanged).

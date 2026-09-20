@@ -19,6 +19,10 @@ filter are deployed](solo-companion-deployment-20260920.md).
 Ailina's subsequent aquatic-form stall was confirmed by the user; the follow-up keeps
 swimming behavior while allowing offensive casts after selecting a target.
 
+**Also staged, not deployed:** [human-led group BG queue repair](player-led-battleground-queues.md).
+The active solo safeguard incorrectly cancels deliberate player group queues; the
+repair allows those invitations without restoring autonomous grouped queueing.
+
 ## Active settings
 
 The deployed incremental patch `0038-playerbot-roster-world-bots.patch` uses this
