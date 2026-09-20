@@ -1,9 +1,11 @@
 # Solo companion battlegrounds — deployed September 20
 
-**September 20 follow-up:** the deployed safeguard also cancels deliberate human-led
-party queues. A [player-led group-queue repair](player-led-battleground-queues.md)
-is now staged in source, **not deployed**. It separates autonomous submission from
-human-authorized entry and preserves other members' queues during bot cleanup.
+**September 20 follow-up, deployed 14:42:16 UTC:** the original safeguard also
+cancelled deliberate human-led party queues. The
+[player-led group-queue repair](player-led-battleground-queues.md) is now active.
+It separates autonomous submission from human-authorized entry and preserves
+other members' ordinary BG queues during bot cleanup. See
+[deployment verification](player-led-bg-deployment-20260920.md).
 
 The user observed Kaaren earning XP in Arathi Basin and requested BG participation
 when the bots are not in a party or raid. This supersedes the earlier intent to use
@@ -31,7 +33,7 @@ plus existing friend-protected companions (including Ari/Meliah).
   and grinding when BGs are configured on. It does not continually reassert strategies
   against commands issued later in the session.
 
-## A queued bot must not abandon its new party
+## Original queued-bot safeguard (human-led exception now added)
 
 Eligibility is checked during action selection, execution, queue submission and at
 actual core packet consumption using existing PlayerScript hooks. If a queued bot
@@ -44,9 +46,9 @@ that packet was queued. Leaving a queue/BG is never vetoed by this policy.
 Bots already inside a BG are not forcibly extracted from its automatic raid. This
 change guards new queueing/entry, not immediate recall out of a match already underway.
 Explicit bot BG-entry actions were subject to the same safety guards. Although the
-human join hook passes through, the deployed bot cancellation path also cancels
+human join hook passes through, the original bot cancellation path also cancelled
 that human's queued group. The earlier claim that manual group queueing was
-unchanged was incorrect; see the staged repair linked above.
+unchanged was incorrect; the deployed repair linked above corrects it.
 
 ## Related deployed settings
 

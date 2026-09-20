@@ -1,4 +1,4 @@
-# Player-led companion BG queues — source fix, not deployed
+# Player-led companion BG queues — deployed September 20
 
 September 20, 2026. The user reported that **Join as Group**, which had worked
 before, now produced no enduring minimap icon or invitation and no error. The
@@ -6,8 +6,10 @@ client reported `none` for both BG slots. Separately, the missing dungeon-finder
 icon was confirmed to be Atlas covering it; that UI issue is unrelated.
 
 The user authorized this source repair and clarified that it must apply when
-bots are grouped with **any real player**, not just Redshift. No build, live
-configuration change, reload, restart or deployment is authorized by this work.
+bots are grouped with **any real player**, not just Redshift. They subsequently
+explicitly authorized build/deployment. The repair became active at **14:42:16 UTC**;
+see [deployment verification](player-led-bg-deployment-20260920.md). Further
+interruptions need fresh permission.
 
 ## Regression in the deployed policy
 
@@ -98,11 +100,12 @@ python -m unittest scripts.tests.test_solo_battlegrounds \
   passed width/whitespace checks and all affected diffs passed `git diff --check`.
 
 Private evidence: `backups/player-led-bg-fix-20260920-154449/`, with its local pointer
-at `/tmp/player-led-bg-fix-backup`. No image build/link, live group-queue exercise,
-actual BG-popup observation after the fix, or end-to-end concurrent race test has
-been performed. These remain deployment acceptance work, not claims from fixtures.
+at `/tmp/player-led-bg-fix-backup`. At source validation time no image build/link had been performed; the subsequently
+authorized native build/deployment is documented separately. Live group-queue/popup
+observation and an end-to-end concurrent race test remain outstanding, not claims
+from fixtures.
 
-## Publication and future deployment
+## Publication and deployment
 
 The maintained core and playerbots forks must be deployed together: the playerbots
 acceptance helper consumes the new core queue provenance. Published source:
@@ -111,12 +114,12 @@ acceptance helper consumes the new core queue provenance. Published source:
 - Playerbots: `693840886d1db462c141f4d31cbb606eb96b8a84`.
 
 These revisions are pinned in root `repo-pins.txt`. No SQL migration or runtime setting
-change is required. The earlier healer-DPS/druid-form source repair remains in the
-pinned playerbots history and would also be included in a build of these sources.
+change was required. The earlier healer-DPS/druid-form repair was included in the
+same authorized deployment.
 
-The running server remains the September 20 solo-BG image
-`sha256:1c43fb094c0f397f145c1055d63986f5f4993931ae7ab6ba7c95373c38465601`;
-this repair is **not active** until a separately authorized build/deployment.
-Before deployment, take fresh backups and verify source/config/state preservation.
-After deployment, verify human-led group queue status/popup, both human-first and
-bot-first entry, and solo-queue recruitment without disturbing the new party.
+The running image is now
+`sha256:e77033aec686e3671691f037b42e311e2aa914f1c7cd22e8834b8fac6cc1f0e7`.
+The previous solo-BG image is retained for rollback. See the deployment report for
+fresh backups, preservation checks and the reviewed offline LFG group/save cleanup.
+Live acceptance should verify human-led group queue status/popup, both human-first
+and bot-first entry, and solo-queue recruitment without disturbing the new party.

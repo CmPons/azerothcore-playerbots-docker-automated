@@ -1,9 +1,11 @@
-# Solo healer offense and druid travel forms — staged, not deployed
+# Solo healer offense and druid travel forms — deployed September 20
 
-Playerbots fork: `c806c14b0cc35e29c42402ef9f13d0ba3796a29a`.
-The running September20 image still contains `a72a2ac6`. The user authorized source
-work, not another build/restart. No live config, bot command, database write or service
-interruption was performed. A future image build and authorized deployment are required.
+Original playerbots fix: `c806c14b0cc35e29c42402ef9f13d0ba3796a29a`.
+It is included in deployed revision `693840886d1db462c141f4d31cbb606eb96b8a84`.
+After initially authorizing source work only, the user explicitly authorized build
+and deployment; the server was ready at **14:42:16 UTC**. See
+[deployment verification](player-led-bg-deployment-20260920.md). No live config
+changes or operator gameplay writes were needed; further restarts need permission.
 
 ## Two observed stalls
 
@@ -86,6 +88,7 @@ The C++ fixtures compile with C++20, warnings-as-errors and UBSan.
   both private env hashes matched the pre-work snapshots.
 
 Private validation logs: `backups/solo-healer-fix-20260920-105459/`.
-No native image build/link or end-to-end water-combat test has been performed for this
-revision. After an authorized deployment, verify repeated underwater pulls without
-manual form commands, normal post-kill swimming, and retained party/raid healing.
+Native image build/link and running-binary verification were subsequently completed
+in the authorized deployment. An end-to-end water-combat test remains outstanding:
+verify repeated underwater pulls without manual form commands, normal post-kill
+swimming, and retained party/raid healing.

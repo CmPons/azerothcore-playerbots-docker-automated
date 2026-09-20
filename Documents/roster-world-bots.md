@@ -15,13 +15,13 @@ Being online alone was not proof of autonomous leveling.
 **September20 follow-up:** [solo-only BG admission, friend cap15 and the `stats`
 filter are deployed](solo-companion-deployment-20260920.md).
 
-**Staged, not deployed:** [solo healer-DPS restoration and druid travel-form exits](solo-healer-dps-and-druid-forms.md).
-Ailina's subsequent aquatic-form stall was confirmed by the user; the follow-up keeps
-swimming behavior while allowing offensive casts after selecting a target.
-
-**Also staged, not deployed:** [human-led group BG queue repair](player-led-battleground-queues.md).
-The active solo safeguard incorrectly cancels deliberate player group queues; the
-repair allows those invitations without restoring autonomous grouped queueing.
+**Deployed September20 at 14:42:16 UTC:**
+[solo healer-DPS restoration and druid travel-form exits](solo-healer-dps-and-druid-forms.md),
+plus the [human-led group BG queue repair](player-led-battleground-queues.md).
+The latter corrects the first solo safeguard's cancellation of deliberate player
+group queues without restoring autonomous grouped queueing. See
+[deployment verification and the offline LFG group/save exception](player-led-bg-deployment-20260920.md).
+Live BG-popup and repeated underwater-combat acceptance remain outstanding.
 
 ## Active settings
 

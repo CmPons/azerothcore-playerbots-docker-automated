@@ -19,11 +19,11 @@ Only the worldserver was stopped/recreated. Ready: **2026-09-20 07:47:48.7537460
 The automatic solo-healer correction was **not part of this deployment**. Ailina's
 and Keilmere's manually saved `healer dps` strategies survived this restart unchanged.
 A later [healer-DPS / druid form-switching follow-up](solo-healer-dps-and-druid-forms.md)
-is now staged in source, not deployed.
-
-A subsequent [human-led group-queue regression repair](player-led-battleground-queues.md)
-is also staged, not deployed. The active bot safeguard cancels the whole queued
-party after a human uses Join as Group; this was missed by the original tests.
+and [human-led group-queue regression repair](player-led-battleground-queues.md)
+were subsequently deployed with fresh authorization at **14:42:16 UTC**; see
+[the later deployment report](player-led-bg-deployment-20260920.md).
+The original bot safeguard cancelled the whole queued party after a human used
+Join as Group; this was missed by the original tests and is corrected in that image.
 
 ## Revisions, build and recovery
 
