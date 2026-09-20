@@ -26,10 +26,12 @@ class CompanionCapSetupTests(unittest.TestCase):
                             calls[0] + "\n" + calls[0]], env=env, check=True)
             return config.read_text()
 
-    def test_raise_to_nine_preserves_other_settings(self):
+    def test_explicit_caps_preserve_other_settings(self):
         initial = f"{KEY} = 5\nAiPlayerbot.RandomBotJoinBG = 1\n"
-        self.assertEqual(self.apply("9", initial),
-                         f"{KEY} = 9\nAiPlayerbot.RandomBotJoinBG = 1\n")
+        for cap in ("9", "15"):
+            with self.subTest(cap=cap):
+                self.assertEqual(self.apply(cap, initial),
+                                 f"{KEY} = {cap}\nAiPlayerbot.RandomBotJoinBG = 1\n")
 
     def test_omitted_keeps_native_default(self):
         self.assertEqual(self.apply(None, ""), f"{KEY} = 5\n")
