@@ -1,12 +1,13 @@
-# Solo companion battlegrounds — staged, not deployed
+# Solo companion battlegrounds — deployed September 20
 
 The user observed Kaaren earning XP in Arathi Basin and requested BG participation
 when the bots are not in a party or raid. This supersedes the earlier intent to use
 the friend cap to exclude them from all automatic PvP matchmaking.
 
 Playerbots fork revision: `a72a2ac66c2d438daaef5e48fd50751eb63cd81f`.
-The running image still contains `f63a0463`; **no build, config reload or restart was
-performed for this change**. Fresh authorization is required for deployment.
+Deployed with the user's authorization on September 20 at 07:47:48 UTC, alongside
+friend cap15 and the `stats` filter. See [deployment verification](solo-companion-deployment-20260920.md).
+Further interruptions require fresh permission.
 
 ## Rule
 
@@ -40,18 +41,19 @@ change guards new queueing/entry, not immediate recall out of a match already un
 Explicit bot BG-entry actions are subject to the same safety guards; human clients'
 manual queueing is unchanged.
 
-## Other staged changes
+## Related deployed settings
 
-The cap increase to **9** remains staged for other friend protections, including
-scheduler teleports, LFG filler and existing maintenance behavior. With this native
-change it no longer means a blanket ban on solo BG queues. Neither the existing
-five-friend cap nor runtime configs were changed during this work.
+The live friend cap is **15**, raised from5 at deployment after the user increased
+the originally staged value9. Eleven eligible bot friends were found, including
+Alenaron and Emia; cap9 would have left Feelesia outside friend protection. Cap15
+covers all eleven with headroom for four more, subject to GUID ordering.
 
-The [`stats` chatter filter](chatter-command-filter.md) is also still staged. Future
-activation must include the intended runtime settings; editing env/templates alone
-does not change the existing live config. Do not run full setup or deploy while the
-user is playing. No level synchronization, character rerolls, roster edits or
-persistent quest/inventory writes are part of this source change.
+Friend protection still covers scheduler teleports, LFG filler and existing
+maintenance behavior, but no longer means a blanket ban on solo BG queues.
+The [`stats` chatter filter](chatter-command-filter.md) is also active. The runtime
+settings were updated explicitly, not by running full setup. No level synchronization,
+character rerolls or roster edits were performed. Normal login side effects are
+recorded in the deployment report.
 
 ## Validation and limits
 
@@ -69,7 +71,8 @@ and registered core hooks. Saved-profile tests verify `bg` restoration follows c
 
 All four changed native translation units passed production-header syntax checks.
 Native diff checks passed; focused codestyle findings were identical to the existing
-baseline. No image build/link or real queue/group-transition test has been performed.
+baseline. The native image build/link and running-binary identity were verified at
+deployment; a real queue/group-transition test remains outstanding.
 Live acceptance must verify solo participation, recruitment while queued, staying
 with the party when a match becomes available, and normal behavior after leaving it.
 This does not guarantee a particular XP/hour or time to level70.

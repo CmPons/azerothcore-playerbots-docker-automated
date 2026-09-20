@@ -12,6 +12,9 @@ fork `f63a04634971d666744ea68f7d1a281c1b0eb715`; see
 [initial quest/XP observations](world-bots-solo-deployment-20260919.md).
 Being online alone was not proof of autonomous leveling.
 
+**September20 follow-up:** [solo-only BG admission, friend cap15 and the `stats`
+filter are deployed](solo-companion-deployment-20260920.md).
+
 ## Active settings
 
 The deployed incremental patch `0038-playerbot-roster-world-bots.patch` uses this
@@ -86,36 +89,37 @@ of resetting characters. Do not use them to validate this feature.
 Normal auto-upgrades, learning, talent picking, vendors and ordinary refresh remain.
 Refresh (including revival maintenance) can replace bag contents/provision supplies
 and apply existing attunement, reputation, skills and talent behavior. This is not
-strictly loot-only gearing or an entirely organic-only lifecycle. Existing friends
-protection and its max-five cap are unchanged, including its existing effect on
-level-up equipment initialization. No special inventory-preservation, security or
-global-cheat rules were added.
+strictly loot-only gearing or an entirely organic-only lifecycle. The original
+enrollment change did not alter friend protection or its effect on level-up equipment
+initialization; its current cap is15 as described below. No special inventory-preservation,
+security or global-cheat rules were added.
 
-## Pending friend-protection cap increase — not deployed
+## Friend-protection cap — 15 active
 
-At the user's request, `PERSISTENT_COMPANION_MAX_PER_ACCOUNT=9` is staged in both
-private `.env` copies, with public documentation in `.env.example` and setup wiring
-for `AiPlayerbot.PersistentCompanionMaxPerAccount`. An omitted env value retains 5.
+The [authorized September20 deployment](solo-companion-deployment-20260920.md) raised
+live `AiPlayerbot.PersistentCompanionMaxPerAccount` from5 to15. Both private `.env`
+copies and the public example use `PERSISTENT_COMPANION_MAX_PER_ACCOUNT=15`.
+An omitted env value retains the native default5; zero still means unlimited.
 
-**The running configuration remains 5.** No runtime file was changed, setup applied,
-image built, config reloaded or server restarted. The user is playing; do not apply
-this pending setting without fresh permission. A plain restart alone will not apply
-an env-only staged value: the runtime playerbots config must first be updated during
-an authorized change. No C++ rebuild is needed, and full `setup.sh` should not be run
-casually on the live server.
+The originally staged cap9 was insufficient: preflight found eleven eligible bot
+friends, including Alenaron and Emia. GUID ordering would exclude Feelesia at cap9.
+The user explicitly selected15, which covers all eleven and leaves four slots of
+headroom. Offline bot friends still count; the limit is per human account and ordered
+by eligible bot GUID, not friend-list display order or membership in WorldBotGuids.
 
-With friend protection enabled and the current friend list, 9 covers Arinerica,
-Meliah and all seven selected world bots. The user subsequently requested that solo
-BG participation remain possible for leveling. The [pending solo BG policy](solo-companion-battlegrounds.md)
-therefore replaces the blanket BG exclusion: friends and selected world bots may
-queue while free/solo, but not in a party or raid. The cap of 9 remains staged for
-other existing protections (scheduler teleports, LFG filler and maintenance effects).
-It is not an equipment freeze. Selection remains per human account, ordered by
-eligible bot GUID, not friend-list display order.
+The [deployed solo BG policy](solo-companion-battlegrounds.md) replaces the blanket
+BG exclusion: friends and selected world bots may queue while free/solo, but not in
+a party or raid. Other existing protections (scheduler teleports, LFG filler and
+maintenance effects) remain. This is not an equipment freeze.
+
+A plain restart does not apply an env-only value: the runtime config must also be
+updated during an authorized change. Do not run full setup casually on the live
+server. No C++ rebuild is needed for a cap-only change.
 
 Offline test: `python3 -m unittest scripts.tests.test_companion_cap_setup -v`.
-It exercises the actual setup setter against temporary files only.
-Also staged for a future authorized change: [ignore `stats` in chatter](chatter-command-filter.md).
+It exercises explicit caps9/15, default5, unlimited0, idempotence and preservation of
+other settings through the actual setup setter against temporary files only.
+The [bare `stats` chatter filter](chatter-command-filter.md) is also active.
 
 ## Offline evidence and reconstruction
 
