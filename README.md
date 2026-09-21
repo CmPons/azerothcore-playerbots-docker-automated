@@ -646,6 +646,11 @@ restart also generates the addclass pool the first time).
 - `MAX_ADDED_BOTS=60` (default; overrides the core's 40-bot limit) gives headroom for a full
   40-man plus any manually-added bots.
 
+**Optional gem-only care:** [Companion gem maintenance](Documents/companion-gem-maintenance.md)
+fills empty equipped sockets for friend companions and raid-roster bots, using role-aware
+BC blue gems with occasional epics. It preserves existing gems/enchants and is separate
+from destructive gear/spec synchronization. Disabled by default; requires the new binary.
+
 **Minimap addon (optional).** So you don't have to type the commands, a small companion **client**
 addon (`RaidRoster`) puts a draggable button on the minimap; clicking it opens a dropdown that
 fires each command for you — **Create**, **Login 5 / 10 / 25 / 40** (auto-detects your role), a

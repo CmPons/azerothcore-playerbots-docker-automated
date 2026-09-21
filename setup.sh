@@ -778,6 +778,11 @@ fi
 RAID_CONF="$MODETC/mod_raid_roster.conf"
 if [[ -f "$RAID_CONF" ]]; then
   set_conf "RaidRoster.Enable" "${RAIDROSTER_ENABLE:-0}" "$RAID_CONF"
+  # Gem-only companion care; never call broad playerbot maintenance or roster sync.
+  set_conf "CompanionMaintenance.SocketGems.Enable" "${COMPANION_SOCKET_GEMS_ENABLE:-0}" "$RAID_CONF"
+  set_conf "CompanionMaintenance.SocketGems.IntervalSeconds" "${COMPANION_SOCKET_GEMS_INTERVAL:-300}" "$RAID_CONF"
+  set_conf "CompanionMaintenance.SocketGems.MinLevel" "${COMPANION_SOCKET_GEMS_MIN_LEVEL:-61}" "$RAID_CONF"
+  set_conf "CompanionMaintenance.SocketGems.EpicPercent" "${COMPANION_SOCKET_GEMS_EPIC_PERCENT:-20}" "$RAID_CONF"
 fi
 
 # ── AH price lookup (mod-ahbot-price) ────────────────────────────────────────

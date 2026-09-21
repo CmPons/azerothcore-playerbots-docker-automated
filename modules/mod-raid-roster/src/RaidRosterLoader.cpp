@@ -3,6 +3,8 @@
 #include "RaidRosterCommand.h"
 #include "RaidRosterConfig.h"
 
+void AddCompanionGemMaintenanceScripts();
+
 class RaidRosterWorld : public WorldScript
 {
 public:
@@ -15,4 +17,5 @@ void Addmod_raid_rosterScripts()
     LOG_INFO("server.loading", "[RaidRoster] Registering scripts.");
     new RaidRosterWorld();
     new RaidRosterCommand();
+    AddCompanionGemMaintenanceScripts();
 }

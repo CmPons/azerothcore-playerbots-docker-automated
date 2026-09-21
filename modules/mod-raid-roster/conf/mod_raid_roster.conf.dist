@@ -7,3 +7,21 @@
 # RaidRoster.Enable
 #   Master switch. Default 0. setup.sh sets this from .env RAIDROSTER_ENABLE.
 RaidRoster.Enable = 0
+
+# Companion gem-only maintenance. Independent of broad playerbot "maintenance".
+# Opt-in: no gear creation/replacement, talents, enchants, professions, or money changes.
+# Eligible: bots on a non-playerbot-account character's friend list OR in any raid roster.
+# Humans and ordinary filler bots are excluded. Membership refreshes every 60 seconds.
+CompanionMaintenance.SocketGems.Enable = 0
+
+# Check existing equipped gear periodically (30-3600 seconds, plus up to 30s per-bot stagger).
+# Login and newly stored/equipped socketed items also request a check after 2 seconds.
+# Unsafe checks wait until alive, out of combat/casting/trading, and not teleporting/logging out.
+CompanionMaintenance.SocketGems.IntervalSeconds = 300
+CompanionMaintenance.SocketGems.MinLevel = 61
+
+# Each empty normal socket gets a stable quality roll keyed by bot/item GUID/socket index.
+# Default: blue BC baseline, 20% of sockets may choose an epic. No repeat-check rerolls.
+# BC meta gems are blue; epic rolls retain blue fallbacks for role fit and meta activation.
+# Existing gems (including previously generated gems) are NEVER overwritten or upgraded.
+CompanionMaintenance.SocketGems.EpicPercent = 20
