@@ -17,7 +17,7 @@ class AuctionHouseSetupTest(unittest.TestCase):
         script = 'set -eu\nset_conf() { printf "%s=%s\\n" "$1" "$2"; }\n' + block
         with tempfile.TemporaryDirectory() as temp:
             (Path(temp) / "mod_ahbot.conf").touch()
-            env = {"PATH": os.environ["PATH"], "MODETC": temp, **settings}
+            env = {"PATH": os.environ["PATH"], "MODETC": temp, "ROOT": str(ROOT), **settings}
             result = subprocess.run(["bash", "-c", script], env=env,
                                     text=True, capture_output=True, check=True)
         return dict(line.split("=", 1) for line in result.stdout.splitlines()
@@ -55,6 +55,34 @@ class AuctionHouseSetupTest(unittest.TestCase):
         self.assertEqual(values["AuctionHouseBot.EquipItemUseOrEquipLevelRestrict.MaxLevel"], "60")
         self.assertEqual(values["AuctionHouseBot.ListedItemLevelRestrict.Enabled"], "true")
         self.assertEqual(values["AuctionHouseBot.ListedItemLevelRestrict.MaxItemLevel"], "92")
+
+    def test_level_seventy_and_cut_gem_profile(self):
+        values = self.apply({
+            "AHBOT_GUIDS": "2502", "AHBOT_MIN_ITEMS": "10000", "AHBOT_MAX_ITEMS": "10000",
+            "AHBOT_ITEMS_PER_CYCLE": "500", "AHBOT_BUY_CANDIDATES": "10",
+            "AHBOT_LEVEL_RESTRICT": "true", "AHBOT_MAX_REQUIRED_LEVEL": "70",
+            "AHBOT_ITEM_LEVEL_RESTRICT": "true", "AHBOT_MAX_ITEM_LEVEL": "164",
+            "AHBOT_TBC_CUT_GEM_MULTIPLIER": "5",
+        })
+        for house in ("Alliance", "Horde", "Neutral"):
+            self.assertEqual(values[f"AuctionHouseBot.{house}.MinItems"], "10000")
+            self.assertEqual(values[f"AuctionHouseBot.{house}.MaxItems"], "10000")
+        self.assertEqual(values["AuctionHouseBot.EquipItemUseOrEquipLevelRestrict.MaxLevel"], "70")
+        self.assertEqual(values["AuctionHouseBot.ListedItemLevelRestrict.MaxItemLevel"], "164")
+        multipliers = dict(entry.split(":") for entry in
+                           values["AuctionHouseBot.ListProportion.ListMultipliedItemIDs"].split(","))
+        self.assertEqual(len(multipliers), 127)
+        self.assertEqual(multipliers["24027"], "5")  # Bold Living Ruby
+        self.assertEqual(multipliers["32409"], "5")  # Relentless Earthstorm Diamond
+        self.assertEqual(values["AuctionHouseBot.Buyer.AcceptablePriceModifier"], "1")
+
+    def test_blank_profile_does_not_replace_multipliers(self):
+        values = self.apply({"AHBOT_GUIDS": "2502", "AHBOT_TBC_CUT_GEM_MULTIPLIER": ""})
+        self.assertNotIn("AuctionHouseBot.ListProportion.ListMultipliedItemIDs", values)
+
+    def test_invalid_profile_fails(self):
+        with self.assertRaises(subprocess.CalledProcessError):
+            self.apply({"AHBOT_GUIDS": "2502", "AHBOT_TBC_CUT_GEM_MULTIPLIER": "-1"})
 
 
 if __name__ == "__main__":

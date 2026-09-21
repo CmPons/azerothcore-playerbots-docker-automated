@@ -592,6 +592,14 @@ if [[ -f "$AH_CONF" ]]; then
     set_conf "AuctionHouseBot.ItemsPerCycle" "${AHBOT_ITEMS_PER_CYCLE:-150}" "$AH_CONF"
     set_conf "AuctionHouseBot.Buyer.BuyCandidatesPerBuyCycle" "${AHBOT_BUY_CANDIDATES:-1}" "$AH_CONF"
 
+    # Opt-in, repeatable BC cut-gem stock boost; retain raw-material multipliers.
+    # Blank leaves the current list alone; explicit 0 removes this profile's entries.
+    if [[ -n "${AHBOT_TBC_CUT_GEM_MULTIPLIER:-}" ]]; then
+      AH_MULTIPLIERS="$(python3 "$ROOT/scripts/ahbot_stock.py" --config "$AH_CONF" \
+        --tbc-cut-gem-multiplier "$AHBOT_TBC_CUT_GEM_MULTIPLIER")"
+      set_conf "AuctionHouseBot.ListProportion.ListMultipliedItemIDs" "$AH_MULTIPLIERS" "$AH_CONF"
+    fi
+
     # Optional progression caps (required level alone does not filter high-level materials).
     set_conf "AuctionHouseBot.EquipItemUseOrEquipLevelRestrict.Enabled" "${AHBOT_LEVEL_RESTRICT:-false}" "$AH_CONF"
     set_conf "AuctionHouseBot.EquipItemUseOrEquipLevelRestrict.MaxLevel" "${AHBOT_MAX_REQUIRED_LEVEL:-${MAX_PLAYER_LEVEL:-80}}" "$AH_CONF"

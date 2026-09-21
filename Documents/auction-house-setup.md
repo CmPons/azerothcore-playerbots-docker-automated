@@ -14,9 +14,10 @@ No new image was required. Only worldserver was stopped/started with user approv
 - Created while worldserver was stopped to avoid colliding with its character GUID allocator.
 - Do not log this identity in, recruit it as a playerbot, or delete it while auctions exist.
 
-## Persistent settings
+## Original September 6 settings
 
-Both root `.env` and `azerothcore-wotlk/.env` contain:
+These were the initial settings in both env files, superseded by the September 21
+profile below:
 
 ```ini
 AHBOT_GUIDS=2502
@@ -46,7 +47,7 @@ full setup was deliberately not run, to avoid changing unrelated runtime setting
   the module can resolve it. These are **level filters, not a strict Vanilla whitelist**.
 - AHPrice enabled; `.ahprice` provides pricing lookup (client addon remains optional).
 
-## Validation
+## Initial activation validation
 
 - `bash -n setup.sh` passed; AH-only config application was idempotent.
 - Three isolated config tests passed (`python3 -m unittest discover -s scripts/tests
@@ -58,6 +59,69 @@ full setup was deliberately not run, to avoid changing unrelated runtime setting
 - Actual player-auction purchases have not yet been tested.
 - Startup logged the process-priority permission warning; world initialization and AH
   listing generation nevertheless succeeded.
+
+## Active stock profile — September 21, 2026
+
+Authorized by the user for deeper stock, ready-to-socket BC gems, and level-70 items.
+Applied live through `ahbot reload` and one `ahbot update` console command, with no
+worldserver/container restart, build, full setup run, auction clear, or operator SQL writes.
+
+Both private env files now contain:
+
+```ini
+AHBOT_GUIDS=2502
+AHBOT_MIN_ITEMS=10000
+AHBOT_MAX_ITEMS=10000
+AHBOT_ITEMS_PER_CYCLE=500
+AHBOT_BUY_CANDIDATES=10
+AHBOT_TBC_CUT_GEM_MULTIPLIER=5
+AHBOT_LEVEL_RESTRICT=true
+AHBOT_MAX_REQUIRED_LEVEL=70
+AHBOT_ITEM_LEVEL_RESTRICT=true
+AHBOT_MAX_ITEM_LEVEL=164
+AHPRICE_ENABLE=1
+```
+
+- Exactly nine runtime AH keys changed: six house min/max targets, two upper level
+  limits, and the item listing-multiplier list. Other runtime config files were unchanged.
+- Prices, buyer policy, category/quality weights, listing lifetimes, seller identity,
+  raw-material/potion multipliers, and independent faction houses are unchanged.
+- Stock rises naturally at up to 500 listings per house per one-minute sell cycle;
+  expirations/purchases continue normally. No existing auctions were explicitly removed.
+- `config/ahbot/tbc-cut-gems.tsv` is an explicit catalog of 127 tradable BC socket gems:
+  six normal colors, meta and prismatic, uncommon through epic. Audited against the
+  installed item templates: positive `GemProperties`, no bonding or duration, and a
+  buy/sell value. Unused Infinite/Chromatic Spheres and Heavy Tonk Armor are excluded.
+- `scripts/ahbot_stock.py` merges this catalog into the existing multiplier list without
+  replacing unrelated entries. It only prints the new value; it does not edit config,
+  contact the server, or modify SQL. Setup calls it only when the env knob is nonblank.
+  Reapplication is idempotent. Blank preserves the existing list; explicit `0` removes
+  the catalog's entries (does not reconstruct any earlier custom overrides of those IDs).
+- The multiplier makes five listings **after a gem is randomly selected**, not five
+  guaranteed copies of every gem and not a fivefold increase in its initial selection
+  probability. Normal eligibility filters still apply; individual cuts can be absent.
+- These remain **level filters, not a strict expansion whitelist**. Some Wrath gems
+  already passed the old limits because their required level is zero and item level
+  is 70/80. The new limits can also allow some Wrath equipment usable at/below 70.
+  Only the added gem boost is specifically BC. Soulbound/quest-bound drops remain excluded.
+
+### Live acceptance
+
+Before reload: 4,991 Alliance bot listings, 87 BC socket-gem listings and no level-70
+weapons/armor. After the first cycle: 5,491 listings, 112 BC socket-gem listings and
+2 level-70 gear listings. The first observed examples were The Night Blade and
+Fel Orc Brute Sword, plus five Bold Crimson Spinels. These are point-in-time stock
+observations, not promises of continuous availability or a completed 10,000-item refill.
+
+Twelve isolated setup/helper tests passed, including default compatibility, the 70/164
+profile, idempotence, raw-material preservation, zero/removal behavior, malformed input,
+and the read-only CLI. `bash -n setup.sh` and `git diff --check` passed. Worldserver,
+authserver, and database container IDs/start times/restart counts remained unchanged;
+Pi bridge PID/invocation unchanged. Console reload/update acknowledgements were captured.
+
+Private evidence/config backups: `backups/ah-stock-20260921-195804/`. Configuration rollback
+means reviewing/restoring only the changed AH/env settings and reloading the AH module;
+newly listed auctions expire normally. Do not restore an old database or clear auctions.
 
 ## Operations
 
