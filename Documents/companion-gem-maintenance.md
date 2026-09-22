@@ -2,10 +2,12 @@
 
 ## Status
 
-Implemented and offline-tested; **not built into or enabled on the running server**.
-No live configuration, gear, database rows, services or containers were changed.
-Enabling this initially requires an authorized worldserver build/deployment and the
-explicit opt-in below. Do not run full `setup.sh` or restart anything just to try it.
+**Deployed and enabled September 22, 2026**, after explicit user approval.
+Arinerica's five empty sockets were filled (four rare, one epic), with normal database
+persistence verified. See [deployment and preservation exceptions](companion-gems-deployment-20260922.md),
+including the existing offline-party cleanup and an unresolved Raney saved-profile loss.
+The distributable default remains opt-in/off. Do not run full `setup.sh` or restart anything
+without authorization.
 
 ## Policy
 
