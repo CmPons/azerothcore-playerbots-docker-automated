@@ -27,9 +27,10 @@ check is retained in `scripts/tests/test_maulgar_manual_control.py`.
 No replacement policy was included in that rollback. The user's later request for
 explicit modes is documented separately in [playerbot-tank-modes.md](playerbot-tank-modes.md).
 The earlier duplicate-MT observation was from saved database rows, **not live group
-memory**. Core `RemoveUniqueGroupMemberFlag` clears old flags in memory while
-`SetGroupMemberFlag` persists only the assigned member, so stale saved flags are a
-possible explanation. The actual fight-time assignments were not established.
+memory**. The pre-fix core cleared old flags in memory but persisted only the
+newly assigned member, which could leave stale saved flags. The later tank-mode
+work fixes that persistence gap; it does not establish the actual fight-time
+assignments from that earlier encounter.
 
 ## Verification and deployment
 
