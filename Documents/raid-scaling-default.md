@@ -12,6 +12,10 @@ restarted. In-game validation on the next actual raid entry remains pending.
 adds a narrow exception for their normal-rank, Vek'lor-linked bugs, with health scaling that survives
 mutation. Corridor bugs and other creatures retain their existing behavior.
 
+**Deployed 2026-09-24:** [Enemy healing/finite shield scaling](raid-healing-shield-scaling.md)
+now follows the recipient's HP multiplier. Existing HP/damage settings are unchanged;
+player support, percentage healing and percentage damage-reduction shields are excluded.
+
 ## Configuration / workflow
 
 ```ini

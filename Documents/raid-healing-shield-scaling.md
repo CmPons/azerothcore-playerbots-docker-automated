@@ -1,5 +1,8 @@
 # Raid enemy healing and absorb scaling
 
+**Deployed September 24, ready 20:47:14 UTC.** See the
+[deployment and preservation report](raid-support-deployment-20260924.md).
+
 User-approved scope, September 24, 2026: normalize enemy healing/finite shields,
 end the temporary AH plate/shield boost, and deploy. Do not change raid HP/damage
 settings, Shatter, tank modes, encounter scripts, roster, equipment or gem stocking.
@@ -59,8 +62,8 @@ reduce enemy numbers, cast frequency, shield duration, interrupts or control job
   and stacking. Absorbing a hit does not scale the remaining capacity again.
   Recasts/stack recalculation start from native base calculation, not the depleted
   shield. Existing shields are not retroactively resized when a GM changes factors.
-- Actual scripted health resets and arbitrary script-calculated support are not
-  automatically normalized. This is not a blanket rewrite of encounter mechanics.
+- Direct scripted health resets and support bypassing these standard spell/aura
+  paths are not rewritten. This is not a blanket rewrite of encounter mechanics.
 
 The module rounds positive scaled amounts to the nearest integer with minimum 1
 and saturation at signed 32-bit maximum; zero remains zero. Factor 1 leaves the

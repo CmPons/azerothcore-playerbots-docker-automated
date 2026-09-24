@@ -1,5 +1,9 @@
 # BC 25-player encounters versus normal Karazhan — September 24
 
+**Historical pre-fix comparison:** enemy flat healing and finite shield scaling
+was subsequently [implemented and deployed](raid-support-deployment-20260924.md).
+HP/damage settings and the Shatter gap described here were left unchanged.
+
 ## Scope and conclusion
 
 Read-only investigation of the **installed** creature templates, class/level stats,
