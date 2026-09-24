@@ -5,8 +5,8 @@
 # Publish native commits FIRST, update these pins, then commit/push the root repo.
 # Historical patches/ are NOT replayed. See Documents/source-workflow.md.
 
-azerothcore-wotlk 897c2c6d72632ad6e3f1c01a9e82815ce2c165a4
-mod-playerbots 62a53835646b37e007942736c242f3d718341744
+azerothcore-wotlk 2e6dae2ce03a59e6b341ec63351e90b14c53b6f5
+mod-playerbots 292669a0b536c3e988a31ec874996d85ee5dc2e2
 mod-player-bot-level-brackets a2614288ebe41093b8915b3ee3002bcfc8a63c1a
 mod-junk-to-gold 2134690bb03899e5c9e44d0682e8e6abf0bbbaf2
 mod-multibot-bridge 5e5ff7594ec8afedf40926605a60848dbc14991e

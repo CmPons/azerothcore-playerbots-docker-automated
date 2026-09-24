@@ -66,6 +66,7 @@ struct PlayerbotAI
     Context* context = nullptr;
     Unit* unit = nullptr;
     bool heal = false, engineCombat = true;
+    struct { bool scheduled = true; } raidCombat{};
     Player* GetBot() { return bot; }
     Player* GetMaster() { return master; }
     Unit* GetUnit(ObjectGuid guid) { return unit && guid == unit->guid ? unit : nullptr; }
@@ -75,6 +76,11 @@ struct PlayerbotAI
     int GetState() { return engineCombat ? BOT_STATE_COMBAT : BOT_STATE_NON_COMBAT; }
     void TellError(char const*) {}
 };
+namespace TankModes
+{
+    bool allowAcquisition = true;
+    bool CanAcquire(PlayerbotAI*, Unit*) { return allowAcquisition; }
+}
 struct ServerFacade
 {
     static ServerFacade& instance() { static ServerFacade facade; return facade; }
@@ -193,6 +199,14 @@ int main()
     assert(attack.isUseful());
     assert(attack.Execute({}) && attack.attacks == 1); // direct fallback still works in combat
     assert(context.GetValue<GuidVector>("prioritized targets")->Get() == GuidVector{target.guid});
+
+    // The routine icon fallback cannot bypass tank-mode admission; explicit orders can.
+    TankModes::allowAcquisition = false;
+    assert(!attack.Execute({}) && attack.attacks == 1);
+    ai.raidCombat.scheduled = false;
+    assert(attack.Execute({}) && attack.attacks == 2);
+    ai.raidCombat.scheduled = true;
+    TankModes::allowAcquisition = true;
 
     // On leaving combat, the marker immediately loses its automatic effect again.
     context.GetValue<GuidVector>("prioritized targets")->Set({});

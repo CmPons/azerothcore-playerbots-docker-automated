@@ -78,6 +78,10 @@ bool PBChatterClassifier::IsCommand(std::string const& msg)
     if (!m.empty() && (m[0] == '.' || m[0] == '+' || m[0] == '-' || m[0] == '!' || m[0] == '#' || m[0] == '@'))
         return true;
 
+    // Native tank-mode commands must stay commands even with an older runtime keyword list.
+    if (m == "tank strategy" || m.compare(0, 14, "tank strategy ") == 0)
+        return true;
+
     for (std::string const& kw : g_PBChatCommandKeywords)
     {
         if (m == kw)

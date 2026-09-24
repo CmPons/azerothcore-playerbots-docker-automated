@@ -43,6 +43,10 @@ struct PBChatterClassifier { static bool IsCommand(std::string const&); };
                 harness += f"assert(PBChatterClassifier::IsCommand({json.dumps(text)}));\n"
             for text in ("what stats should I prioritize?", "my stats are better", "statsman"):
                 harness += f"assert(!PBChatterClassifier::IsCommand({json.dumps(text)}));\n"
+        harness += 'g_PBChatCommandKeywords.clear();\n'
+        for text in ("tank strategy", "tank strategy MT", "tank strategy offtank", "  TANK STRATEGY status"):
+            harness += f"assert(PBChatterClassifier::IsCommand({json.dumps(text)}));\n"
+        harness += 'assert(!PBChatterClassifier::IsCommand("tank strategyman"));\n'
         harness += "}\n"
         with tempfile.TemporaryDirectory() as directory:
             cpp = Path(directory) / "commands.cpp"
