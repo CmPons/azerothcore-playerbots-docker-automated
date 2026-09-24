@@ -1,4 +1,4 @@
-# Manual Maulgar control — source only
+# Manual Maulgar control
 
 The user requested removal of Maulgar's encounter-specific bot behavior while
 preserving Gruul's own tactics. `GruulStrategy.cpp` no longer registers Maulgar's
@@ -41,8 +41,8 @@ assignments from that earlier encounter.
   checks and has not changed during this rollback.
 - Source commits and `repo-pins.txt` are published through the normal fork workflow.
 
-**Neither the original changes nor this rollback were deployed.** No server build,
-restart, live strategy/config change, role/profile modification or database write
-was performed. Maulgar's strategy removal still requires a separately authorized
-build/deployment. Subsequent mode work follows the user's separately specified
-requirements; it does not restore the reverted blanket taunt hook.
+The rejected blanket policy and its rollback were never deployed. Maulgar's retained
+strategy removal was subsequently deployed with the separately requested tank modes
+on **September24, 2026**, after explicit authorization. See
+[tank-modes-deployment-20260924.md](tank-modes-deployment-20260924.md) for verification
+and startup exceptions. The new modes do not restore the reverted global taunt hook.

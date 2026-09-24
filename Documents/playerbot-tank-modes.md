@@ -2,17 +2,17 @@
 
 ## Status
 
-Source implementation only. No server image build, restart, runtime command/config
-change, character/profile maintenance or direct database write was performed.
-Deployment needs separate permission. Exact published native revisions are in
-`repo-pins.txt`.
+Deployed with user authorization on **September24, 2026**. See
+[tank-modes-deployment-20260924.md](tank-modes-deployment-20260924.md) for build/runtime
+verification and the observed group/profile startup exceptions. Exact published
+native revisions are in `repo-pins.txt`; combat acceptance remains to be tested.
 
 This replaces the old split MT/off-tank heuristics with two coherent modes. It is
 **not** the blanket spell-hook taunt restriction that was previously reverted.
-Maulgar's separately requested strategy removal remains pending in the same source;
+Maulgar's separately requested strategy removal is deployed in the same image;
 Gruul's own tactics remain enabled.
 
-## Commands (after deployment)
+## Commands
 
 Whisper without quotation marks:
 
@@ -178,7 +178,7 @@ Native playerbots:
 Core: `Groups/Group.cpp`, `Handlers/GroupHandler.cpp` — assignment persistence.
 Root-owned chatter classifier: built-in `tank strategy` command filtering works
 with older private keyword lists too; root/build-tree sources are synchronized.
-No runtime chatter configuration reload is needed by this source-only task.
+The deployed classifier works without changing the existing runtime keyword list.
 
 ```sh
 PYTHONPATH=scripts/tests python -m unittest \
@@ -198,7 +198,7 @@ known hunter-pet and Twins historical patch-replay failures were not repaired or
 counted as passes; this is a focused suite, not a claim that every repository test
 passes.
 
-## Acceptance after separately authorized deployment
+## In-game acceptance still to verify
 
 1. Select Ari OT; confirm Redshift MT, square on Redshift/diamond on Ari, and loose
    add pickup without routine taunting of Redshift's target.
