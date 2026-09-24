@@ -222,6 +222,23 @@ Worldserver, authserver and database container IDs, start times and restart coun
 were unchanged; all were running. Pi bridge PID/invocation unchanged. Private
 config/audit/console/stock evidence: `backups/ah-plate-stock-20260924-125746/`.
 
+## Temporary boost ended — September 24, 2026
+
+At the user's request, restored the September 21 stock profile using only the six
+AH keys in each private env file and ten corresponding runtime AH keys. Targets
+are again **10,000 per house**, armor weights **20/10/3**, and the 170 temporary
+plate/shield item multipliers were removed. The **BC cut-gem multiplier remains 5**;
+all 303 pre-boost gem/material/other item multipliers were preserved.
+
+One bounded `ahbot reload` was acknowledged. No auction clear, forced refill,
+operator gameplay SQL or full setup was run. Existing stock expires/sells naturally;
+purchased equipment and player auctions are unchanged by this rollback. This AH
+reload itself did not restart a service. The separately authorized enemy support
+scaling deployment is tracked in `raid-healing-shield-scaling.md`.
+
+Private evidence: `backups/raid-support-deploy-20260924-222628/ah-rollback.json`,
+config copies/hashes and `ah-reload.log`.
+
 ## Operations
 
 GM commands: `.ahbot reload`, `.ahbot update`.

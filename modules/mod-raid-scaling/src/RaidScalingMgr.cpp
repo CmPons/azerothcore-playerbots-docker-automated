@@ -557,6 +557,30 @@ float RaidScalingMgr::GetDamageScale(Unit* attacker, Unit* victim) const
     return DamageScaleFor(creature, *settings);
 }
 
+float RaidScalingMgr::GetSupportScale(Unit* caster, Unit* target) const
+{
+    if (!_enabled || !caster || !target)
+        return 1.0f;
+
+    Creature* source = caster->ToCreature();
+    Creature* recipient = target->ToCreature();
+    if (!source || !recipient || source->GetMap() != recipient->GetMap())
+        return 1.0f;
+
+    auto settings = GetSettings(recipient->GetMap());
+    if (!settings || !IsScalableCreature(recipient))
+        return 1.0f;
+
+    // Enemy support only. Preserve players, pets, charmed/player-origin summons, friendly
+    // encounter NPCs. No player attendance is required at cast time.
+    if (!source->IsHostileToPlayers() || !recipient->IsHostileToPlayers() ||
+        source->IsCritter() || source->IsCivilian() || RaidCreatureEligibility::HasExcludedOrigin(source))
+        return 1.0f;
+
+    // The recipient's health pool determines normalization, including boss-to-trash support.
+    return HealthScaleFor(recipient, *settings);
+}
+
 bool RaidScalingMgr::SetMultiplier(Map* map, std::string const& creatureKind, std::string const& statKind, float value, ChatHandler* handler)
 {
     if (!HasScaling(map))

@@ -72,6 +72,8 @@ public:
     uint32 health = 3052, maxHealth = 3052;
     float flat[2] = {3052, 0}, pct[2] = {1, 1};
     virtual Creature* ToCreature() { return nullptr; }
+    Map* unitMap = nullptr;
+    virtual Map* GetMap() const { return unitMap; }
     bool IsPlayer() const { return player; }
     bool IsControlledByPlayer() const { return controlled; }
     uint32 GetHealth() const { return health; }

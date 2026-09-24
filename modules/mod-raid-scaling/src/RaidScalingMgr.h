@@ -48,6 +48,7 @@ public:
     bool HasScaling(Map const* map) const;
     std::optional<RaidScaleSettings> GetSettings(Map const* map) const;
     float GetDamageScale(Unit* attacker, Unit* victim) const;
+    float GetSupportScale(Unit* caster, Unit* target) const;
 
     void OnMapCreate(Map* map);
     void OnMapDestroy(Map* map);

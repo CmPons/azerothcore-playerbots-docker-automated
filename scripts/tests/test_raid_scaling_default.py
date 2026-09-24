@@ -63,9 +63,9 @@ class RaidScalingDefaultTests(unittest.TestCase):
         setup = (ROOT / "setup.sh").read_text()
         local_modules = next(line for line in setup.splitlines() if line.startswith("LOCAL_MODULES="))
         self.assertIn('"mod-raid-scaling"', local_modules)
-        update_modules = next(line for line in (ROOT / "update.sh").read_text().splitlines()
-                              if line.startswith("for lm in "))
-        self.assertIn(" mod-raid-scaling ", update_modules)
+        # Updates now delegate source preparation to setup instead of keeping a second module list.
+        self.assertIn('"$ROOT/setup.sh" --sources-only', (ROOT / "update.sh").read_text())
+        self.assertIn('for lm in "${LOCAL_MODULES[@]}"; do', setup)
         self.assertIn("RAID_SCALING_DEFAULT_PLAYERS=10\n", (ROOT / ".env.example").read_text())
         self.assertIn("RaidScaling.DefaultTargetPlayers = 10\n",
                       (MODULE / "conf/mod_raid_scaling.conf.dist").read_text())

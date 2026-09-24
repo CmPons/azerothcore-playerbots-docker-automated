@@ -1,4 +1,5 @@
 #include "RaidScalingMgr.h"
+#include "RaidScalingSupport.h"
 
 #include "AllMapScript.h"
 #include "Chat.h"
@@ -7,6 +8,7 @@
 #include "Map.h"
 #include "Player.h"
 #include "ScriptMgr.h"
+#include "SpellAuraEffects.h"
 #include "Unit.h"
 #include "WorldSession.h"
 
@@ -74,6 +76,28 @@ class RaidScalingUnitScript : public UnitScript
 {
 public:
     RaidScalingUnitScript() : UnitScript("RaidScalingUnitScript") { }
+
+    void ModifyHealReceived(Unit* target, Unit* healer, uint32& heal, SpellInfo const* spellInfo) override
+    {
+        if (heal && RaidScalingSupport::IsFlatHealing(spellInfo))
+            heal = RaidScalingSupport::ScaleAmount(heal, sRaidScalingMgr.GetSupportScale(healer, target));
+    }
+
+    void OnAuraEffectCalculateAmount(AuraEffect const* effect, Unit* caster, int32& amount) override
+    {
+        if (amount <= 0 || (effect->GetAuraType() != SPELL_AURA_SCHOOL_ABSORB &&
+            effect->GetAuraType() != SPELL_AURA_MANA_SHIELD))
+            return;
+
+        // A shared area aura has one amount for multiple recipients. Do not scale its owner
+        // and accidentally alter a player/friendly recipient. Ordinary per-unit shields only.
+        if (effect->GetBase()->GetType() != UNIT_AURA_TYPE ||
+            effect->GetSpellInfo()->Effects[effect->GetEffIndex()].IsAreaAuraEffect())
+            return;
+
+        amount = int32(RaidScalingSupport::ScaleAmount(uint32(amount),
+            sRaidScalingMgr.GetSupportScale(caster, effect->GetBase()->GetUnitOwner())));
+    }
 
     uint32 DealDamage(Unit* attacker, Unit* victim, uint32 damage, DamageEffectType damageType) override
     {
