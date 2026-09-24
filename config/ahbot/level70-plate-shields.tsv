@@ -1,0 +1,171 @@
+entry	name	Quality	ItemLevel	RequiredLevel	subclass	tank_priority
+23506	Adamantite Plate Bracers	3	103	66	4	0
+23507	Adamantite Breastplate	3	106	67	4	0
+23508	Adamantite Plate Gloves	3	103	66	4	0
+23509	Enchanted Adamantite Breastplate	3	114	70	4	0
+23510	Enchanted Adamantite Belt	3	113	70	4	0
+23511	Enchanted Adamantite Boots	3	113	70	4	0
+23512	Enchanted Adamantite Leggings	3	115	70	4	0
+23513	Flamebane Breastplate	3	115	70	4	0
+23514	Flamebane Gloves	3	114	70	4	0
+23515	Flamebane Bracers	3	112	69	4	0
+23516	Flamebane Helm	3	113	70	4	0
+23517	Felsteel Gloves	3	114	70	4	1
+23518	Felsteel Leggings	3	114	70	4	1
+23519	Felsteel Helm	3	115	70	4	1
+23520	Ragesteel Gloves	3	115	70	4	0
+23521	Ragesteel Helm	3	115	70	4	0
+23522	Ragesteel Breastplate	3	115	70	4	0
+23523	Khorium Pants	3	114	70	4	0
+23524	Khorium Belt	3	114	70	4	0
+23525	Khorium Boots	3	115	70	4	0
+23532	Gauntlets of the Iron Tower	4	105	70	4	1
+23533	Steelgrip Gauntlets	4	105	70	4	0
+23535	Helm of the Stalwart Defender	4	105	70	4	1
+23536	Oathkeeper's Helm	4	105	70	4	1
+23537	Black Felsteel Bracers	4	105	70	4	0
+23538	Bracers of the Green Fortress	4	105	70	4	1
+23539	Blessed Bracers	4	105	70	4	0
+24982	Boulderfist Belt	2	105	65	4	0
+24983	Boulderfist Greaves	2	105	65	4	0
+24984	Boulderfist Armor	2	105	65	4	0
+24985	Boulderfist Gloves	2	105	65	4	0
+24986	Boulderfist Helm	2	105	65	4	0
+24987	Boulderfist Legplates	2	105	65	4	0
+24988	Boulderfist Epaulets	2	105	65	4	0
+24989	Boulderfist Bracers	2	105	65	4	0
+24990	Warmaul Belt	2	108	66	4	0
+24991	Warmaul Greaves	2	108	66	4	0
+24992	Warmaul Breastplate	2	108	66	4	0
+24993	Warmaul Gloves	2	108	66	4	0
+24994	Warmaul Helmet	2	108	66	4	0
+24995	Warmaul Legplates	2	108	66	4	0
+24996	Warmaul Epaulets	2	108	66	4	0
+24997	Warmaul Vambraces	2	108	66	4	0
+24998	Bloodfist Girdle	2	111	67	4	0
+24999	Bloodfist Greaves	2	111	67	4	0
+25000	Bloodfist Breastplate	2	111	67	4	0
+25001	Bloodfist Gloves	2	111	67	4	0
+25002	Bloodfist Helmet	2	111	67	4	0
+25003	Bloodfist Legplates	2	111	67	4	0
+25004	Bloodfist Epaulets	2	111	67	4	0
+25005	Bloodfist Vambraces	2	111	67	4	0
+25006	Conqueror's Girdle	2	114	68	4	0
+25007	Conqueror's Greaves	2	114	68	4	0
+25008	Conqueror's Breastplate	2	114	68	4	0
+25009	Conqueror's Gauntlets	2	114	68	4	0
+25010	Conqueror's Helmet	2	114	68	4	0
+25011	Conqueror's Legplates	2	114	68	4	0
+25012	Conqueror's Epaulets	2	114	68	4	0
+25013	Conqueror's Vambraces	2	114	68	4	0
+25014	Shattered Hand Belt	2	117	69	4	0
+25015	Shattered Hand Sabatons	2	117	69	4	0
+25016	Shattered Hand Breastplate	2	117	69	4	0
+25017	Shattered Hand Gauntlets	2	117	69	4	0
+25018	Shattered Hand Helmet	2	117	69	4	0
+25019	Shattered Hand Legplates	2	117	69	4	0
+25020	Shattered Hand Epaulets	2	117	69	4	0
+25021	Shattered Hand Vambraces	2	117	69	4	0
+25022	Warlord's Iron-Girdle	2	120	70	4	0
+25023	Warlord's Sabatons	2	120	70	4	0
+25024	Warlord's Iron-Breastplate	2	120	70	4	0
+25025	Warlord's Iron-Gauntlets	2	120	70	4	0
+25026	Warlord's Iron-Helm	2	120	70	4	0
+25027	Warlord's Iron-Legplates	2	120	70	4	0
+25028	Warlord's Iron-Epaulets	2	120	70	4	0
+25029	Warlord's Iron-Vambraces	2	120	70	4	0
+25080	Spell-Breaker Shield	2	105	65	6	0
+25081	Bayeaux Shield	2	108	66	6	0
+25082	Fel-Iron Shield	2	111	67	6	0
+25083	Smouldering Shield	2	114	68	6	0
+25084	Zeth'Gor Shield	2	117	69	6	0
+25085	Dragonscale Shield	2	120	70	6	0
+30032	Red Belt of Battle	4	128	70	4	0
+30034	Belt of the Guardian	4	128	70	4	1
+30731	Faceguard of the Endless Watch	4	120	70	4	1
+30740	Ripfiend Shoulderplates	4	120	70	4	0
+30741	Topaz-Studded Battlegrips	4	120	70	4	1
+31155	Drakescale Breastplate	3	109	68	4	0
+31159	Felstone Pauldrons	3	109	68	4	0
+31163	Nethersteel Handguards	3	103	66	4	0
+31195	Voidplate Girdle	3	103	66	4	0
+31200	Shield of the Wayward Footman	3	100	65	6	1
+31202	Girdle of Divine Blessing	3	100	65	4	0
+31209	Chimaerascale Legplates	3	109	68	4	0
+31213	Abyssal Plate Sabatons	3	109	68	4	0
+31217	Crimson Beholder Eye	3	109	68	4	0
+31221	Illidari Vambraces	3	103	66	4	0
+31276	Boots of Zealotry	3	106	67	4	0
+31284	Bracers of Recklessness	3	109	68	4	0
+31287	Draenei Honor Guard Shield	3	109	68	6	0
+31292	Crystal Pulse Shield	3	112	69	6	0
+31298	Legguards of the Shattered Hand	3	115	70	4	0
+31320	Chestguard of Exile	4	100	70	4	0
+31364	Wildguard Breastplate	4	115	70	4	1
+31367	Wildguard Leggings	4	115	70	4	0
+31368	Wildguard Helm	4	115	70	4	1
+31369	Iceguard Breastplate	4	115	70	4	1
+31370	Iceguard Leggings	4	100	70	4	0
+31371	Iceguard Helm	4	100	70	4	1
+31578	Slatesteel Breastplate	3	115	70	4	0
+31580	Slatesteel Leggings	3	115	70	4	0
+32401	Shadesteel Girdle	4	130	70	4	0
+32402	Shadesteel Sabots	4	130	70	4	0
+32403	Shadesteel Bracers	4	130	70	4	0
+32404	Shadesteel Greaves	4	130	70	4	0
+32568	Swiftsteel Bracers	4	141	70	4	0
+32571	Dawnsteel Bracers	4	141	70	4	0
+33173	Ragesteel Shoulders	3	115	70	4	0
+34378	Hard Khorium Battlefists	4	159	70	4	0
+34380	Sunblessed Gauntlets	4	159	70	4	0
+36291	Westguard Belt	2	130	67	4	0
+36292	Westguard Greaves	2	130	67	4	0
+36293	Westguard Armor	2	130	67	4	0
+36294	Westguard Gloves	2	130	67	4	0
+36295	Westguard Helm	2	130	67	4	0
+36296	Westguard Legplates	2	130	67	4	0
+36297	Westguard Epaulets	2	130	67	4	0
+36298	Westguard Bracers	2	130	67	4	0
+36299	Coldrock Girdle	2	134	68	4	0
+36300	Coldrock Sabatons	2	134	68	4	0
+36301	Coldrock Breastplate	2	134	68	4	0
+36302	Coldrock Gauntlets	2	134	68	4	0
+36303	Coldrock Helmet	2	134	68	4	0
+36304	Coldrock Legplates	2	134	68	4	0
+36305	Coldrock Pauldrons	2	134	68	4	0
+36306	Coldrock Bracers	2	134	68	4	0
+36307	Baleheim Belt	2	138	69	4	0
+36308	Baleheim Greaves	2	138	69	4	0
+36309	Baleheim Armor	2	138	69	4	0
+36310	Baleheim Gloves	2	138	69	4	0
+36311	Baleheim Helmet	2	138	69	4	0
+36312	Baleheim Legguards	2	138	69	4	0
+36313	Baleheim Epaulets	2	138	69	4	0
+36314	Baleheim Vambraces	2	138	69	4	0
+36315	Wyrmskull Girdle	2	142	70	4	0
+36316	Wyrmskull Sabatons	2	142	70	4	0
+36317	Wyrmskull Breastplate	2	142	70	4	0
+36318	Wyrmskull Gauntlets	2	142	70	4	0
+36319	Wyrmskull Helm	2	142	70	4	0
+36320	Wyrmskull Legplates	2	142	70	4	0
+36321	Wyrmskull Epaulets	2	142	70	4	0
+36322	Wyrmskull Bracers	2	142	70	4	0
+36445	Riveted Shield	2	130	67	6	0
+36446	Forged-Iron Shield	2	134	68	6	0
+36447	Kaskala Buckler	2	138	69	6	0
+36448	Spiked Targe	2	142	70	6	0
+37743	Legguards of Brutalization	3	130	69	4	0
+37747	Beneficent Bulwark	3	130	69	6	0
+37782	Gauntlets of the Cheerful Hearth	3	134	70	4	0
+39083	Cobalt Shoulders	2	142	70	4	1
+39084	Cobalt Helm	2	142	70	4	1
+39085	Cobalt Chestpiece	2	142	70	4	1
+39086	Cobalt Legplates	2	142	70	4	1
+39087	Cobalt Belt	2	142	70	4	1
+39088	Cobalt Boots	2	142	70	4	1
+40668	Cobalt Triangle Shield	2	142	70	6	1
+40942	Spiked Cobalt Helm	2	142	68	4	0
+41974	Cobalt Bracers	2	142	70	4	1
+41975	Cobalt Gauntlets	2	142	70	4	1
+44649	Crystalbark's Toenail	3	159	70	4	0
+44670	Soul-Sealed Belt	3	159	70	4	0

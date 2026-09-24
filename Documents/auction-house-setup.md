@@ -60,13 +60,13 @@ full setup was deliberately not run, to avoid changing unrelated runtime setting
 - Startup logged the process-priority permission warning; world initialization and AH
   listing generation nevertheless succeeded.
 
-## Active stock profile — September 21, 2026
+## Baseline stock profile — September 21, 2026
 
 Authorized by the user for deeper stock, ready-to-socket BC gems, and level-70 items.
 Applied live through `ahbot reload` and one `ahbot update` console command, with no
 worldserver/container restart, build, full setup run, auction clear, or operator SQL writes.
 
-Both private env files now contain:
+The September 21 baseline values were:
 
 ```ini
 AHBOT_GUIDS=2502
@@ -122,6 +122,105 @@ Pi bridge PID/invocation unchanged. Console reload/update acknowledgements were 
 Private evidence/config backups: `backups/ah-stock-20260921-195804/`. Configuration rollback
 means reviewing/restoring only the changed AH/env settings and reloading the AH module;
 newly listed auctions expire normally. Do not restore an old database or clear auctions.
+
+## Temporary plate/shield gearing profile — September 24, 2026
+
+User-requested boost while gearing Arinerica for level-70 raids. This is **manual
+opt-in until gearing is finished**, not a timed expiry or a new default. It preserves
+all existing auctions, prices, buyer policy, seller identity, level/ilvl filters,
+listing lifetimes, cut-gem multipliers and other category weights.
+
+Both private env files use this temporary override of the September 21 baseline:
+
+```ini
+AHBOT_MIN_ITEMS=12000
+AHBOT_MAX_ITEMS=12000
+AHBOT_LEVEL70_ARMOR_MULTIPLIER=10
+AHBOT_ARMOR_UNCOMMON_WEIGHT=40
+AHBOT_ARMOR_RARE_WEIGHT=40
+AHBOT_ARMOR_EPIC_WEIGHT=12
+```
+
+- `config/ahbot/level70-plate-shields.tsv` contains **170** audited tradable plate/shield
+  templates, including **15 shields**. Required level 65–70, item level <=164,
+  uncommon/rare/epic, usable by paladins with no profession/reputation requirement.
+  Includes some Wrath items (notably Cobalt), consistent with the existing level filters.
+  BoP/quest gear, disabled/test items and items with duration/no vendor value are excluded.
+- Regular catalog items get batches of **10**, and **24** items with native defense,
+  dodge, parry, block rating/value stats get batches of **20**. This is a simple stat
+  tag, not a BiS ranking: resistance gear can qualify; random suffixes are not guaranteed
+  to be tank-oriented. Armor color or item level alone does not make an upgrade.
+- Armor quality selection weights change from **20/10/3 to 40/40/12**. These weights
+  affect **all armor** of those qualities, not only plate/shields. Other armor remains
+  eligible; no existing stock is cleared. Unchanged category weights still have a
+  smaller relative share when the armor weights rise.
+- Target depth rises from 10,000 to 12,000 per house to permit a refill without deleting
+  auctions. Work remains capped at 500 new listings per house per one-minute cycle.
+- Item multipliers only apply **after random selection**. They do not guarantee any
+  particular piece will appear, or that each house gets the same selection.
+- The read-only helper supports either or both profiles in one invocation; applying
+  one preserves the other. Setup defaults retain the old weights and no armor boost.
+
+Preview the new item-multiplier value without editing/reloading anything:
+
+```sh
+python3 scripts/ahbot_stock.py \
+  --config azerothcore-wotlk/env/dist/etc/modules/mod_ahbot.conf \
+  --level70-armor-multiplier 10
+```
+
+### Ending the temporary boost
+
+When the user is finished gearing, set both private env files to:
+
+```ini
+AHBOT_MIN_ITEMS=10000
+AHBOT_MAX_ITEMS=10000
+AHBOT_LEVEL70_ARMOR_MULTIPLIER=0
+AHBOT_ARMOR_UNCOMMON_WEIGHT=20
+AHBOT_ARMOR_RARE_WEIGHT=10
+AHBOT_ARMOR_EPIC_WEIGHT=3
+```
+
+Apply **only** the corresponding six runtime house targets, three armor quality
+weights and the multiplier value printed by the helper with
+`--level70-armor-multiplier 0`; then issue `ahbot reload`. Do not run full setup.
+Keep `AHBOT_TBC_CUT_GEM_MULTIPLIER=5`. Zero removes the catalog entries rather than
+recovering earlier per-item custom overrides; none of these 170 IDs had an override
+before this deployment. If later edits introduce custom values, review before removal.
+
+Do **not** restore an old full config/database, cancel auctions, or run `ahbot empty`.
+Stock above the restored target expires/sells naturally, and replenishment resumes
+below the target. Purchased items and player auctions are left alone.
+
+### Validation
+
+Seventeen offline helper/setup tests pass, including combined profiles, idempotence,
+removal preserving gem/material multipliers, defensive priority, invalid inputs,
+read-only CLI, and legacy/default setup behavior. No module/core source changes or build.
+Activated with one bounded `ahbot reload` and one `ahbot update`, both acknowledged.
+Exactly ten runtime AH keys and six keys in each private env changed. All original
+303 item multipliers were retained and 170 added; removing the armor profile in an
+in-memory check recovered the original list exactly. Other runtime configs were
+hash-verified unchanged. No operator SQL writes, auction clear, full setup or restart.
+
+Observed bot stock during the refill (point-in-time, not guaranteed availability):
+
+| House | Plate/shield catalog listings before | After three observed batches | Shields after |
+| --- | ---: | ---: | ---: |
+| Alliance | 14 | 84 | 24 |
+| Horde | 12 | 85 | 1 |
+| Neutral | 19 | 175 | 3 |
+
+At that snapshot each house had about 11,460 bot listings, still refilling toward
+12,000. Alliance retained Shield of the Wayward Footman. Neutral had batches of
+Felsteel Gloves, Gauntlets of the Iron Tower and Cobalt Chestpiece; Horde had
+Topaz-Studded Battlegrips. Most newly listed Alliance shields were caster-oriented
+Draenei Honor Guard Shields: increased stock alone does not guarantee tank upgrades.
+
+Worldserver, authserver and database container IDs, start times and restart counts
+were unchanged; all were running. Pi bridge PID/invocation unchanged. Private
+config/audit/console/stock evidence: `backups/ah-plate-stock-20260924-125746/`.
 
 ## Operations
 

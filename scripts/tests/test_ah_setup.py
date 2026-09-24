@@ -76,6 +76,35 @@ class AuctionHouseSetupTest(unittest.TestCase):
         self.assertEqual(multipliers["32409"], "5")  # Relentless Earthstorm Diamond
         self.assertEqual(values["AuctionHouseBot.Buyer.AcceptablePriceModifier"], "1")
 
+    def test_temporary_armor_profile_with_gems(self):
+        values = self.apply({
+            "AHBOT_GUIDS": "2502", "AHBOT_MIN_ITEMS": "12000", "AHBOT_MAX_ITEMS": "12000",
+            "AHBOT_TBC_CUT_GEM_MULTIPLIER": "5", "AHBOT_LEVEL70_ARMOR_MULTIPLIER": "10",
+            "AHBOT_ARMOR_UNCOMMON_WEIGHT": "40", "AHBOT_ARMOR_RARE_WEIGHT": "40",
+            "AHBOT_ARMOR_EPIC_WEIGHT": "12",
+        })
+        for house in ("Alliance", "Horde", "Neutral"):
+            self.assertEqual(values[f"AuctionHouseBot.{house}.MinItems"], "12000")
+            self.assertEqual(values[f"AuctionHouseBot.{house}.MaxItems"], "12000")
+        entries = dict(token.split(":") for token in
+                       values["AuctionHouseBot.ListProportion.ListMultipliedItemIDs"].split(","))
+        self.assertEqual(entries["24027"], "5")
+        self.assertEqual(entries["23517"], "20")
+        self.assertEqual(entries["40668"], "20")
+        self.assertEqual(len(entries), 297)
+        for quality, weight in (("Uncommon", "40"), ("Rare", "40"), ("Epic", "12")):
+            self.assertEqual(values[f"AuctionHouseBot.ListProportion.CategoryArmor.Quality{quality}"], weight)
+        self.assertEqual(values["AuctionHouseBot.ListProportion.CategoryGem.QualityRare"], "20")
+        self.assertEqual(values["AuctionHouseBot.Buyer.AcceptablePriceModifier"], "1")
+
+    def test_armor_off_and_default_weights(self):
+        values = self.apply({"AHBOT_GUIDS": "2502", "AHBOT_LEVEL70_ARMOR_MULTIPLIER": "0"})
+        self.assertEqual(values["AuctionHouseBot.ListProportion.ListMultipliedItemIDs"], "")
+        for quality, weight in (("Uncommon", "20"), ("Rare", "10"), ("Epic", "3")):
+            self.assertEqual(values[f"AuctionHouseBot.ListProportion.CategoryArmor.Quality{quality}"], weight)
+        with self.assertRaises(subprocess.CalledProcessError):
+            self.apply({"AHBOT_GUIDS": "2502", "AHBOT_LEVEL70_ARMOR_MULTIPLIER": "11"})
+
     def test_blank_profile_does_not_replace_multipliers(self):
         values = self.apply({"AHBOT_GUIDS": "2502", "AHBOT_TBC_CUT_GEM_MULTIPLIER": ""})
         self.assertNotIn("AuctionHouseBot.ListProportion.ListMultipliedItemIDs", values)

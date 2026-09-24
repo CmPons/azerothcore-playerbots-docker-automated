@@ -592,11 +592,17 @@ if [[ -f "$AH_CONF" ]]; then
     set_conf "AuctionHouseBot.ItemsPerCycle" "${AHBOT_ITEMS_PER_CYCLE:-150}" "$AH_CONF"
     set_conf "AuctionHouseBot.Buyer.BuyCandidatesPerBuyCycle" "${AHBOT_BUY_CANDIDATES:-1}" "$AH_CONF"
 
-    # Opt-in, repeatable BC cut-gem stock boost; retain raw-material multipliers.
-    # Blank leaves the current list alone; explicit 0 removes this profile's entries.
+    # Opt-in stock profiles; preserve raw materials and unrelated item multipliers.
+    # Blank leaves a profile alone; explicit 0 removes only its catalog entries.
+    AH_STOCK_ARGS=()
     if [[ -n "${AHBOT_TBC_CUT_GEM_MULTIPLIER:-}" ]]; then
-      AH_MULTIPLIERS="$(python3 "$ROOT/scripts/ahbot_stock.py" --config "$AH_CONF" \
-        --tbc-cut-gem-multiplier "$AHBOT_TBC_CUT_GEM_MULTIPLIER")"
+      AH_STOCK_ARGS+=(--tbc-cut-gem-multiplier "$AHBOT_TBC_CUT_GEM_MULTIPLIER")
+    fi
+    if [[ -n "${AHBOT_LEVEL70_ARMOR_MULTIPLIER:-}" ]]; then
+      AH_STOCK_ARGS+=(--level70-armor-multiplier "$AHBOT_LEVEL70_ARMOR_MULTIPLIER")
+    fi
+    if (( ${#AH_STOCK_ARGS[@]} )); then
+      AH_MULTIPLIERS="$(python3 "$ROOT/scripts/ahbot_stock.py" --config "$AH_CONF" "${AH_STOCK_ARGS[@]}")"
       set_conf "AuctionHouseBot.ListProportion.ListMultipliedItemIDs" "$AH_MULTIPLIERS" "$AH_CONF"
     fi
 
@@ -626,9 +632,9 @@ if [[ -f "$AH_CONF" ]]; then
     set_conf "AuctionHouseBot.ListProportion.CategoryWeapon.QualityEpic"     "2"  "$AH_CONF"
     set_conf "AuctionHouseBot.ListProportion.CategoryArmor.QualityPoor"      "0"  "$AH_CONF"
     set_conf "AuctionHouseBot.ListProportion.CategoryArmor.QualityNormal"    "10" "$AH_CONF"
-    set_conf "AuctionHouseBot.ListProportion.CategoryArmor.QualityUncommon"  "20" "$AH_CONF"
-    set_conf "AuctionHouseBot.ListProportion.CategoryArmor.QualityRare"      "10" "$AH_CONF"
-    set_conf "AuctionHouseBot.ListProportion.CategoryArmor.QualityEpic"      "3"  "$AH_CONF"
+    set_conf "AuctionHouseBot.ListProportion.CategoryArmor.QualityUncommon" "${AHBOT_ARMOR_UNCOMMON_WEIGHT:-20}" "$AH_CONF"
+    set_conf "AuctionHouseBot.ListProportion.CategoryArmor.QualityRare"     "${AHBOT_ARMOR_RARE_WEIGHT:-10}" "$AH_CONF"
+    set_conf "AuctionHouseBot.ListProportion.CategoryArmor.QualityEpic"     "${AHBOT_ARMOR_EPIC_WEIGHT:-3}" "$AH_CONF"
     echo "    AHBot ON (char GUIDs: ${AHBOT_GUIDS}) -> lists goods and buys fairly-priced player auctions."
     echo "      (consumable/crafting-weighted mix; ${AHBOT_MIN_ITEMS:-15000}-${AHBOT_MAX_ITEMS:-25000} listings/house, ${AHBOT_ITEMS_PER_CYCLE:-150} added/cycle)"
   else
