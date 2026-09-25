@@ -2,9 +2,10 @@
 
 ## Status
 
-Source-only change: tested and published, **not built into an image or deployed**.
-A separately authorized build/deployment is required. No service, live strategy,
-configuration, database, equipment, marker or saved profile was changed.
+**Deployed September 25, 2026**, after explicit build/deployment authorization.
+See [deployment and preservation results](mag-channeler-deployment-20260925.md).
+Only worldserver was recreated. No configuration or direct gameplay-data changes
+were made; the deployment record discloses startup group, instance and mail cleanup.
 
 ## Why
 
@@ -68,6 +69,7 @@ change, and no forced raid encounter was used for validation.
 - The same harness compiles the prior multiplier from PB commit
   `292669a0b536c3e988a31ec874996d85ee5dc2e2` and rejects its channeler-phase blocker.
 - Both changed production `.cpp` files pass C++20 syntax checks against native
-  headers (`scripts/tests/raid_combat_syntax.py`). No CMake/image build was run.
+  headers (`scripts/tests/raid_combat_syntax.py`). The subsequently authorized
+  native image build and compiled registration/disassembly checks also passed.
 - Official core C++ style checker passes on both changed production files and
   the new C++ fixture; `git diff --check` passes.
