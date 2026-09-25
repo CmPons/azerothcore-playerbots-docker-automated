@@ -5,12 +5,47 @@
 Deployed with user authorization on **September24, 2026**. See
 [tank-modes-deployment-20260924.md](tank-modes-deployment-20260924.md) for build/runtime
 verification and the observed group/profile startup exceptions. Exact published
-native revisions are in `repo-pins.txt`; combat acceptance remains to be tested.
+native source revisions are in `repo-pins.txt`; they may be ahead of the running
+image. The September 25 damage-assistance correction below is **not deployed**.
 
 This replaces the old split MT/off-tank heuristics with two coherent modes. It is
 **not** the blanket spell-hook taunt restriction that was previously reverted.
 Maulgar's separately requested strategy removal is deployed in the same image;
 Gruul's own tactics remain enabled.
+
+## September 25: covered-target damage assistance (not deployed)
+
+The user reported Ari standing idle when the sole enemy was attacking Redshift.
+The source had conflated ordinary attack permission with permission to acquire
+tank ownership: the selector rejected every co-tank-held target, and the scheduled
+attack gate independently rejected starting an attack on it.
+
+The correction separates `CanAttack` from `CanAcquire`:
+
+- MT and OT can select a co-tank-held enemy as a damage-assist fallback when no
+  eligible tank work remains. This includes the single-enemy case, without a mark.
+- Loose pickups and owned targets retain priority over that fallback, including
+  when a covered boss is marked. Existing MT available-boss priorities remain.
+- Ordinary attack and RTI execution admit damage assistance; taunts still use the
+  stricter ownership gate. A newly arrived loose add can replace the assist target.
+- The low-health MT pause still prevents starting this fallback; it does not gain
+  a new exemption through the attack gate. Explicit orders remain overrides.
+- No stance, Righteous Fury, threat generation, gear, role, health thresholds or
+  encounter strategy changes. Damage can still overtake another tank's threat;
+  this is not a promise of zero aggro stealing or a controlled tank swap.
+
+`CanAcquire`, `SuppressAutomaticSpell`, ownership and pause functions were verified
+unchanged against the prior source. Production-body fixtures reproduce the old
+selector failure and old scheduled-attack rejection independently, then pass with
+the correction. Coverage includes MT/OT, boss/trash, single/all-covered targets,
+new adds, owned targets, RTIs, CC, ownership changes, health hysteresis, taunts,
+manual attacks and inactive modes. The focused suite passed **33 tests**, and six
+production-header translation units passed syntax checks; official C++ codestyle
+has no new findings. These are offline checks, not live acceptance or a server build.
+
+No server build, restart, configuration, Lua publication or database mutation was
+performed. A separately authorized build/deployment is required. Existing native
+encounter multipliers may still suppress actions if their strategies are enabled.
 
 ## Commands
 
@@ -86,9 +121,9 @@ group. Earlier saved duplicate flags were not proof of duplicate *live* MT roles
   not a temporary taunt aura, highest historical threat or selected target.
 - A living, in-world tank in the same group/map protects its currently held PvE
   mobs from routine tank acquisition by the other bot. Dead owners allow rescue.
-- Both MT and OT honor that protection, including the tank RTI path and ordinary
-  automatic attack actions. The old special exemption allowing explicit MTs to
-  compete with the other tank is removed.
+- Both MT and OT honor ownership protection. With the pending September 25
+  correction, damage assistance is allowed but does not grant taunt permission;
+  the selector and RTI path keep actual tank work ahead of that fallback.
 - MT prefers an available boss, with the flagged dungeon/encounter boss ahead of
   merely boss-ranked council members. Without one, healthy MT and OT prioritize
   loose enemies, then maintain their own current target. This uses template flags,
@@ -123,11 +158,11 @@ is suppressed, but deliberate orders and encounter swap logic remain distinct.
 An explicit override or dedicated script may therefore acquire a target despite
 normal mode preferences; modes are not a global rewrite of every raid mechanic.
 
-Healthy ordinary damage and threat are not globally suppressed. A bot already
-attacking a target can still overtake threat through damage. Conversely, OT mode
-will not autonomously select an already-covered boss as a new tank assignment;
-this is not a new DPS-assist mode. No `tank swap` or `tank drop` command is added in
-this stage.
+Healthy ordinary damage and threat are not globally suppressed. A bot attacking
+a target can still overtake threat through damage. With the pending September 25
+correction, an already-covered boss can be selected for fallback damage assistance,
+not as authorization to taunt it. This does not change the bot into a DPS spec or
+add a `tank swap` or `tank drop` command.
 
 ## Help call
 
@@ -187,7 +222,7 @@ PYTHONPATH=scripts/tests python -m unittest \
   scripts.tests.test_raid_combat scripts.tests.test_source_repos -v
 ```
 
-27 tests pass, including production-body C++ fixtures for commands, permissions,
+The September 24 validation passed 27 tests, including production-body C++ fixtures for commands, permissions,
 roles, old saved-flag failure, target selection, health hysteresis/help cooldown,
 manual-vs-scheduled spell policy, party persistence, PvP/human exclusions and marker
 conflicts. The historical flag test intentionally expects the old implementation's
@@ -211,5 +246,9 @@ passes.
 5. Change MT through the raid panel, inspect status/markers, then verify group roles
    survive an ordinary save/relog without duplicate saved flags.
 6. Occupy a role icon with an enemy: confirm no forced clearing/re-marking loop.
-7. Check normal party use, no-target/all-targets-covered behavior, death/rescue and
+7. After deploying the September 25 correction, have Redshift hold the sole enemy:
+   Ari should attack without automatic taunts. Add a loose enemy on a healer and
+   verify she switches to pickup; keep an owned add and verify it outranks assisting
+   on Redshift's boss. Repeat with and without a boss focus icon, in MT and OT modes.
+8. Check normal party use, no-target/all-targets-covered behavior, death/rescue and
    dedicated raid swap logic. Do not interpret offline assertions as a live pass.

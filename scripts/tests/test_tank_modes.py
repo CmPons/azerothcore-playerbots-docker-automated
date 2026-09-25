@@ -29,7 +29,25 @@ class TankModeTests(unittest.TestCase):
             self.skipTest("Historical baseline unavailable in this checkout")
         self.run_fixture(group_source=old.stdout, expect_failure=True)
 
-    def run_fixture(self, group_source=None, expect_failure=False):
+    def test_previous_selector_reproduces_covered_target_idle(self):
+        self.run_old_assist_path("src/Ai/Base/Value/TankTargetValue.cpp",
+                                 "selector_source", "selector.Calculate() == &held")
+
+    def test_previous_attack_gate_rejects_damage_assistance(self):
+        self.run_old_assist_path("src/Ai/Base/Actions/AttackAction.cpp",
+                                 "attack_source", "attack.Execute({})")
+
+    def run_old_assist_path(self, path, argument, assertion):
+        old = subprocess.run(["git", "-C", str(BOT), "show",
+                              "f01eab18ed6dfa4093f9ec4fc5008e59011b315b:" + path],
+                             text=True, capture_output=True)
+        if old.returncode:
+            self.skipTest("Historical playerbots baseline unavailable in this checkout")
+        self.run_fixture(**{argument: old.stdout}, expect_failure=True, failure_assertion=assertion)
+
+    def run_fixture(self, group_source=None, expect_failure=False, selector_source=None,
+                    attack_source=None,
+                    failure_assertion="CharacterDatabase.saved[red.guid.id] == MEMBER_FLAG_ASSISTANT"):
         compiler = shutil.which("g++") or shutil.which("clang++")
         if not compiler:
             self.skipTest("Standalone C++20 compiler unavailable")
@@ -47,7 +65,10 @@ class TankModeTests(unittest.TestCase):
                 "bool PlayerbotAI::HasAggro(")],
             method((BOT / "src/Ai/Base/Value/AttackerCountValues.cpp").read_text(),
                    "bool HasAggroValue::Calculate("),
-            body(BOT / "src/Ai/Base/Value/TankTargetValue.cpp"),
+            re.sub(r'^#include .*$', '', selector_source or
+                   (BOT / "src/Ai/Base/Value/TankTargetValue.cpp").read_text(), flags=re.MULTILINE),
+            method(attack_source or (BOT / "src/Ai/Base/Actions/AttackAction.cpp").read_text(),
+                   "bool AttackAction::Execute("),
             body(BOT / "src/Ai/Base/Actions/TankModeAction.cpp"),
         ]
         harness = (ROOT / "scripts/tests/cpp/TankModesTest.cpp").read_text()
@@ -64,7 +85,7 @@ class TankModeTests(unittest.TestCase):
                                     preexec_fn=lambda: resource.setrlimit(resource.RLIMIT_CORE, (0, 0)))
             if expect_failure:
                 self.assertNotEqual(result.returncode, 0)
-                self.assertIn("CharacterDatabase.saved[red.guid.id] == MEMBER_FLAG_ASSISTANT", result.stderr)
+                self.assertIn(failure_assertion, result.stderr)
             else:
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 print(result.stdout.strip())
@@ -83,13 +104,19 @@ class TankModeTests(unittest.TestCase):
         for signature in ("bool CastSpellAction::isUseful(", "bool CastSpellAction::Execute("):
             self.assertIn("TankModes::SuppressAutomaticSpell", method(source, signature))
         attacks = (BOT / "src/Ai/Base/Actions/AttackAction.cpp").read_text()
-        self.assertIn("botAI->raidCombat.scheduled && !TankModes::CanAcquire",
+        self.assertIn("botAI->raidCombat.scheduled && !TankModes::CanAttack",
                       method(attacks, "bool AttackAction::Execute("))
+        rti = (BOT / "src/Ai/Base/Actions/ChooseTargetActions.cpp").read_text()
+        self.assertIn("botAI->raidCombat.scheduled && !TankModes::CanAttack",
+                      method(rti, "bool AttackRtiTargetAction::Execute("))
         self.assertNotIn("TankModes::", method(attacks, "bool AttackAction::Attack("))
         casts = (BOT / "src/Bot/PlayerbotAI.cpp").read_text()
         self.assertNotIn("TankModes::", method(casts, "bool PlayerbotAI::CastSpell(uint32 spellId, Unit*"))
         policy = (BOT / "src/Ai/Base/Util/TankModes.cpp").read_text()
         self.assertIn("!ai->raidCombat.scheduled", policy)
+        spell_gate = method(policy, "bool SuppressAutomaticSpell(")
+        self.assertIn("CanAcquire", spell_gate)
+        self.assertNotIn("CanAttack", spell_gate)
         self.assertNotIn("AllSpellScript", policy)
         self.assertFalse((BOT / "src/Script/PlayerbotsTankTaunt.cpp").exists())
         engine = (BOT / "src/Bot/Engine/Engine.cpp").read_text()

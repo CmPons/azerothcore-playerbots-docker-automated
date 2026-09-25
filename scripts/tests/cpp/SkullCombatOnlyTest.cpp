@@ -79,7 +79,7 @@ struct PlayerbotAI
 namespace TankModes
 {
     bool allowAcquisition = true;
-    bool CanAcquire(PlayerbotAI*, Unit*) { return allowAcquisition; }
+    bool CanAttack(PlayerbotAI*, Unit*) { return allowAcquisition; }
 }
 struct ServerFacade
 {

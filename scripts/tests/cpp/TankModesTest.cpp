@@ -351,7 +351,165 @@ public:
     virtual bool Execute(Event) { return false; }
 };
 
+class AttackAction : public Action
+{
+public:
+    explicit AttackAction(PlayerbotAI* ai) : Action(ai, "attack") {}
+    Unit* target = nullptr;
+    unsigned attacks = 0;
+    Unit* GetTarget() { return target; }
+    bool Attack(Unit*) { ++attacks; return true; }
+    bool Execute(Event) override;
+};
+
 // PRODUCTION_CODE
+
+void TestCoveredTargetAssistance()
+{
+    Player red, ari, healer;
+    red.guid = 3001; ari.guid = 3002; healer.guid = 3003;
+    ari.session.bot = true;
+    healer.tankSpec = healer.tankRole = false;
+    Group group{&red, &ari, &healer};
+    group.leader = red.guid;
+    PlayerbotAI ai(&ari, &red);
+    TankTargetValue selector(&ai);
+    AttackAction attack(&ai);
+    Creature held, own, loose, coveredAdd;
+    held.guid = 4001; own.guid = 4002; loose.guid = 4003; coveredAdd.guid = 4004;
+    held.victim = coveredAdd.victim = &red;
+    own.victim = &ari;
+    loose.victim = &healer;
+    SpellInfo taunt; taunt.Id = 355; taunt.attackMe = true;
+    SpellInfo defense; defense.Id = 31789;
+    SpellInfo damage; damage.Id = 20271;
+    red.attackers.insert(&held);
+
+    for (bool mainTank : {false, true})
+    {
+        group.SetGroupMemberFlag(mainTank ? ari.guid : red.guid, true, MEMBER_FLAG_MAINTANK);
+        assert(TankModes::GetMode(&ai) == (mainTank ? TankModes::Mode::MainTank : TankModes::Mode::OffTank));
+        for (bool boss : {false, true})
+        {
+            held.boss = boss;
+            ai.context.units["current target"].value = nullptr;
+            ai.attackers = {&held};
+            selector.icon = nullptr;
+            // Reported regression: the sole enemy belongs to the other tank; do not idle.
+            assert(selector.Calculate() == &held);
+            assert(TankModes::CanAttack(&ai, &held));
+            assert(!TankModes::CanAcquire(&ai, &held));
+            attack.target = selector.Calculate();
+            unsigned before = attack.attacks;
+            assert(attack.Execute({}));
+            assert(attack.attacks == before + 1);
+            assert(!TankModes::SuppressAutomaticSpell(&ai, &damage, &held));
+            assert(TankModes::SuppressAutomaticSpell(&ai, &taunt, &held));
+            assert(TankModes::SuppressAutomaticSpell(&ai, &defense, &red));
+            HasAggroValue aggro{&ai, &ari, &held};
+            assert(aggro.Calculate()); // Tank-assist trigger may switch away if an add appears.
+
+            // Both iteration orders and a marked covered boss must prefer actual tank work.
+            for (bool reverse : {false, true})
+            {
+                selector.icon = &held;
+                ai.attackers = reverse ? std::vector<Unit*>{&own, &held} : std::vector<Unit*>{&held, &own};
+                assert(selector.Calculate() == &own);
+                ai.context.units["current target"].value = &held;
+                ai.attackers.push_back(&loose);
+                assert(selector.Calculate() == &loose);
+                ai.attackers = {&held};
+                selector.icon = &loose;
+                assert(selector.Calculate() == &loose); // Available marked add beats fallback boss.
+                selector.icon = &held;
+                assert(selector.Calculate() == &held);
+                ai.attackers.clear();
+                assert(selector.Calculate() == &held); // Covered RTI fallback remains damage-only.
+            }
+
+            // Preserve moon CC exclusion on ordinary attacker selection.
+            selector.icon = nullptr;
+            ai.attackers = {&held};
+            group.icons[4] = held.guid;
+            assert(!selector.Calculate());
+            group.icons[4].Clear();
+            held.alive = false;
+            assert(!selector.Calculate());
+            held.alive = true;
+
+            // Ownership can change between selection and execution; do not require a stale owner.
+            held.victim = &healer;
+            assert(TankModes::CanAcquire(&ai, &held));
+            assert(!TankModes::SuppressAutomaticSpell(&ai, &taunt, &held));
+            assert(attack.Execute({}));
+            held.victim = &red;
+            red.alive = false;
+            assert(TankModes::CanAcquire(&ai, &held));
+            red.alive = true;
+            held.victim = nullptr;
+            held.threats.victim = &red;
+            assert(TankModes::CanAttack(&ai, &held));
+            assert(!TankModes::CanAcquire(&ai, &held));
+            held.threats.victim = nullptr;
+            held.victim = &red;
+        }
+
+        // All enemies covered: retain the assist target rather than bouncing between them.
+        held.boss = false;
+        ai.context.units["current target"].value = &coveredAdd;
+        for (bool reverse : {false, true})
+        {
+            ai.attackers = reverse ? std::vector<Unit*>{&coveredAdd, &held} :
+                std::vector<Unit*>{&held, &coveredAdd};
+            assert(selector.Calculate() == &coveredAdd);
+        }
+    }
+
+    // Damage-assist permission must never bypass an MT's low-health pause.
+    ai.attackers = {&held};
+    selector.icon = &held;
+    ari.health = 39;
+    assert(TankModes::IsPaused(&ai));
+    assert(!selector.Calculate());
+    assert(!TankModes::CanAttack(&ai, &held));
+    assert(!attack.Execute({}));
+    assert(TankModes::SuppressAutomaticSpell(&ai, &damage, &held));
+    ai.attackers.push_back(&own);
+    assert(selector.Calculate() == &own);
+    attack.target = &own;
+    assert(attack.Execute({}));
+    attack.target = &held;
+    ai.raidCombat.scheduled = false;
+    assert(attack.Execute({})); // Explicit orders remain deliberate overrides.
+    assert(!TankModes::SuppressAutomaticSpell(&ai, &taunt, &held));
+    ai.raidCombat.scheduled = true;
+    ari.health = 50;
+    assert(!TankModes::CanAttack(&ai, &held));
+    ari.health = 65;
+    ai.attackers = {&held};
+    assert(selector.Calculate() == &held);
+    assert(attack.Execute({}));
+    assert(TankModes::SuppressAutomaticSpell(&ai, &taunt, &held));
+
+    attack.target = nullptr;
+    assert(!attack.Execute({}));
+    attack.target = &held;
+    held.inWorld = false;
+    assert(!attack.Execute({}));
+    held.inWorld = true;
+    ari.battleground = true;
+    assert(TankModes::CanAcquire(&ai, &held) && TankModes::CanAttack(&ai, &held));
+    ari.battleground = false;
+    ari.arena = true;
+    assert(TankModes::CanAcquire(&ai, &held) && TankModes::CanAttack(&ai, &held));
+    ari.arena = false;
+    ari.tankRole = false;
+    assert(TankModes::CanAcquire(&ai, &held) && TankModes::CanAttack(&ai, &held));
+    ari.tankRole = true;
+    ari.group = nullptr;
+    assert(TankModes::CanAcquire(&ai, &held) && TankModes::CanAttack(&ai, &held));
+    std::cout << "Covered-target damage assistance, priority and acquisition separation passed\n";
+}
 
 int main()
 {
@@ -583,4 +741,5 @@ int main()
     assert(TankModes::GetMode(&ai) == TankModes::Mode::Inactive);
     ari.combatManager.pvp = false;
     std::cout << "Tank modes, commands, ownership, health/help, markers and flag persistence passed\n";
+    TestCoveredTargetAssistance();
 }
