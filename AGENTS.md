@@ -231,6 +231,26 @@ AiPlayerbot.CommandPrefix = ""
 AiPlayerbot.CommandSeparator = "\\\\"
 ```
 
+## Encounter tank-authority policy
+
+The user wants ordinary MT/OT behavior and deliberate player commands to remain
+in charge. New encounter-specific tank assignments, forced positioning/targets,
+attack/taunt suppression and swaps belong in explicitly authored Lua policies,
+not additional hardcoded native boss routines.
+
+The September 25 SSC/TK audit is in
+`Documents/ssc-tk-tank-authority-audit-20260925.md`. Its identified native overrides
+are **not yet removed**. Before implementing removal, settle whether native hazard
+escape/personal-mechanic handling may still control tanks; several routines mix
+that behavior with fixed assignments. Do not disable all non-tank raid mechanics
+or earlier raid fixes as a shortcut.
+
+The deployed Lua API2 supports checked ground movement, target priorities,
+interrupts and dispels—not general taunts/swaps, attack suspension, MT/OT role
+fields or aura stack counts. Extend generic checked capabilities if needed;
+do not claim that target hints already authorize a tank handoff. Lua publication
+and native deployment remain separately scoped operations.
+
 ## Gameplay/local tweak notes
 
 Open-world PvP/playerbot kills were locally changed to grant XP in:
