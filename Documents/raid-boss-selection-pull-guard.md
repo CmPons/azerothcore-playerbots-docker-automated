@@ -51,5 +51,7 @@ bodies are compared to the prior source. Two native-header syntax checks pass fo
 the helper and DPS selector. This is not a live combat test.
 
 The user authorized building and deploying this with the separate covered-target
-Ari damage-assistance correction. Deployment and preservation results are recorded
-separately; source publication alone is not evidence that the server runs it.
+Ari damage-assistance correction. Both are deployed; see
+[raid-tank-pull-deployment-20260925.md](raid-tank-pull-deployment-20260925.md)
+for binary verification and preservation results. Live combat acceptance remains
+separate from the offline regressions and successful deployment.

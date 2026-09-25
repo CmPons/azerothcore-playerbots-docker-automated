@@ -6,14 +6,15 @@ Deployed with user authorization on **September24, 2026**. See
 [tank-modes-deployment-20260924.md](tank-modes-deployment-20260924.md) for build/runtime
 verification and the observed group/profile startup exceptions. Exact published
 native source revisions are in `repo-pins.txt`; they may be ahead of the running
-image. The September 25 damage-assistance correction below is **not deployed**.
+image. The September 25 damage-assistance correction below is **deployed**; see
+[raid-tank-pull-deployment-20260925.md](raid-tank-pull-deployment-20260925.md).
 
 This replaces the old split MT/off-tank heuristics with two coherent modes. It is
 **not** the blanket spell-hook taunt restriction that was previously reverted.
 Maulgar's separately requested strategy removal is deployed in the same image;
 Gruul's own tactics remain enabled.
 
-## September 25: covered-target damage assistance (not deployed)
+## September 25: covered-target damage assistance (deployed)
 
 The user reported Ari standing idle when the sole enemy was attacking Redshift.
 The source had conflated ordinary attack permission with permission to acquire
@@ -43,9 +44,10 @@ manual attacks and inactive modes. The focused suite passed **33 tests**, and si
 production-header translation units passed syntax checks; official C++ codestyle
 has no new findings. These are offline checks, not live acceptance or a server build.
 
-No server build, restart, configuration, Lua publication or database mutation was
-performed. A separately authorized build/deployment is required. Existing native
-encounter multipliers may still suppress actions if their strategies are enabled.
+The user subsequently authorized a build/deployment together with the selected-boss
+pull guard. Only the worldserver was replaced; no configuration, Lua publication
+or direct gameplay database mutation was performed. Existing native encounter
+multipliers may still suppress actions if their strategies are enabled.
 
 ## Commands
 
@@ -121,7 +123,7 @@ group. Earlier saved duplicate flags were not proof of duplicate *live* MT roles
   not a temporary taunt aura, highest historical threat or selected target.
 - A living, in-world tank in the same group/map protects its currently held PvE
   mobs from routine tank acquisition by the other bot. Dead owners allow rescue.
-- Both MT and OT honor ownership protection. With the pending September 25
+- Both MT and OT honor ownership protection. With the September 25
   correction, damage assistance is allowed but does not grant taunt permission;
   the selector and RTI path keep actual tank work ahead of that fallback.
 - MT prefers an available boss, with the flagged dungeon/encounter boss ahead of
@@ -159,7 +161,7 @@ An explicit override or dedicated script may therefore acquire a target despite
 normal mode preferences; modes are not a global rewrite of every raid mechanic.
 
 Healthy ordinary damage and threat are not globally suppressed. A bot attacking
-a target can still overtake threat through damage. With the pending September 25
+a target can still overtake threat through damage. With the September 25
 correction, an already-covered boss can be selected for fallback damage assistance,
 not as authorization to taunt it. This does not change the bot into a DPS spec or
 add a `tank swap` or `tank drop` command.
@@ -246,7 +248,7 @@ passes.
 5. Change MT through the raid panel, inspect status/markers, then verify group roles
    survive an ordinary save/relog without duplicate saved flags.
 6. Occupy a role icon with an enemy: confirm no forced clearing/re-marking loop.
-7. After deploying the September 25 correction, have Redshift hold the sole enemy:
+7. With the September 25 correction, have Redshift hold the sole enemy:
    Ari should attack without automatic taunts. Add a loose enemy on a healer and
    verify she switches to pickup; keep an owned add and verify it outranks assisting
    on Redshift's boss. Repeat with and without a boss focus icon, in MT and OT modes.
