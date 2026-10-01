@@ -1,5 +1,10 @@
 # Generic Direct Token Loot Plan
 
+> Historical fully random design. The implemented successor is
+> [Spec-aware direct token loot](spec-aware-direct-token-loot.md), which preserves
+> a random class roll, excludes PvP rewards, and selects by represented active specs.
+> The successor is not yet deployed; this document is retained as design history.
+
 ## Goal
 
 Make token-based raid loot feel like direct boss loot without smart gearing assistance.

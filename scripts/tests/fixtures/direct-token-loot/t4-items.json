@@ -1,0 +1,10417 @@
+{
+  "description": "Installed T4 token/vendor/item data, read-only snapshot 2026-10-01. Only public item data and referenced flat spell/socket effects; no characters or raw client DBCs. Spell corrections must be checked separately if these IDs change.",
+  "items": [
+    {
+      "entry": 24544,
+      "name": "Gladiator's Plate Chestpiece",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 1,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1547,
+      "block": 0,
+      "socketBonus": 2874,
+      "itemset": 567,
+      "stats": [
+        [
+          7,
+          49
+        ],
+        [
+          4,
+          23
+        ],
+        [
+          32,
+          30
+        ],
+        [
+          35,
+          23
+        ],
+        [
+          31,
+          12
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        2,
+        2,
+        4
+      ]
+    },
+    {
+      "entry": 24545,
+      "name": "Gladiator's Plate Helm",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 1,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1257,
+      "block": 0,
+      "socketBonus": 2927,
+      "itemset": 567,
+      "stats": [
+        [
+          7,
+          52
+        ],
+        [
+          4,
+          30
+        ],
+        [
+          32,
+          28
+        ],
+        [
+          35,
+          25
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        1,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 24546,
+      "name": "Gladiator's Plate Shoulders",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 1,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1160,
+      "block": 0,
+      "socketBonus": 2879,
+      "itemset": 567,
+      "stats": [
+        [
+          7,
+          45
+        ],
+        [
+          4,
+          22
+        ],
+        [
+          32,
+          23
+        ],
+        [
+          35,
+          19
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        2,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 24547,
+      "name": "Gladiator's Plate Legguards",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 1,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1353,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 567,
+      "stats": [
+        [
+          7,
+          55
+        ],
+        [
+          4,
+          40
+        ],
+        [
+          32,
+          36
+        ],
+        [
+          35,
+          21
+        ],
+        [
+          31,
+          12
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 24549,
+      "name": "Gladiator's Plate Gauntlets",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 1,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 967,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 567,
+      "stats": [
+        [
+          7,
+          42
+        ],
+        [
+          4,
+          28
+        ],
+        [
+          32,
+          26
+        ],
+        [
+          35,
+          21
+        ]
+      ],
+      "spells": [
+        [
+          22778,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 24552,
+      "name": "Gladiator's Dreadweave Robe",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 20,
+      "AllowableClass": 256,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 207,
+      "block": 0,
+      "socketBonus": 2856,
+      "itemset": 568,
+      "stats": [
+        [
+          7,
+          57
+        ],
+        [
+          5,
+          19
+        ],
+        [
+          35,
+          24
+        ]
+      ],
+      "spells": [
+        [
+          18053,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "entry": 24553,
+      "name": "Gladiator's Dreadweave Hood",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 256,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 168,
+      "block": 0,
+      "socketBonus": 2878,
+      "itemset": 568,
+      "stats": [
+        [
+          7,
+          60
+        ],
+        [
+          5,
+          20
+        ],
+        [
+          35,
+          30
+        ]
+      ],
+      "spells": [
+        [
+          17367,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        2,
+        0
+      ]
+    },
+    {
+      "entry": 24554,
+      "name": "Gladiator's Dreadweave Mantle",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 256,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 155,
+      "block": 0,
+      "socketBonus": 2859,
+      "itemset": 568,
+      "stats": [
+        [
+          7,
+          42
+        ],
+        [
+          5,
+          14
+        ],
+        [
+          35,
+          21
+        ],
+        [
+          31,
+          12
+        ]
+      ],
+      "spells": [
+        [
+          17367,
+          1
+        ]
+      ],
+      "sockets": [
+        8,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 24555,
+      "name": "Gladiator's Dreadweave Leggings",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 256,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 181,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 568,
+      "stats": [
+        [
+          7,
+          60
+        ],
+        [
+          5,
+          30
+        ],
+        [
+          35,
+          30
+        ]
+      ],
+      "spells": [
+        [
+          28360,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 24556,
+      "name": "Gladiator's Dreadweave Gloves",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 256,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 129,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 568,
+      "stats": [
+        [
+          7,
+          39
+        ],
+        [
+          5,
+          25
+        ],
+        [
+          35,
+          21
+        ]
+      ],
+      "spells": [
+        [
+          33063,
+          1
+        ],
+        [
+          17367,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 25830,
+      "name": "Gladiator's Leather Helm",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 8,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 316,
+      "block": 0,
+      "socketBonus": 2878,
+      "itemset": 577,
+      "stats": [
+        [
+          7,
+          53
+        ],
+        [
+          3,
+          34
+        ],
+        [
+          35,
+          23
+        ],
+        [
+          32,
+          13
+        ]
+      ],
+      "spells": [
+        [
+          14089,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        2,
+        0
+      ]
+    },
+    {
+      "entry": 25831,
+      "name": "Gladiator's Leather Tunic",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 8,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 389,
+      "block": 0,
+      "socketBonus": 2874,
+      "itemset": 577,
+      "stats": [
+        [
+          7,
+          50
+        ],
+        [
+          3,
+          33
+        ],
+        [
+          35,
+          23
+        ],
+        [
+          32,
+          12
+        ]
+      ],
+      "spells": [
+        [
+          9336,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        2,
+        4
+      ]
+    },
+    {
+      "entry": 25832,
+      "name": "Gladiator's Leather Spaulders",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 8,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 291,
+      "block": 0,
+      "socketBonus": 2859,
+      "itemset": 577,
+      "stats": [
+        [
+          7,
+          39
+        ],
+        [
+          3,
+          29
+        ],
+        [
+          32,
+          21
+        ],
+        [
+          35,
+          23
+        ]
+      ],
+      "spells": [
+        [
+          9330,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 25833,
+      "name": "Gladiator's Leather Legguards",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 8,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 340,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 577,
+      "stats": [
+        [
+          7,
+          54
+        ],
+        [
+          3,
+          36
+        ],
+        [
+          32,
+          19
+        ],
+        [
+          35,
+          36
+        ]
+      ],
+      "spells": [
+        [
+          15809,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 25834,
+      "name": "Gladiator's Leather Gloves",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 8,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 243,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 577,
+      "stats": [
+        [
+          7,
+          39
+        ],
+        [
+          3,
+          27
+        ],
+        [
+          35,
+          23
+        ],
+        [
+          32,
+          14
+        ]
+      ],
+      "spells": [
+        [
+          9336,
+          1
+        ],
+        [
+          61249,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 25854,
+      "name": "Gladiator's Silk Amice",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 128,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 155,
+      "block": 0,
+      "socketBonus": 2859,
+      "itemset": 579,
+      "stats": [
+        [
+          7,
+          42
+        ],
+        [
+          5,
+          13
+        ],
+        [
+          35,
+          21
+        ],
+        [
+          32,
+          13
+        ]
+      ],
+      "spells": [
+        [
+          17367,
+          1
+        ]
+      ],
+      "sockets": [
+        8,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 25855,
+      "name": "Gladiator's Silk Cowl",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 128,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 168,
+      "block": 0,
+      "socketBonus": 2878,
+      "itemset": 579,
+      "stats": [
+        [
+          7,
+          54
+        ],
+        [
+          5,
+          15
+        ],
+        [
+          32,
+          18
+        ],
+        [
+          35,
+          30
+        ]
+      ],
+      "spells": [
+        [
+          18054,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        2,
+        0
+      ]
+    },
+    {
+      "entry": 25856,
+      "name": "Gladiator's Silk Raiment",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 20,
+      "AllowableClass": 128,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 207,
+      "block": 0,
+      "socketBonus": 2951,
+      "itemset": 579,
+      "stats": [
+        [
+          7,
+          51
+        ],
+        [
+          5,
+          18
+        ],
+        [
+          32,
+          25
+        ],
+        [
+          35,
+          24
+        ]
+      ],
+      "spells": [
+        [
+          17367,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "entry": 25857,
+      "name": "Gladiator's Silk Handguards",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 128,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 129,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 579,
+      "stats": [
+        [
+          7,
+          39
+        ],
+        [
+          5,
+          14
+        ],
+        [
+          32,
+          21
+        ],
+        [
+          35,
+          21
+        ]
+      ],
+      "spells": [
+        [
+          33066,
+          1
+        ],
+        [
+          17367,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 25858,
+      "name": "Gladiator's Silk Trousers",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 128,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 181,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 579,
+      "stats": [
+        [
+          7,
+          54
+        ],
+        [
+          5,
+          25
+        ],
+        [
+          32,
+          28
+        ],
+        [
+          35,
+          30
+        ]
+      ],
+      "spells": [
+        [
+          18058,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 25997,
+      "name": "Gladiator's Linked Armor",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 64,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 866,
+      "block": 0,
+      "socketBonus": 2874,
+      "itemset": 578,
+      "stats": [
+        [
+          7,
+          51
+        ],
+        [
+          38,
+          58
+        ],
+        [
+          32,
+          28
+        ],
+        [
+          35,
+          26
+        ]
+      ],
+      "spells": [
+        [
+          21630,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        2,
+        4
+      ]
+    },
+    {
+      "entry": 25998,
+      "name": "Gladiator's Linked Helm",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 64,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 703,
+      "block": 0,
+      "socketBonus": 2878,
+      "itemset": 578,
+      "stats": [
+        [
+          7,
+          51
+        ],
+        [
+          38,
+          68
+        ],
+        [
+          32,
+          26
+        ],
+        [
+          35,
+          30
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        1,
+        2,
+        0
+      ]
+    },
+    {
+      "entry": 25999,
+      "name": "Gladiator's Linked Spaulders",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 64,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 649,
+      "block": 0,
+      "socketBonus": 2859,
+      "itemset": 578,
+      "stats": [
+        [
+          7,
+          42
+        ],
+        [
+          38,
+          38
+        ],
+        [
+          32,
+          22
+        ],
+        [
+          35,
+          21
+        ]
+      ],
+      "spells": [
+        [
+          21363,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 26000,
+      "name": "Gladiator's Linked Gauntlets",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 64,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 541,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 578,
+      "stats": [
+        [
+          7,
+          40
+        ],
+        [
+          38,
+          50
+        ],
+        [
+          32,
+          27
+        ],
+        [
+          35,
+          21
+        ]
+      ],
+      "spells": [
+        [
+          33020,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 26001,
+      "name": "Gladiator's Linked Leggings",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 64,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 758,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 578,
+      "stats": [
+        [
+          7,
+          54
+        ],
+        [
+          38,
+          60
+        ],
+        [
+          32,
+          36
+        ],
+        [
+          35,
+          28
+        ],
+        [
+          5,
+          25
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 27469,
+      "name": "Gladiator's Mail Armor",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 64,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 866,
+      "block": 0,
+      "socketBonus": 2951,
+      "itemset": 580,
+      "stats": [
+        [
+          7,
+          42
+        ],
+        [
+          5,
+          23
+        ],
+        [
+          32,
+          23
+        ],
+        [
+          35,
+          25
+        ]
+      ],
+      "spells": [
+        [
+          21364,
+          1
+        ],
+        [
+          17367,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "entry": 27470,
+      "name": "Gladiator's Mail Gauntlets",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 64,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 541,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 580,
+      "stats": [
+        [
+          7,
+          36
+        ],
+        [
+          5,
+          18
+        ],
+        [
+          32,
+          21
+        ],
+        [
+          35,
+          21
+        ]
+      ],
+      "spells": [
+        [
+          32973,
+          1
+        ],
+        [
+          17367,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 27471,
+      "name": "Gladiator's Mail Helm",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 64,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 703,
+      "block": 0,
+      "socketBonus": 2878,
+      "itemset": 580,
+      "stats": [
+        [
+          7,
+          54
+        ],
+        [
+          5,
+          15
+        ],
+        [
+          32,
+          18
+        ],
+        [
+          35,
+          30
+        ]
+      ],
+      "spells": [
+        [
+          18054,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        2,
+        0
+      ]
+    },
+    {
+      "entry": 27472,
+      "name": "Gladiator's Mail Leggings",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 64,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 758,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 580,
+      "stats": [
+        [
+          7,
+          54
+        ],
+        [
+          5,
+          25
+        ],
+        [
+          32,
+          22
+        ],
+        [
+          35,
+          29
+        ]
+      ],
+      "spells": [
+        [
+          18058,
+          1
+        ],
+        [
+          18379,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 27473,
+      "name": "Gladiator's Mail Spaulders",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 64,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 649,
+      "block": 0,
+      "socketBonus": 2859,
+      "itemset": 580,
+      "stats": [
+        [
+          7,
+          33
+        ],
+        [
+          5,
+          17
+        ],
+        [
+          32,
+          20
+        ],
+        [
+          35,
+          20
+        ]
+      ],
+      "spells": [
+        [
+          21626,
+          1
+        ],
+        [
+          15714,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 27702,
+      "name": "Gladiator's Lamellar Chestpiece",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1547,
+      "block": 0,
+      "socketBonus": 2951,
+      "itemset": 582,
+      "stats": [
+        [
+          7,
+          51
+        ],
+        [
+          5,
+          25
+        ],
+        [
+          32,
+          30
+        ],
+        [
+          35,
+          27
+        ]
+      ],
+      "spells": [
+        [
+          14799,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        2,
+        4
+      ]
+    },
+    {
+      "entry": 27703,
+      "name": "Gladiator's Lamellar Gauntlets",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 967,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 582,
+      "stats": [
+        [
+          7,
+          34
+        ],
+        [
+          5,
+          24
+        ],
+        [
+          32,
+          24
+        ],
+        [
+          35,
+          14
+        ]
+      ],
+      "spells": [
+        [
+          14127,
+          1
+        ],
+        [
+          38522,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 27704,
+      "name": "Gladiator's Lamellar Helm",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1257,
+      "block": 0,
+      "socketBonus": 2878,
+      "itemset": 582,
+      "stats": [
+        [
+          7,
+          57
+        ],
+        [
+          5,
+          21
+        ],
+        [
+          32,
+          22
+        ],
+        [
+          35,
+          32
+        ]
+      ],
+      "spells": [
+        [
+          18050,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        2,
+        0
+      ]
+    },
+    {
+      "entry": 27705,
+      "name": "Gladiator's Lamellar Legguards",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1353,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 582,
+      "stats": [
+        [
+          7,
+          57
+        ],
+        [
+          5,
+          21
+        ],
+        [
+          32,
+          32
+        ],
+        [
+          35,
+          32
+        ]
+      ],
+      "spells": [
+        [
+          18054,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 27706,
+      "name": "Gladiator's Lamellar Shoulders",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1160,
+      "block": 0,
+      "socketBonus": 2859,
+      "itemset": 582,
+      "stats": [
+        [
+          7,
+          34
+        ],
+        [
+          5,
+          18
+        ],
+        [
+          32,
+          24
+        ],
+        [
+          35,
+          21
+        ]
+      ],
+      "spells": [
+        [
+          14254,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 27707,
+      "name": "Gladiator's Satin Gloves",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 16,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 129,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 581,
+      "stats": [
+        [
+          7,
+          40
+        ],
+        [
+          5,
+          20
+        ],
+        [
+          35,
+          28
+        ]
+      ],
+      "spells": [
+        [
+          23044,
+          1
+        ],
+        [
+          14127,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 27708,
+      "name": "Gladiator's Satin Hood",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 16,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 168,
+      "block": 0,
+      "socketBonus": 2878,
+      "itemset": 581,
+      "stats": [
+        [
+          7,
+          60
+        ],
+        [
+          5,
+          20
+        ],
+        [
+          35,
+          30
+        ]
+      ],
+      "spells": [
+        [
+          17367,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        2,
+        0
+      ]
+    },
+    {
+      "entry": 27709,
+      "name": "Gladiator's Satin Leggings",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 16,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 181,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 581,
+      "stats": [
+        [
+          7,
+          60
+        ],
+        [
+          5,
+          30
+        ],
+        [
+          35,
+          30
+        ]
+      ],
+      "spells": [
+        [
+          28360,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 27710,
+      "name": "Gladiator's Satin Mantle",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 16,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 155,
+      "block": 0,
+      "socketBonus": 2859,
+      "itemset": 581,
+      "stats": [
+        [
+          7,
+          40
+        ],
+        [
+          5,
+          22
+        ],
+        [
+          35,
+          24
+        ]
+      ],
+      "spells": [
+        [
+          15714,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 27711,
+      "name": "Gladiator's Satin Robe",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 20,
+      "AllowableClass": 16,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 207,
+      "block": 0,
+      "socketBonus": 2856,
+      "itemset": 581,
+      "stats": [
+        [
+          7,
+          51
+        ],
+        [
+          5,
+          26
+        ],
+        [
+          35,
+          28
+        ]
+      ],
+      "spells": [
+        [
+          17367,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "entry": 27879,
+      "name": "Gladiator's Scaled Chestpiece",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1547,
+      "block": 0,
+      "socketBonus": 2874,
+      "itemset": 583,
+      "stats": [
+        [
+          7,
+          45
+        ],
+        [
+          5,
+          23
+        ],
+        [
+          32,
+          26
+        ],
+        [
+          4,
+          31
+        ],
+        [
+          35,
+          25
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        2,
+        2,
+        4
+      ]
+    },
+    {
+      "entry": 27880,
+      "name": "Gladiator's Scaled Gauntlets",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 967,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 583,
+      "stats": [
+        [
+          7,
+          34
+        ],
+        [
+          5,
+          14
+        ],
+        [
+          32,
+          16
+        ],
+        [
+          4,
+          36
+        ],
+        [
+          35,
+          16
+        ]
+      ],
+      "spells": [
+        [
+          23300,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 27881,
+      "name": "Gladiator's Scaled Helm",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1257,
+      "block": 0,
+      "socketBonus": 2878,
+      "itemset": 583,
+      "stats": [
+        [
+          7,
+          48
+        ],
+        [
+          5,
+          21
+        ],
+        [
+          32,
+          16
+        ],
+        [
+          4,
+          45
+        ],
+        [
+          35,
+          16
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        1,
+        2,
+        0
+      ]
+    },
+    {
+      "entry": 27882,
+      "name": "Gladiator's Scaled Legguards",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1353,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 583,
+      "stats": [
+        [
+          7,
+          54
+        ],
+        [
+          5,
+          21
+        ],
+        [
+          32,
+          22
+        ],
+        [
+          4,
+          48
+        ],
+        [
+          35,
+          21
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 27883,
+      "name": "Gladiator's Scaled Shoulders",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1160,
+      "block": 0,
+      "socketBonus": 2859,
+      "itemset": 583,
+      "stats": [
+        [
+          7,
+          34
+        ],
+        [
+          5,
+          15
+        ],
+        [
+          32,
+          16
+        ],
+        [
+          4,
+          32
+        ],
+        [
+          35,
+          16
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        2,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 28126,
+      "name": "Gladiator's Dragonhide Gloves",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 283,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 584,
+      "stats": [
+        [
+          7,
+          33
+        ],
+        [
+          4,
+          30
+        ],
+        [
+          5,
+          18
+        ],
+        [
+          3,
+          19
+        ],
+        [
+          35,
+          20
+        ]
+      ],
+      "spells": [
+        [
+          7680,
+          1
+        ],
+        [
+          33830,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 28127,
+      "name": "Gladiator's Dragonhide Helm",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 356,
+      "block": 0,
+      "socketBonus": 2878,
+      "itemset": 584,
+      "stats": [
+        [
+          7,
+          45
+        ],
+        [
+          4,
+          33
+        ],
+        [
+          5,
+          19
+        ],
+        [
+          3,
+          20
+        ],
+        [
+          35,
+          24
+        ]
+      ],
+      "spells": [
+        [
+          18033,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 28128,
+      "name": "Gladiator's Dragonhide Legguards",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 400,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 584,
+      "stats": [
+        [
+          7,
+          45
+        ],
+        [
+          4,
+          40
+        ],
+        [
+          5,
+          25
+        ],
+        [
+          3,
+          29
+        ],
+        [
+          35,
+          28
+        ]
+      ],
+      "spells": [
+        [
+          9408,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 28129,
+      "name": "Gladiator's Dragonhide Spaulders",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 331,
+      "block": 0,
+      "socketBonus": 2859,
+      "itemset": 584,
+      "stats": [
+        [
+          7,
+          33
+        ],
+        [
+          4,
+          28
+        ],
+        [
+          5,
+          12
+        ],
+        [
+          3,
+          17
+        ],
+        [
+          35,
+          18
+        ]
+      ],
+      "spells": [
+        [
+          9316,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 28130,
+      "name": "Gladiator's Dragonhide Tunic",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 429,
+      "block": 0,
+      "socketBonus": 2874,
+      "itemset": 584,
+      "stats": [
+        [
+          7,
+          42
+        ],
+        [
+          4,
+          32
+        ],
+        [
+          5,
+          18
+        ],
+        [
+          3,
+          20
+        ],
+        [
+          35,
+          26
+        ]
+      ],
+      "spells": [
+        [
+          9316,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        2,
+        4
+      ]
+    },
+    {
+      "entry": 28136,
+      "name": "Gladiator's Wyrmhide Gloves",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 283,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 585,
+      "stats": [
+        [
+          7,
+          33
+        ],
+        [
+          5,
+          21
+        ],
+        [
+          35,
+          22
+        ]
+      ],
+      "spells": [
+        [
+          18054,
+          1
+        ],
+        [
+          33830,
+          1
+        ],
+        [
+          21626,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 28137,
+      "name": "Gladiator's Wyrmhide Helm",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 356,
+      "block": 0,
+      "socketBonus": 2878,
+      "itemset": 585,
+      "stats": [
+        [
+          7,
+          45
+        ],
+        [
+          5,
+          25
+        ],
+        [
+          35,
+          27
+        ]
+      ],
+      "spells": [
+        [
+          17280,
+          1
+        ],
+        [
+          21628,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 28138,
+      "name": "Gladiator's Wyrmhide Legguards",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 400,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 585,
+      "stats": [
+        [
+          7,
+          45
+        ],
+        [
+          5,
+          29
+        ],
+        [
+          35,
+          29
+        ]
+      ],
+      "spells": [
+        [
+          33484,
+          1
+        ],
+        [
+          20959,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 28139,
+      "name": "Gladiator's Wyrmhide Spaulders",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 331,
+      "block": 0,
+      "socketBonus": 2859,
+      "itemset": 585,
+      "stats": [
+        [
+          7,
+          33
+        ],
+        [
+          5,
+          14
+        ],
+        [
+          35,
+          20
+        ]
+      ],
+      "spells": [
+        [
+          14127,
+          1
+        ],
+        [
+          21618,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 28140,
+      "name": "Gladiator's Wyrmhide Tunic",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 429,
+      "block": 0,
+      "socketBonus": 2856,
+      "itemset": 585,
+      "stats": [
+        [
+          7,
+          42
+        ],
+        [
+          5,
+          22
+        ],
+        [
+          35,
+          26
+        ]
+      ],
+      "spells": [
+        [
+          28264,
+          1
+        ],
+        [
+          21627,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        2,
+        4
+      ]
+    },
+    {
+      "entry": 28331,
+      "name": "Gladiator's Chain Helm",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 4,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 703,
+      "block": 0,
+      "socketBonus": 2878,
+      "itemset": 586,
+      "stats": [
+        [
+          7,
+          49
+        ],
+        [
+          3,
+          34
+        ],
+        [
+          32,
+          20
+        ],
+        [
+          35,
+          20
+        ],
+        [
+          5,
+          18
+        ]
+      ],
+      "spells": [
+        [
+          14089,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        2,
+        0
+      ]
+    },
+    {
+      "entry": 28332,
+      "name": "Gladiator's Chain Leggings",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 4,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 758,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 586,
+      "stats": [
+        [
+          7,
+          53
+        ],
+        [
+          3,
+          35
+        ],
+        [
+          32,
+          19
+        ],
+        [
+          35,
+          31
+        ],
+        [
+          5,
+          14
+        ]
+      ],
+      "spells": [
+        [
+          15808,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 28333,
+      "name": "Gladiator's Chain Spaulders",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 4,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 649,
+      "block": 0,
+      "socketBonus": 2859,
+      "itemset": 586,
+      "stats": [
+        [
+          7,
+          39
+        ],
+        [
+          3,
+          27
+        ],
+        [
+          32,
+          11
+        ],
+        [
+          35,
+          18
+        ],
+        [
+          5,
+          8
+        ]
+      ],
+      "spells": [
+        [
+          9330,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 28334,
+      "name": "Gladiator's Chain Armor",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 4,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 866,
+      "block": 0,
+      "socketBonus": 2874,
+      "itemset": 586,
+      "stats": [
+        [
+          7,
+          51
+        ],
+        [
+          3,
+          27
+        ],
+        [
+          32,
+          18
+        ],
+        [
+          35,
+          20
+        ],
+        [
+          5,
+          17
+        ]
+      ],
+      "spells": [
+        [
+          9334,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        2,
+        4
+      ]
+    },
+    {
+      "entry": 28335,
+      "name": "Gladiator's Chain Gauntlets",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 4,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 541,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 586,
+      "stats": [
+        [
+          7,
+          41
+        ],
+        [
+          3,
+          26
+        ],
+        [
+          32,
+          14
+        ],
+        [
+          35,
+          18
+        ],
+        [
+          5,
+          10
+        ]
+      ],
+      "spells": [
+        [
+          9334,
+          1
+        ],
+        [
+          28539,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 28963,
+      "name": "Voidheart Crown",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 256,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 164,
+      "block": 0,
+      "socketBonus": 2908,
+      "itemset": 645,
+      "stats": [
+        [
+          7,
+          39
+        ],
+        [
+          5,
+          36
+        ],
+        [
+          32,
+          19
+        ]
+      ],
+      "spells": [
+        [
+          18056,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        2,
+        0
+      ]
+    },
+    {
+      "entry": 28964,
+      "name": "Voidheart Robe",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 20,
+      "AllowableClass": 256,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 202,
+      "block": 0,
+      "socketBonus": 2868,
+      "itemset": 645,
+      "stats": [
+        [
+          7,
+          42
+        ],
+        [
+          5,
+          33
+        ],
+        [
+          31,
+          13
+        ]
+      ],
+      "spells": [
+        [
+          18058,
+          1
+        ]
+      ],
+      "sockets": [
+        4,
+        4,
+        2
+      ]
+    },
+    {
+      "entry": 28966,
+      "name": "Voidheart Leggings",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 256,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 177,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 645,
+      "stats": [
+        [
+          7,
+          42
+        ],
+        [
+          5,
+          38
+        ],
+        [
+          31,
+          17
+        ],
+        [
+          32,
+          25
+        ]
+      ],
+      "spells": [
+        [
+          28360,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 28967,
+      "name": "Voidheart Mantle",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 256,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 152,
+      "block": 0,
+      "socketBonus": 2900,
+      "itemset": 645,
+      "stats": [
+        [
+          7,
+          26
+        ],
+        [
+          5,
+          22
+        ],
+        [
+          31,
+          14
+        ]
+      ],
+      "spells": [
+        [
+          18054,
+          1
+        ]
+      ],
+      "sockets": [
+        8,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 28968,
+      "name": "Voidheart Gloves",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 256,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 126,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 645,
+      "stats": [
+        [
+          7,
+          34
+        ],
+        [
+          5,
+          28
+        ],
+        [
+          32,
+          22
+        ]
+      ],
+      "spells": [
+        [
+          14055,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29011,
+      "name": "Warbringer Greathelm",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 1,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1227,
+      "block": 0,
+      "socketBonus": 2972,
+      "itemset": 654,
+      "stats": [
+        [
+          4,
+          24
+        ],
+        [
+          7,
+          53
+        ],
+        [
+          12,
+          24
+        ],
+        [
+          15,
+          19
+        ]
+      ],
+      "spells": [
+        [
+          34061,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 29012,
+      "name": "Warbringer Chestguard",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 1,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1510,
+      "block": 0,
+      "socketBonus": 2871,
+      "itemset": 654,
+      "stats": [
+        [
+          4,
+          25
+        ],
+        [
+          7,
+          48
+        ],
+        [
+          12,
+          22
+        ],
+        [
+          15,
+          23
+        ]
+      ],
+      "spells": [
+        [
+          34592,
+          1
+        ]
+      ],
+      "sockets": [
+        4,
+        4,
+        2
+      ]
+    },
+    {
+      "entry": 29015,
+      "name": "Warbringer Legguards",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 1,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1322,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 654,
+      "stats": [
+        [
+          4,
+          36
+        ],
+        [
+          7,
+          55
+        ],
+        [
+          12,
+          33
+        ],
+        [
+          13,
+          35
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29016,
+      "name": "Warbringer Shoulderguards",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 1,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1133,
+      "block": 0,
+      "socketBonus": 2861,
+      "itemset": 654,
+      "stats": [
+        [
+          4,
+          22
+        ],
+        [
+          7,
+          38
+        ],
+        [
+          12,
+          17
+        ],
+        [
+          13,
+          26
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        2,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 29017,
+      "name": "Warbringer Handguards",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 1,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 944,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 654,
+      "stats": [
+        [
+          4,
+          28
+        ],
+        [
+          7,
+          38
+        ],
+        [
+          12,
+          23
+        ],
+        [
+          14,
+          29
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29019,
+      "name": "Warbringer Breastplate",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 1,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1510,
+      "block": 0,
+      "socketBonus": 2952,
+      "itemset": 655,
+      "stats": [
+        [
+          4,
+          44
+        ],
+        [
+          7,
+          39
+        ],
+        [
+          32,
+          26
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        4,
+        8,
+        8
+      ]
+    },
+    {
+      "entry": 29020,
+      "name": "Warbringer Gauntlets",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 1,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 944,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 655,
+      "stats": [
+        [
+          4,
+          34
+        ],
+        [
+          3,
+          23
+        ],
+        [
+          7,
+          33
+        ],
+        [
+          31,
+          18
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29021,
+      "name": "Warbringer Battle-Helm",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 1,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1227,
+      "block": 0,
+      "socketBonus": 2873,
+      "itemset": 655,
+      "stats": [
+        [
+          4,
+          45
+        ],
+        [
+          7,
+          45
+        ],
+        [
+          32,
+          24
+        ],
+        [
+          31,
+          14
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        1,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 29022,
+      "name": "Warbringer Greaves",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 1,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1322,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 655,
+      "stats": [
+        [
+          4,
+          51
+        ],
+        [
+          32,
+          37
+        ],
+        [
+          7,
+          54
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29023,
+      "name": "Warbringer Shoulderplates",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 1,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1133,
+      "block": 0,
+      "socketBonus": 2879,
+      "itemset": 655,
+      "stats": [
+        [
+          4,
+          32
+        ],
+        [
+          3,
+          22
+        ],
+        [
+          7,
+          33
+        ],
+        [
+          31,
+          13
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        4,
+        8,
+        0
+      ]
+    },
+    {
+      "entry": 29028,
+      "name": "Cyclone Headdress",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 64,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 687,
+      "block": 0,
+      "socketBonus": 2872,
+      "itemset": 631,
+      "stats": [
+        [
+          7,
+          30
+        ],
+        [
+          5,
+          41
+        ]
+      ],
+      "spells": [
+        [
+          18045,
+          1
+        ],
+        [
+          18378,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        8,
+        0
+      ]
+    },
+    {
+      "entry": 29029,
+      "name": "Cyclone Hauberk",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 64,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 846,
+      "block": 0,
+      "socketBonus": 2869,
+      "itemset": 631,
+      "stats": [
+        [
+          7,
+          36
+        ],
+        [
+          5,
+          30
+        ]
+      ],
+      "spells": [
+        [
+          18042,
+          1
+        ],
+        [
+          21633,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        8
+      ]
+    },
+    {
+      "entry": 29030,
+      "name": "Cyclone Kilt",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 64,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 740,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 631,
+      "stats": [
+        [
+          7,
+          42
+        ],
+        [
+          5,
+          40
+        ]
+      ],
+      "spells": [
+        [
+          32584,
+          1
+        ],
+        [
+          21634,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29031,
+      "name": "Cyclone Shoulderpads",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 64,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 634,
+      "block": 0,
+      "socketBonus": 2881,
+      "itemset": 631,
+      "stats": [
+        [
+          7,
+          33
+        ],
+        [
+          5,
+          32
+        ]
+      ],
+      "spells": [
+        [
+          18042,
+          1
+        ]
+      ],
+      "sockets": [
+        8,
+        8,
+        0
+      ]
+    },
+    {
+      "entry": 29032,
+      "name": "Cyclone Gloves",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 64,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 528,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 631,
+      "stats": [
+        [
+          7,
+          28
+        ],
+        [
+          5,
+          28
+        ]
+      ],
+      "spells": [
+        [
+          18042,
+          1
+        ],
+        [
+          21632,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29033,
+      "name": "Cyclone Chestguard",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 64,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 846,
+      "block": 0,
+      "socketBonus": 2908,
+      "itemset": 632,
+      "stats": [
+        [
+          7,
+          33
+        ],
+        [
+          5,
+          32
+        ],
+        [
+          32,
+          20
+        ]
+      ],
+      "spells": [
+        [
+          18055,
+          1
+        ],
+        [
+          18378,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        8
+      ]
+    },
+    {
+      "entry": 29034,
+      "name": "Cyclone Handguards",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 64,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 528,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 632,
+      "stats": [
+        [
+          7,
+          26
+        ],
+        [
+          5,
+          29
+        ],
+        [
+          31,
+          19
+        ]
+      ],
+      "spells": [
+        [
+          18052,
+          1
+        ],
+        [
+          21626,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29035,
+      "name": "Cyclone Faceguard",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 64,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 687,
+      "block": 0,
+      "socketBonus": 2889,
+      "itemset": 632,
+      "stats": [
+        [
+          7,
+          30
+        ],
+        [
+          5,
+          31
+        ],
+        [
+          32,
+          25
+        ]
+      ],
+      "spells": [
+        [
+          18055,
+          1
+        ],
+        [
+          18378,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 29036,
+      "name": "Cyclone Legguards",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 64,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 740,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 632,
+      "stats": [
+        [
+          7,
+          40
+        ],
+        [
+          5,
+          40
+        ],
+        [
+          31,
+          20
+        ]
+      ],
+      "spells": [
+        [
+          28360,
+          1
+        ],
+        [
+          21630,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29037,
+      "name": "Cyclone Shoulderguards",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 64,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 634,
+      "block": 0,
+      "socketBonus": 2900,
+      "itemset": 632,
+      "stats": [
+        [
+          7,
+          28
+        ],
+        [
+          5,
+          26
+        ],
+        [
+          32,
+          12
+        ]
+      ],
+      "spells": [
+        [
+          18053,
+          1
+        ]
+      ],
+      "sockets": [
+        4,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 29038,
+      "name": "Cyclone Breastplate",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 64,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 846,
+      "block": 0,
+      "socketBonus": 2927,
+      "itemset": 633,
+      "stats": [
+        [
+          38,
+          66
+        ],
+        [
+          7,
+          31
+        ],
+        [
+          5,
+          23
+        ],
+        [
+          32,
+          25
+        ]
+      ],
+      "spells": [
+        [
+          18378,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        2,
+        4
+      ]
+    },
+    {
+      "entry": 29039,
+      "name": "Cyclone Gauntlets",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 64,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 528,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 633,
+      "stats": [
+        [
+          38,
+          54
+        ],
+        [
+          7,
+          26
+        ],
+        [
+          5,
+          24
+        ],
+        [
+          31,
+          19
+        ],
+        [
+          3,
+          21
+        ]
+      ],
+      "spells": [
+        [
+          21620,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29040,
+      "name": "Cyclone Helm",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 64,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 687,
+      "block": 0,
+      "socketBonus": 2873,
+      "itemset": 633,
+      "stats": [
+        [
+          38,
+          72
+        ],
+        [
+          3,
+          27
+        ],
+        [
+          7,
+          40
+        ],
+        [
+          5,
+          27
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        1,
+        2,
+        0
+      ]
+    },
+    {
+      "entry": 29042,
+      "name": "Cyclone War-Kilt",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 64,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 740,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 633,
+      "stats": [
+        [
+          38,
+          70
+        ],
+        [
+          3,
+          35
+        ],
+        [
+          7,
+          52
+        ],
+        [
+          5,
+          24
+        ]
+      ],
+      "spells": [
+        [
+          21632,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29043,
+      "name": "Cyclone Shoulderplates",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 64,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 634,
+      "block": 0,
+      "socketBonus": 2860,
+      "itemset": 633,
+      "stats": [
+        [
+          38,
+          52
+        ],
+        [
+          3,
+          18
+        ],
+        [
+          7,
+          31
+        ],
+        [
+          5,
+          18
+        ],
+        [
+          31,
+          14
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        2,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 29044,
+      "name": "Netherblade Facemask",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 8,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 308,
+      "block": 0,
+      "socketBonus": 2877,
+      "itemset": 621,
+      "stats": [
+        [
+          3,
+          28
+        ],
+        [
+          7,
+          39
+        ],
+        [
+          31,
+          14
+        ]
+      ],
+      "spells": [
+        [
+          15825,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        2,
+        0
+      ]
+    },
+    {
+      "entry": 29045,
+      "name": "Netherblade Chestpiece",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 8,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 379,
+      "block": 0,
+      "socketBonus": 2877,
+      "itemset": 621,
+      "stats": [
+        [
+          3,
+          35
+        ],
+        [
+          7,
+          39
+        ],
+        [
+          31,
+          11
+        ]
+      ],
+      "spells": [
+        [
+          15823,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        8
+      ]
+    },
+    {
+      "entry": 29046,
+      "name": "Netherblade Breeches",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 8,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 332,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 621,
+      "stats": [
+        [
+          3,
+          43
+        ],
+        [
+          7,
+          40
+        ],
+        [
+          31,
+          26
+        ]
+      ],
+      "spells": [
+        [
+          15828,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29047,
+      "name": "Netherblade Shoulderpads",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 8,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 284,
+      "block": 0,
+      "socketBonus": 2895,
+      "itemset": 621,
+      "stats": [
+        [
+          3,
+          20
+        ],
+        [
+          7,
+          38
+        ],
+        [
+          31,
+          13
+        ]
+      ],
+      "spells": [
+        [
+          15812,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        2,
+        0
+      ]
+    },
+    {
+      "entry": 29048,
+      "name": "Netherblade Gloves",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 8,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 237,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 621,
+      "stats": [
+        [
+          7,
+          34
+        ],
+        [
+          32,
+          25
+        ],
+        [
+          31,
+          17
+        ]
+      ],
+      "spells": [
+        [
+          15821,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29049,
+      "name": "Light-Collar of the Incarnate",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 16,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 164,
+      "block": 0,
+      "socketBonus": 2872,
+      "itemset": 663,
+      "stats": [
+        [
+          7,
+          28
+        ],
+        [
+          5,
+          34
+        ],
+        [
+          6,
+          25
+        ]
+      ],
+      "spells": [
+        [
+          18044,
+          1
+        ],
+        [
+          21627,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        8,
+        0
+      ]
+    },
+    {
+      "entry": 29050,
+      "name": "Robes of the Incarnate",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 20,
+      "AllowableClass": 16,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 202,
+      "block": 0,
+      "socketBonus": 2869,
+      "itemset": 663,
+      "stats": [
+        [
+          7,
+          30
+        ],
+        [
+          5,
+          32
+        ],
+        [
+          6,
+          20
+        ]
+      ],
+      "spells": [
+        [
+          33820,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        8,
+        8
+      ]
+    },
+    {
+      "entry": 29053,
+      "name": "Trousers of the Incarnate",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 16,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 177,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 663,
+      "stats": [
+        [
+          7,
+          39
+        ],
+        [
+          5,
+          37
+        ],
+        [
+          6,
+          36
+        ]
+      ],
+      "spells": [
+        [
+          33820,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29054,
+      "name": "Light-Mantle of the Incarnate",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 16,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 152,
+      "block": 0,
+      "socketBonus": 2895,
+      "itemset": 663,
+      "stats": [
+        [
+          7,
+          19
+        ],
+        [
+          5,
+          30
+        ],
+        [
+          6,
+          22
+        ]
+      ],
+      "spells": [
+        [
+          15696,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        8,
+        0
+      ]
+    },
+    {
+      "entry": 29055,
+      "name": "Handwraps of the Incarnate",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 16,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 126,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 663,
+      "stats": [
+        [
+          7,
+          28
+        ],
+        [
+          5,
+          26
+        ],
+        [
+          6,
+          18
+        ]
+      ],
+      "spells": [
+        [
+          18037,
+          1
+        ],
+        [
+          21633,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29056,
+      "name": "Shroud of the Incarnate",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 20,
+      "AllowableClass": 16,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 202,
+      "block": 0,
+      "socketBonus": 2864,
+      "itemset": 664,
+      "stats": [
+        [
+          7,
+          28
+        ],
+        [
+          5,
+          25
+        ],
+        [
+          6,
+          21
+        ],
+        [
+          31,
+          17
+        ]
+      ],
+      "spells": [
+        [
+          28264,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        8,
+        8
+      ]
+    },
+    {
+      "entry": 29057,
+      "name": "Gloves of the Incarnate",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 16,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 126,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 664,
+      "stats": [
+        [
+          7,
+          28
+        ],
+        [
+          5,
+          26
+        ],
+        [
+          6,
+          21
+        ],
+        [
+          32,
+          24
+        ]
+      ],
+      "spells": [
+        [
+          14798,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29058,
+      "name": "Soul-Collar of the Incarnate",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 16,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 164,
+      "block": 0,
+      "socketBonus": 2889,
+      "itemset": 664,
+      "stats": [
+        [
+          7,
+          28
+        ],
+        [
+          5,
+          35
+        ],
+        [
+          6,
+          24
+        ],
+        [
+          31,
+          16
+        ]
+      ],
+      "spells": [
+        [
+          18055,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 29059,
+      "name": "Leggings of the Incarnate",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 16,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 177,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 664,
+      "stats": [
+        [
+          7,
+          37
+        ],
+        [
+          5,
+          38
+        ],
+        [
+          6,
+          27
+        ],
+        [
+          32,
+          25
+        ]
+      ],
+      "spells": [
+        [
+          17280,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29060,
+      "name": "Soul-Mantle of the Incarnate",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 16,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 152,
+      "block": 0,
+      "socketBonus": 2880,
+      "itemset": 664,
+      "stats": [
+        [
+          7,
+          22
+        ],
+        [
+          5,
+          28
+        ],
+        [
+          6,
+          18
+        ]
+      ],
+      "spells": [
+        [
+          13881,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        8,
+        0
+      ]
+    },
+    {
+      "entry": 29061,
+      "name": "Justicar Diadem",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1227,
+      "block": 0,
+      "socketBonus": 2865,
+      "itemset": 624,
+      "stats": [
+        [
+          7,
+          32
+        ],
+        [
+          5,
+          33
+        ],
+        [
+          32,
+          28
+        ]
+      ],
+      "spells": [
+        [
+          18045,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        1,
+        0
+      ]
+    },
+    {
+      "entry": 29062,
+      "name": "Justicar Chestpiece",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1510,
+      "block": 0,
+      "socketBonus": 2868,
+      "itemset": 624,
+      "stats": [
+        [
+          7,
+          28
+        ],
+        [
+          5,
+          35
+        ],
+        [
+          32,
+          17
+        ]
+      ],
+      "spells": [
+        [
+          26154,
+          1
+        ],
+        [
+          21627,
+          1
+        ]
+      ],
+      "sockets": [
+        8,
+        8,
+        4
+      ]
+    },
+    {
+      "entry": 29063,
+      "name": "Justicar Leggings",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1322,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 624,
+      "stats": [
+        [
+          7,
+          43
+        ],
+        [
+          5,
+          42
+        ]
+      ],
+      "spells": [
+        [
+          33820,
+          1
+        ],
+        [
+          21634,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29064,
+      "name": "Justicar Pauldrons",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1133,
+      "block": 0,
+      "socketBonus": 2863,
+      "itemset": 624,
+      "stats": [
+        [
+          7,
+          31
+        ],
+        [
+          5,
+          24
+        ]
+      ],
+      "spells": [
+        [
+          18042,
+          1
+        ],
+        [
+          21620,
+          1
+        ]
+      ],
+      "sockets": [
+        8,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 29065,
+      "name": "Justicar Gloves",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 944,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 624,
+      "stats": [
+        [
+          7,
+          29
+        ],
+        [
+          5,
+          30
+        ],
+        [
+          32,
+          22
+        ]
+      ],
+      "spells": [
+        [
+          18045,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29066,
+      "name": "Justicar Chestguard",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1510,
+      "block": 0,
+      "socketBonus": 2932,
+      "itemset": 625,
+      "stats": [
+        [
+          7,
+          48
+        ],
+        [
+          4,
+          41
+        ],
+        [
+          12,
+          23
+        ],
+        [
+          15,
+          23
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        2,
+        8,
+        4
+      ]
+    },
+    {
+      "entry": 29067,
+      "name": "Justicar Handguards",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 944,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 625,
+      "stats": [
+        [
+          7,
+          34
+        ],
+        [
+          4,
+          35
+        ],
+        [
+          12,
+          23
+        ]
+      ],
+      "spells": [
+        [
+          35074,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29068,
+      "name": "Justicar Faceguard",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1227,
+      "block": 0,
+      "socketBonus": 2871,
+      "itemset": 625,
+      "stats": [
+        [
+          7,
+          43
+        ],
+        [
+          4,
+          35
+        ],
+        [
+          12,
+          29
+        ],
+        [
+          13,
+          24
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        4,
+        1,
+        0
+      ]
+    },
+    {
+      "entry": 29069,
+      "name": "Justicar Legguards",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1322,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 625,
+      "stats": [
+        [
+          7,
+          46
+        ],
+        [
+          4,
+          47
+        ],
+        [
+          12,
+          31
+        ],
+        [
+          14,
+          31
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29070,
+      "name": "Justicar Shoulderguards",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1133,
+      "block": 0,
+      "socketBonus": 2895,
+      "itemset": 625,
+      "stats": [
+        [
+          7,
+          37
+        ],
+        [
+          4,
+          29
+        ],
+        [
+          12,
+          15
+        ],
+        [
+          15,
+          17
+        ]
+      ],
+      "spells": [
+        [
+          23516,
+          1
+        ]
+      ],
+      "sockets": [
+        8,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 29071,
+      "name": "Justicar Breastplate",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1510,
+      "block": 0,
+      "socketBonus": 2868,
+      "itemset": 626,
+      "stats": [
+        [
+          4,
+          42
+        ],
+        [
+          7,
+          24
+        ],
+        [
+          5,
+          33
+        ],
+        [
+          32,
+          25
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        2,
+        2,
+        8
+      ]
+    },
+    {
+      "entry": 29072,
+      "name": "Justicar Gauntlets",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 944,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 626,
+      "stats": [
+        [
+          4,
+          38
+        ],
+        [
+          7,
+          29
+        ],
+        [
+          5,
+          24
+        ],
+        [
+          32,
+          24
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29073,
+      "name": "Justicar Crown",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1227,
+      "block": 0,
+      "socketBonus": 2873,
+      "itemset": 626,
+      "stats": [
+        [
+          4,
+          43
+        ],
+        [
+          3,
+          22
+        ],
+        [
+          7,
+          33
+        ],
+        [
+          5,
+          31
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        2,
+        1,
+        0
+      ]
+    },
+    {
+      "entry": 29074,
+      "name": "Justicar Greaves",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1322,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 626,
+      "stats": [
+        [
+          4,
+          53
+        ],
+        [
+          7,
+          34
+        ],
+        [
+          5,
+          24
+        ],
+        [
+          3,
+          24
+        ],
+        [
+          31,
+          23
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29075,
+      "name": "Justicar Shoulderplates",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1133,
+      "block": 0,
+      "socketBonus": 2860,
+      "itemset": 626,
+      "stats": [
+        [
+          4,
+          36
+        ],
+        [
+          3,
+          13
+        ],
+        [
+          7,
+          24
+        ],
+        [
+          5,
+          15
+        ],
+        [
+          31,
+          16
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        4,
+        2,
+        0
+      ]
+    },
+    {
+      "entry": 29076,
+      "name": "Collar of the Aldor",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 128,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 164,
+      "block": 0,
+      "socketBonus": 2889,
+      "itemset": 648,
+      "stats": [
+        [
+          7,
+          24
+        ],
+        [
+          5,
+          35
+        ],
+        [
+          6,
+          17
+        ],
+        [
+          32,
+          27
+        ]
+      ],
+      "spells": [
+        [
+          18057,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        8,
+        0
+      ]
+    },
+    {
+      "entry": 29077,
+      "name": "Vestments of the Aldor",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 20,
+      "AllowableClass": 128,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 202,
+      "block": 0,
+      "socketBonus": 2889,
+      "itemset": 648,
+      "stats": [
+        [
+          7,
+          34
+        ],
+        [
+          5,
+          32
+        ],
+        [
+          6,
+          14
+        ]
+      ],
+      "spells": [
+        [
+          28360,
+          1
+        ],
+        [
+          26283,
+          1
+        ]
+      ],
+      "sockets": [
+        4,
+        8,
+        8
+      ]
+    },
+    {
+      "entry": 29078,
+      "name": "Legwraps of the Aldor",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 128,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 177,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 648,
+      "stats": [
+        [
+          7,
+          31
+        ],
+        [
+          5,
+          40
+        ],
+        [
+          6,
+          23
+        ],
+        [
+          31,
+          24
+        ]
+      ],
+      "spells": [
+        [
+          28360,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29079,
+      "name": "Pauldrons of the Aldor",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 128,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 152,
+      "block": 0,
+      "socketBonus": 2900,
+      "itemset": 648,
+      "stats": [
+        [
+          7,
+          25
+        ],
+        [
+          5,
+          26
+        ],
+        [
+          6,
+          16
+        ],
+        [
+          32,
+          15
+        ]
+      ],
+      "spells": [
+        [
+          14054,
+          1
+        ]
+      ],
+      "sockets": [
+        4,
+        2,
+        0
+      ]
+    },
+    {
+      "entry": 29080,
+      "name": "Gloves of the Aldor",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 128,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 126,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 648,
+      "stats": [
+        [
+          7,
+          19
+        ],
+        [
+          5,
+          22
+        ],
+        [
+          6,
+          19
+        ],
+        [
+          31,
+          17
+        ],
+        [
+          32,
+          19
+        ]
+      ],
+      "spells": [
+        [
+          14055,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29081,
+      "name": "Demon Stalker Greathelm",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 4,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 687,
+      "block": 0,
+      "socketBonus": 2877,
+      "itemset": 651,
+      "stats": [
+        [
+          3,
+          35
+        ],
+        [
+          7,
+          28
+        ],
+        [
+          5,
+          27
+        ]
+      ],
+      "spells": [
+        [
+          15818,
+          1
+        ]
+      ],
+      "sockets": [
+        4,
+        1,
+        0
+      ]
+    },
+    {
+      "entry": 29082,
+      "name": "Demon Stalker Harness",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 4,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 846,
+      "block": 0,
+      "socketBonus": 2936,
+      "itemset": 651,
+      "stats": [
+        [
+          3,
+          26
+        ],
+        [
+          7,
+          24
+        ],
+        [
+          5,
+          35
+        ]
+      ],
+      "spells": [
+        [
+          15820,
+          1
+        ],
+        [
+          21627,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        8,
+        8
+      ]
+    },
+    {
+      "entry": 29083,
+      "name": "Demon Stalker Greaves",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 4,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 740,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 651,
+      "stats": [
+        [
+          3,
+          40
+        ],
+        [
+          7,
+          30
+        ],
+        [
+          5,
+          30
+        ],
+        [
+          31,
+          15
+        ]
+      ],
+      "spells": [
+        [
+          15827,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29084,
+      "name": "Demon Stalker Shoulderguards",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 4,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 634,
+      "block": 0,
+      "socketBonus": 2863,
+      "itemset": 651,
+      "stats": [
+        [
+          7,
+          23
+        ],
+        [
+          5,
+          23
+        ],
+        [
+          32,
+          19
+        ]
+      ],
+      "spells": [
+        [
+          15810,
+          1
+        ],
+        [
+          21620,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 29085,
+      "name": "Demon Stalker Gauntlets",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 4,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 528,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 651,
+      "stats": [
+        [
+          3,
+          28
+        ],
+        [
+          7,
+          24
+        ],
+        [
+          5,
+          24
+        ]
+      ],
+      "spells": [
+        [
+          15815,
+          1
+        ],
+        [
+          18379,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29086,
+      "name": "Crown of Malorne",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 308,
+      "block": 0,
+      "socketBonus": 2869,
+      "itemset": 638,
+      "stats": [
+        [
+          7,
+          28
+        ],
+        [
+          5,
+          27
+        ],
+        [
+          6,
+          25
+        ]
+      ],
+      "spells": [
+        [
+          18042,
+          1
+        ],
+        [
+          21632,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        1,
+        0
+      ]
+    },
+    {
+      "entry": 29087,
+      "name": "Chestguard of Malorne",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 379,
+      "block": 0,
+      "socketBonus": 2872,
+      "itemset": 638,
+      "stats": [
+        [
+          7,
+          28
+        ],
+        [
+          5,
+          29
+        ],
+        [
+          6,
+          25
+        ]
+      ],
+      "spells": [
+        [
+          33820,
+          1
+        ]
+      ],
+      "sockets": [
+        4,
+        8,
+        8
+      ]
+    },
+    {
+      "entry": 29088,
+      "name": "Legguards of Malorne",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 332,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 638,
+      "stats": [
+        [
+          7,
+          30
+        ],
+        [
+          5,
+          38
+        ],
+        [
+          6,
+          26
+        ]
+      ],
+      "spells": [
+        [
+          17320,
+          1
+        ],
+        [
+          21632,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29089,
+      "name": "Shoulderguards of Malorne",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 284,
+      "block": 0,
+      "socketBonus": 2866,
+      "itemset": 638,
+      "stats": [
+        [
+          7,
+          19
+        ],
+        [
+          5,
+          23
+        ],
+        [
+          6,
+          19
+        ]
+      ],
+      "spells": [
+        [
+          18042,
+          1
+        ],
+        [
+          21620,
+          1
+        ]
+      ],
+      "sockets": [
+        8,
+        8,
+        0
+      ]
+    },
+    {
+      "entry": 29090,
+      "name": "Handguards of Malorne",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 237,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 638,
+      "stats": [
+        [
+          7,
+          22
+        ],
+        [
+          5,
+          25
+        ],
+        [
+          6,
+          24
+        ]
+      ],
+      "spells": [
+        [
+          18039,
+          1
+        ],
+        [
+          21628,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29091,
+      "name": "Chestpiece of Malorne",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 379,
+      "block": 0,
+      "socketBonus": 2908,
+      "itemset": 639,
+      "stats": [
+        [
+          7,
+          28
+        ],
+        [
+          5,
+          27
+        ],
+        [
+          6,
+          19
+        ],
+        [
+          31,
+          19
+        ]
+      ],
+      "spells": [
+        [
+          28264,
+          1
+        ]
+      ],
+      "sockets": [
+        4,
+        4,
+        8
+      ]
+    },
+    {
+      "entry": 29092,
+      "name": "Gloves of Malorne",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 237,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 639,
+      "stats": [
+        [
+          7,
+          24
+        ],
+        [
+          5,
+          27
+        ],
+        [
+          6,
+          21
+        ],
+        [
+          32,
+          18
+        ]
+      ],
+      "spells": [
+        [
+          18050,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29093,
+      "name": "Antlers of Malorne",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 308,
+      "block": 0,
+      "socketBonus": 2908,
+      "itemset": 639,
+      "stats": [
+        [
+          7,
+          28
+        ],
+        [
+          5,
+          29
+        ],
+        [
+          6,
+          22
+        ],
+        [
+          32,
+          24
+        ]
+      ],
+      "spells": [
+        [
+          18053,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        1,
+        0
+      ]
+    },
+    {
+      "entry": 29094,
+      "name": "Britches of Malorne",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 332,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 639,
+      "stats": [
+        [
+          7,
+          32
+        ],
+        [
+          5,
+          35
+        ],
+        [
+          6,
+          18
+        ],
+        [
+          32,
+          25
+        ]
+      ],
+      "spells": [
+        [
+          17493,
+          1
+        ],
+        [
+          21627,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29095,
+      "name": "Pauldrons of Malorne",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 284,
+      "block": 0,
+      "socketBonus": 2900,
+      "itemset": 639,
+      "stats": [
+        [
+          7,
+          21
+        ],
+        [
+          5,
+          24
+        ],
+        [
+          6,
+          17
+        ]
+      ],
+      "spells": [
+        [
+          18053,
+          1
+        ],
+        [
+          21620,
+          1
+        ]
+      ],
+      "sockets": [
+        8,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 29096,
+      "name": "Breastplate of Malorne",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 379,
+      "block": 0,
+      "socketBonus": 2873,
+      "itemset": 640,
+      "stats": [
+        [
+          4,
+          42
+        ],
+        [
+          3,
+          34
+        ],
+        [
+          7,
+          36
+        ],
+        [
+          5,
+          13
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        4,
+        8,
+        2
+      ]
+    },
+    {
+      "entry": 29097,
+      "name": "Gauntlets of Malorne",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 237,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 640,
+      "stats": [
+        [
+          4,
+          32
+        ],
+        [
+          7,
+          28
+        ],
+        [
+          5,
+          12
+        ],
+        [
+          3,
+          32
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29098,
+      "name": "Stag-Helm of Malorne",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 308,
+      "block": 0,
+      "socketBonus": 2877,
+      "itemset": 640,
+      "stats": [
+        [
+          4,
+          41
+        ],
+        [
+          3,
+          33
+        ],
+        [
+          7,
+          39
+        ],
+        [
+          5,
+          19
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        4,
+        1,
+        0
+      ]
+    },
+    {
+      "entry": 29099,
+      "name": "Greaves of Malorne",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 332,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 640,
+      "stats": [
+        [
+          4,
+          42
+        ],
+        [
+          3,
+          42
+        ],
+        [
+          7,
+          39
+        ],
+        [
+          5,
+          26
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29100,
+      "name": "Mantle of Malorne",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 120,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 284,
+      "block": 0,
+      "socketBonus": 2887,
+      "itemset": 640,
+      "stats": [
+        [
+          4,
+          33
+        ],
+        [
+          3,
+          31
+        ],
+        [
+          7,
+          25
+        ],
+        [
+          5,
+          9
+        ]
+      ],
+      "spells": [],
+      "sockets": [
+        8,
+        8,
+        0
+      ]
+    },
+    {
+      "entry": 29753,
+      "name": "Chestguard of the Fallen Defender",
+      "class": 15,
+      "subclass": 0,
+      "Quality": 4,
+      "InventoryType": 0,
+      "AllowableClass": 1041,
+      "AllowableRace": 32767,
+      "ItemLevel": 70,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 0,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 0,
+      "stats": [],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29754,
+      "name": "Chestguard of the Fallen Champion",
+      "class": 15,
+      "subclass": 0,
+      "Quality": 4,
+      "InventoryType": 0,
+      "AllowableClass": 74,
+      "AllowableRace": 32767,
+      "ItemLevel": 70,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 0,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 0,
+      "stats": [],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29755,
+      "name": "Chestguard of the Fallen Hero",
+      "class": 15,
+      "subclass": 0,
+      "Quality": 4,
+      "InventoryType": 0,
+      "AllowableClass": 388,
+      "AllowableRace": 32767,
+      "ItemLevel": 70,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 0,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 0,
+      "stats": [],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29756,
+      "name": "Gloves of the Fallen Hero",
+      "class": 15,
+      "subclass": 0,
+      "Quality": 4,
+      "InventoryType": 0,
+      "AllowableClass": 388,
+      "AllowableRace": 32767,
+      "ItemLevel": 70,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 0,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 0,
+      "stats": [],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29757,
+      "name": "Gloves of the Fallen Champion",
+      "class": 15,
+      "subclass": 0,
+      "Quality": 4,
+      "InventoryType": 0,
+      "AllowableClass": 74,
+      "AllowableRace": 32767,
+      "ItemLevel": 70,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 0,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 0,
+      "stats": [],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29758,
+      "name": "Gloves of the Fallen Defender",
+      "class": 15,
+      "subclass": 0,
+      "Quality": 4,
+      "InventoryType": 0,
+      "AllowableClass": 1041,
+      "AllowableRace": 32767,
+      "ItemLevel": 70,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 0,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 0,
+      "stats": [],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29759,
+      "name": "Helm of the Fallen Hero",
+      "class": 15,
+      "subclass": 0,
+      "Quality": 4,
+      "InventoryType": 0,
+      "AllowableClass": 388,
+      "AllowableRace": 32767,
+      "ItemLevel": 70,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 0,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 0,
+      "stats": [],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29760,
+      "name": "Helm of the Fallen Champion",
+      "class": 15,
+      "subclass": 0,
+      "Quality": 4,
+      "InventoryType": 0,
+      "AllowableClass": 74,
+      "AllowableRace": 32767,
+      "ItemLevel": 70,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 0,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 0,
+      "stats": [],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29761,
+      "name": "Helm of the Fallen Defender",
+      "class": 15,
+      "subclass": 0,
+      "Quality": 4,
+      "InventoryType": 0,
+      "AllowableClass": 1041,
+      "AllowableRace": 32767,
+      "ItemLevel": 70,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 0,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 0,
+      "stats": [],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29762,
+      "name": "Pauldrons of the Fallen Hero",
+      "class": 15,
+      "subclass": 0,
+      "Quality": 4,
+      "InventoryType": 0,
+      "AllowableClass": 388,
+      "AllowableRace": 32767,
+      "ItemLevel": 70,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 0,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 0,
+      "stats": [],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29763,
+      "name": "Pauldrons of the Fallen Champion",
+      "class": 15,
+      "subclass": 0,
+      "Quality": 4,
+      "InventoryType": 0,
+      "AllowableClass": 74,
+      "AllowableRace": 32767,
+      "ItemLevel": 70,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 0,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 0,
+      "stats": [],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29764,
+      "name": "Pauldrons of the Fallen Defender",
+      "class": 15,
+      "subclass": 0,
+      "Quality": 4,
+      "InventoryType": 0,
+      "AllowableClass": 1041,
+      "AllowableRace": 32767,
+      "ItemLevel": 70,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 0,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 0,
+      "stats": [],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29765,
+      "name": "Leggings of the Fallen Hero",
+      "class": 15,
+      "subclass": 0,
+      "Quality": 4,
+      "InventoryType": 0,
+      "AllowableClass": 388,
+      "AllowableRace": 32767,
+      "ItemLevel": 70,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 0,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 0,
+      "stats": [],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29766,
+      "name": "Leggings of the Fallen Champion",
+      "class": 15,
+      "subclass": 0,
+      "Quality": 4,
+      "InventoryType": 0,
+      "AllowableClass": 74,
+      "AllowableRace": 32767,
+      "ItemLevel": 70,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 0,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 0,
+      "stats": [],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 29767,
+      "name": "Leggings of the Fallen Defender",
+      "class": 15,
+      "subclass": 0,
+      "Quality": 4,
+      "InventoryType": 0,
+      "AllowableClass": 1041,
+      "AllowableRace": 32767,
+      "ItemLevel": 70,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 0,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 0,
+      "stats": [],
+      "spells": [],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 30186,
+      "name": "Gladiator's Felweave Amice",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 256,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 155,
+      "block": 0,
+      "socketBonus": 2859,
+      "itemset": 615,
+      "stats": [
+        [
+          7,
+          42
+        ],
+        [
+          5,
+          14
+        ],
+        [
+          35,
+          21
+        ],
+        [
+          32,
+          12
+        ]
+      ],
+      "spells": [
+        [
+          17367,
+          1
+        ]
+      ],
+      "sockets": [
+        8,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 30187,
+      "name": "Gladiator's Felweave Cowl",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 256,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 168,
+      "block": 0,
+      "socketBonus": 2878,
+      "itemset": 615,
+      "stats": [
+        [
+          7,
+          54
+        ],
+        [
+          5,
+          15
+        ],
+        [
+          32,
+          18
+        ],
+        [
+          35,
+          30
+        ]
+      ],
+      "spells": [
+        [
+          18054,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        2,
+        0
+      ]
+    },
+    {
+      "entry": 30188,
+      "name": "Gladiator's Felweave Handguards",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 256,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 129,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 615,
+      "stats": [
+        [
+          7,
+          39
+        ],
+        [
+          5,
+          14
+        ],
+        [
+          32,
+          21
+        ],
+        [
+          35,
+          21
+        ]
+      ],
+      "spells": [
+        [
+          33063,
+          1
+        ],
+        [
+          17367,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 30200,
+      "name": "Gladiator's Felweave Raiment",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 20,
+      "AllowableClass": 256,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 207,
+      "block": 0,
+      "socketBonus": 2951,
+      "itemset": 615,
+      "stats": [
+        [
+          7,
+          51
+        ],
+        [
+          5,
+          16
+        ],
+        [
+          32,
+          27
+        ],
+        [
+          35,
+          24
+        ]
+      ],
+      "spells": [
+        [
+          17367,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "entry": 30201,
+      "name": "Gladiator's Felweave Trousers",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 256,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 181,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 615,
+      "stats": [
+        [
+          7,
+          54
+        ],
+        [
+          5,
+          25
+        ],
+        [
+          32,
+          28
+        ],
+        [
+          35,
+          30
+        ]
+      ],
+      "spells": [
+        [
+          18058,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 31375,
+      "name": "Gladiator's Kodohide Gloves",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 283,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 685,
+      "stats": [
+        [
+          7,
+          33
+        ],
+        [
+          5,
+          27
+        ],
+        [
+          35,
+          22
+        ]
+      ],
+      "spells": [
+        [
+          18039,
+          1
+        ],
+        [
+          33830,
+          1
+        ],
+        [
+          21626,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 31376,
+      "name": "Gladiator's Kodohide Helm",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 356,
+      "block": 0,
+      "socketBonus": 2878,
+      "itemset": 685,
+      "stats": [
+        [
+          7,
+          46
+        ],
+        [
+          5,
+          33
+        ],
+        [
+          35,
+          28
+        ]
+      ],
+      "spells": [
+        [
+          18045,
+          1
+        ],
+        [
+          21627,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 31377,
+      "name": "Gladiator's Kodohide Legguards",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 400,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 685,
+      "stats": [
+        [
+          7,
+          45
+        ],
+        [
+          5,
+          37
+        ],
+        [
+          35,
+          29
+        ]
+      ],
+      "spells": [
+        [
+          17320,
+          1
+        ],
+        [
+          20959,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 31378,
+      "name": "Gladiator's Kodohide Spaulders",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 331,
+      "block": 0,
+      "socketBonus": 2859,
+      "itemset": 685,
+      "stats": [
+        [
+          7,
+          33
+        ],
+        [
+          5,
+          21
+        ],
+        [
+          35,
+          20
+        ]
+      ],
+      "spells": [
+        [
+          18033,
+          1
+        ],
+        [
+          21362,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 31379,
+      "name": "Gladiator's Kodohide Tunic",
+      "class": 4,
+      "subclass": 2,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 1024,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 429,
+      "block": 0,
+      "socketBonus": 2856,
+      "itemset": 685,
+      "stats": [
+        [
+          7,
+          42
+        ],
+        [
+          5,
+          30
+        ],
+        [
+          35,
+          26
+        ]
+      ],
+      "spells": [
+        [
+          18045,
+          1
+        ],
+        [
+          21627,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        2,
+        4
+      ]
+    },
+    {
+      "entry": 31396,
+      "name": "Gladiator's Ringmail Armor",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 64,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 866,
+      "block": 0,
+      "socketBonus": 2951,
+      "itemset": 686,
+      "stats": [
+        [
+          7,
+          42
+        ],
+        [
+          5,
+          23
+        ],
+        [
+          32,
+          23
+        ],
+        [
+          35,
+          25
+        ]
+      ],
+      "spells": [
+        [
+          21364,
+          1
+        ],
+        [
+          18038,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "entry": 31397,
+      "name": "Gladiator's Ringmail Gauntlets",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 64,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 541,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 686,
+      "stats": [
+        [
+          7,
+          36
+        ],
+        [
+          5,
+          18
+        ],
+        [
+          32,
+          21
+        ],
+        [
+          35,
+          21
+        ]
+      ],
+      "spells": [
+        [
+          38501,
+          1
+        ],
+        [
+          18038,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 31400,
+      "name": "Gladiator's Ringmail Helm",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 64,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 703,
+      "block": 0,
+      "socketBonus": 2878,
+      "itemset": 686,
+      "stats": [
+        [
+          7,
+          54
+        ],
+        [
+          5,
+          20
+        ],
+        [
+          32,
+          17
+        ],
+        [
+          35,
+          30
+        ]
+      ],
+      "spells": [
+        [
+          18039,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        2,
+        0
+      ]
+    },
+    {
+      "entry": 31406,
+      "name": "Gladiator's Ringmail Leggings",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 64,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 758,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 686,
+      "stats": [
+        [
+          7,
+          54
+        ],
+        [
+          5,
+          26
+        ],
+        [
+          32,
+          21
+        ],
+        [
+          35,
+          29
+        ]
+      ],
+      "spells": [
+        [
+          18047,
+          1
+        ],
+        [
+          18379,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 31407,
+      "name": "Gladiator's Ringmail Spaulders",
+      "class": 4,
+      "subclass": 3,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 64,
+      "AllowableRace": -1,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 649,
+      "block": 0,
+      "socketBonus": 2859,
+      "itemset": 686,
+      "stats": [
+        [
+          7,
+          33
+        ],
+        [
+          5,
+          19
+        ],
+        [
+          32,
+          18
+        ],
+        [
+          35,
+          20
+        ]
+      ],
+      "spells": [
+        [
+          21626,
+          1
+        ],
+        [
+          18032,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 31409,
+      "name": "Gladiator's Mooncloth Gloves",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 16,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 129,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 687,
+      "stats": [
+        [
+          7,
+          40
+        ],
+        [
+          5,
+          20
+        ],
+        [
+          35,
+          28
+        ]
+      ],
+      "spells": [
+        [
+          23044,
+          1
+        ],
+        [
+          15696,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 31410,
+      "name": "Gladiator's Mooncloth Hood",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 16,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 168,
+      "block": 0,
+      "socketBonus": 2878,
+      "itemset": 687,
+      "stats": [
+        [
+          7,
+          60
+        ],
+        [
+          5,
+          22
+        ],
+        [
+          35,
+          30
+        ]
+      ],
+      "spells": [
+        [
+          18036,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        2,
+        0
+      ]
+    },
+    {
+      "entry": 31411,
+      "name": "Gladiator's Mooncloth Leggings",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 16,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 181,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 687,
+      "stats": [
+        [
+          7,
+          60
+        ],
+        [
+          5,
+          30
+        ],
+        [
+          35,
+          30
+        ]
+      ],
+      "spells": [
+        [
+          18039,
+          1
+        ],
+        [
+          21366,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 31412,
+      "name": "Gladiator's Mooncloth Mantle",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 16,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 155,
+      "block": 0,
+      "socketBonus": 2859,
+      "itemset": 687,
+      "stats": [
+        [
+          7,
+          40
+        ],
+        [
+          5,
+          22
+        ],
+        [
+          35,
+          24
+        ]
+      ],
+      "spells": [
+        [
+          18032,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        0
+      ]
+    },
+    {
+      "entry": 31413,
+      "name": "Gladiator's Mooncloth Robe",
+      "class": 4,
+      "subclass": 1,
+      "Quality": 4,
+      "InventoryType": 20,
+      "AllowableClass": 16,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 207,
+      "block": 0,
+      "socketBonus": 2856,
+      "itemset": 687,
+      "stats": [
+        [
+          7,
+          51
+        ],
+        [
+          5,
+          28
+        ],
+        [
+          35,
+          25
+        ]
+      ],
+      "spells": [
+        [
+          18033,
+          1
+        ],
+        [
+          21626,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "entry": 31613,
+      "name": "Gladiator's Ornamented Chestguard",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 5,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1547,
+      "block": 0,
+      "socketBonus": 2951,
+      "itemset": 690,
+      "stats": [
+        [
+          7,
+          45
+        ],
+        [
+          5,
+          31
+        ],
+        [
+          32,
+          30
+        ],
+        [
+          35,
+          27
+        ]
+      ],
+      "spells": [
+        [
+          18032,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        2,
+        4
+      ]
+    },
+    {
+      "entry": 31614,
+      "name": "Gladiator's Ornamented Gloves",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 10,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 967,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 690,
+      "stats": [
+        [
+          7,
+          34
+        ],
+        [
+          5,
+          24
+        ],
+        [
+          32,
+          24
+        ],
+        [
+          35,
+          14
+        ]
+      ],
+      "spells": [
+        [
+          15696,
+          1
+        ],
+        [
+          38522,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 31616,
+      "name": "Gladiator's Ornamented Headcover",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 1,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1257,
+      "block": 0,
+      "socketBonus": 2878,
+      "itemset": 690,
+      "stats": [
+        [
+          7,
+          52
+        ],
+        [
+          5,
+          30
+        ],
+        [
+          32,
+          21
+        ],
+        [
+          35,
+          32
+        ]
+      ],
+      "spells": [
+        [
+          18037,
+          1
+        ]
+      ],
+      "sockets": [
+        1,
+        2,
+        0
+      ]
+    },
+    {
+      "entry": 31618,
+      "name": "Gladiator's Ornamented Legplates",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 7,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1353,
+      "block": 0,
+      "socketBonus": 0,
+      "itemset": 690,
+      "stats": [
+        [
+          7,
+          48
+        ],
+        [
+          5,
+          32
+        ],
+        [
+          32,
+          32
+        ],
+        [
+          35,
+          31
+        ]
+      ],
+      "spells": [
+        [
+          18043,
+          1
+        ]
+      ],
+      "sockets": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "entry": 31619,
+      "name": "Gladiator's Ornamented Spaulders",
+      "class": 4,
+      "subclass": 4,
+      "Quality": 4,
+      "InventoryType": 3,
+      "AllowableClass": 2,
+      "AllowableRace": 32767,
+      "ItemLevel": 123,
+      "RequiredLevel": 70,
+      "RequiredHonorRank": 0,
+      "armor": 1160,
+      "block": 0,
+      "socketBonus": 2859,
+      "itemset": 690,
+      "stats": [
+        [
+          7,
+          30
+        ],
+        [
+          5,
+          24
+        ],
+        [
+          32,
+          23
+        ],
+        [
+          35,
+          20
+        ]
+      ],
+      "spells": [
+        [
+          18029,
+          1
+        ]
+      ],
+      "sockets": [
+        2,
+        4,
+        0
+      ]
+    }
+  ],
+  "costs": {
+    "1235": {
+      "reqhonorpoints": 0,
+      "reqarenapoints": 0,
+      "reqpersonalarenarating": 0
+    },
+    "1239": {
+      "reqhonorpoints": 0,
+      "reqarenapoints": 0,
+      "reqpersonalarenarating": 0
+    },
+    "1243": {
+      "reqhonorpoints": 0,
+      "reqarenapoints": 0,
+      "reqpersonalarenarating": 0
+    },
+    "1241": {
+      "reqhonorpoints": 0,
+      "reqarenapoints": 0,
+      "reqpersonalarenarating": 0
+    },
+    "1237": {
+      "reqhonorpoints": 0,
+      "reqarenapoints": 0,
+      "reqpersonalarenarating": 0
+    },
+    "1215": {
+      "reqhonorpoints": 0,
+      "reqarenapoints": 0,
+      "reqpersonalarenarating": 0
+    },
+    "1217": {
+      "reqhonorpoints": 0,
+      "reqarenapoints": 0,
+      "reqpersonalarenarating": 0
+    },
+    "1219": {
+      "reqhonorpoints": 0,
+      "reqarenapoints": 0,
+      "reqpersonalarenarating": 0
+    },
+    "1218": {
+      "reqhonorpoints": 0,
+      "reqarenapoints": 0,
+      "reqpersonalarenarating": 0
+    },
+    "1216": {
+      "reqhonorpoints": 0,
+      "reqarenapoints": 0,
+      "reqpersonalarenarating": 0
+    },
+    "1206": {
+      "reqhonorpoints": 0,
+      "reqarenapoints": 0,
+      "reqpersonalarenarating": 0
+    },
+    "1200": {
+      "reqhonorpoints": 0,
+      "reqarenapoints": 0,
+      "reqpersonalarenarating": 0
+    },
+    "1212": {
+      "reqhonorpoints": 0,
+      "reqarenapoints": 0,
+      "reqpersonalarenarating": 0
+    },
+    "1209": {
+      "reqhonorpoints": 0,
+      "reqarenapoints": 0,
+      "reqpersonalarenarating": 0
+    },
+    "1203": {
+      "reqhonorpoints": 0,
+      "reqarenapoints": 0,
+      "reqpersonalarenarating": 0
+    }
+  },
+  "rewards": {
+    "29753": [
+      {
+        "item": 24544,
+        "cost": 1235
+      },
+      {
+        "item": 27711,
+        "cost": 1235
+      },
+      {
+        "item": 28130,
+        "cost": 1235
+      },
+      {
+        "item": 28140,
+        "cost": 1235
+      },
+      {
+        "item": 29012,
+        "cost": 1235
+      },
+      {
+        "item": 29019,
+        "cost": 1235
+      },
+      {
+        "item": 29050,
+        "cost": 1235
+      },
+      {
+        "item": 29056,
+        "cost": 1235
+      },
+      {
+        "item": 29087,
+        "cost": 1235
+      },
+      {
+        "item": 29091,
+        "cost": 1235
+      },
+      {
+        "item": 29096,
+        "cost": 1235
+      },
+      {
+        "item": 31379,
+        "cost": 1235
+      },
+      {
+        "item": 31413,
+        "cost": 1235
+      }
+    ],
+    "29754": [
+      {
+        "item": 25831,
+        "cost": 1200
+      },
+      {
+        "item": 25997,
+        "cost": 1200
+      },
+      {
+        "item": 27469,
+        "cost": 1200
+      },
+      {
+        "item": 27702,
+        "cost": 1200
+      },
+      {
+        "item": 27879,
+        "cost": 1200
+      },
+      {
+        "item": 29029,
+        "cost": 1200
+      },
+      {
+        "item": 29033,
+        "cost": 1200
+      },
+      {
+        "item": 29038,
+        "cost": 1200
+      },
+      {
+        "item": 29045,
+        "cost": 1200
+      },
+      {
+        "item": 29062,
+        "cost": 1200
+      },
+      {
+        "item": 29066,
+        "cost": 1200
+      },
+      {
+        "item": 29071,
+        "cost": 1200
+      },
+      {
+        "item": 31396,
+        "cost": 1200
+      },
+      {
+        "item": 31613,
+        "cost": 1200
+      }
+    ],
+    "29755": [
+      {
+        "item": 24552,
+        "cost": 1215
+      },
+      {
+        "item": 25856,
+        "cost": 1215
+      },
+      {
+        "item": 28334,
+        "cost": 1215
+      },
+      {
+        "item": 28964,
+        "cost": 1215
+      },
+      {
+        "item": 29077,
+        "cost": 1215
+      },
+      {
+        "item": 29082,
+        "cost": 1215
+      },
+      {
+        "item": 30200,
+        "cost": 1215
+      }
+    ],
+    "29756": [
+      {
+        "item": 24556,
+        "cost": 1216
+      },
+      {
+        "item": 25857,
+        "cost": 1216
+      },
+      {
+        "item": 28335,
+        "cost": 1216
+      },
+      {
+        "item": 28968,
+        "cost": 1216
+      },
+      {
+        "item": 29080,
+        "cost": 1216
+      },
+      {
+        "item": 29085,
+        "cost": 1216
+      },
+      {
+        "item": 30188,
+        "cost": 1216
+      }
+    ],
+    "29757": [
+      {
+        "item": 25834,
+        "cost": 1203
+      },
+      {
+        "item": 26000,
+        "cost": 1203
+      },
+      {
+        "item": 27470,
+        "cost": 1203
+      },
+      {
+        "item": 27703,
+        "cost": 1203
+      },
+      {
+        "item": 27880,
+        "cost": 1203
+      },
+      {
+        "item": 29032,
+        "cost": 1203
+      },
+      {
+        "item": 29034,
+        "cost": 1203
+      },
+      {
+        "item": 29039,
+        "cost": 1203
+      },
+      {
+        "item": 29048,
+        "cost": 1203
+      },
+      {
+        "item": 29065,
+        "cost": 1203
+      },
+      {
+        "item": 29067,
+        "cost": 1203
+      },
+      {
+        "item": 29072,
+        "cost": 1203
+      },
+      {
+        "item": 31397,
+        "cost": 1203
+      },
+      {
+        "item": 31614,
+        "cost": 1203
+      }
+    ],
+    "29758": [
+      {
+        "item": 24549,
+        "cost": 1237
+      },
+      {
+        "item": 27707,
+        "cost": 1237
+      },
+      {
+        "item": 28126,
+        "cost": 1237
+      },
+      {
+        "item": 28136,
+        "cost": 1237
+      },
+      {
+        "item": 29017,
+        "cost": 1237
+      },
+      {
+        "item": 29020,
+        "cost": 1237
+      },
+      {
+        "item": 29055,
+        "cost": 1237
+      },
+      {
+        "item": 29057,
+        "cost": 1237
+      },
+      {
+        "item": 29090,
+        "cost": 1237
+      },
+      {
+        "item": 29092,
+        "cost": 1237
+      },
+      {
+        "item": 29097,
+        "cost": 1237
+      },
+      {
+        "item": 31375,
+        "cost": 1237
+      },
+      {
+        "item": 31409,
+        "cost": 1237
+      }
+    ],
+    "29759": [
+      {
+        "item": 24553,
+        "cost": 1217
+      },
+      {
+        "item": 25855,
+        "cost": 1217
+      },
+      {
+        "item": 28331,
+        "cost": 1217
+      },
+      {
+        "item": 28963,
+        "cost": 1217
+      },
+      {
+        "item": 29076,
+        "cost": 1217
+      },
+      {
+        "item": 29081,
+        "cost": 1217
+      },
+      {
+        "item": 30187,
+        "cost": 1217
+      }
+    ],
+    "29760": [
+      {
+        "item": 25830,
+        "cost": 1206
+      },
+      {
+        "item": 25998,
+        "cost": 1206
+      },
+      {
+        "item": 27471,
+        "cost": 1206
+      },
+      {
+        "item": 27704,
+        "cost": 1206
+      },
+      {
+        "item": 27881,
+        "cost": 1206
+      },
+      {
+        "item": 29028,
+        "cost": 1206
+      },
+      {
+        "item": 29035,
+        "cost": 1206
+      },
+      {
+        "item": 29040,
+        "cost": 1206
+      },
+      {
+        "item": 29044,
+        "cost": 1206
+      },
+      {
+        "item": 29061,
+        "cost": 1206
+      },
+      {
+        "item": 29068,
+        "cost": 1206
+      },
+      {
+        "item": 29073,
+        "cost": 1206
+      },
+      {
+        "item": 31400,
+        "cost": 1206
+      },
+      {
+        "item": 31616,
+        "cost": 1206
+      }
+    ],
+    "29761": [
+      {
+        "item": 24545,
+        "cost": 1239
+      },
+      {
+        "item": 27708,
+        "cost": 1239
+      },
+      {
+        "item": 28127,
+        "cost": 1239
+      },
+      {
+        "item": 28137,
+        "cost": 1239
+      },
+      {
+        "item": 29011,
+        "cost": 1239
+      },
+      {
+        "item": 29021,
+        "cost": 1239
+      },
+      {
+        "item": 29049,
+        "cost": 1239
+      },
+      {
+        "item": 29058,
+        "cost": 1239
+      },
+      {
+        "item": 29086,
+        "cost": 1239
+      },
+      {
+        "item": 29093,
+        "cost": 1239
+      },
+      {
+        "item": 29098,
+        "cost": 1239
+      },
+      {
+        "item": 31376,
+        "cost": 1239
+      },
+      {
+        "item": 31410,
+        "cost": 1239
+      }
+    ],
+    "29762": [
+      {
+        "item": 24554,
+        "cost": 1219
+      },
+      {
+        "item": 25854,
+        "cost": 1219
+      },
+      {
+        "item": 28333,
+        "cost": 1219
+      },
+      {
+        "item": 28967,
+        "cost": 1219
+      },
+      {
+        "item": 29079,
+        "cost": 1219
+      },
+      {
+        "item": 29084,
+        "cost": 1219
+      },
+      {
+        "item": 30186,
+        "cost": 1219
+      }
+    ],
+    "29763": [
+      {
+        "item": 25832,
+        "cost": 1212
+      },
+      {
+        "item": 25999,
+        "cost": 1212
+      },
+      {
+        "item": 27473,
+        "cost": 1212
+      },
+      {
+        "item": 27706,
+        "cost": 1212
+      },
+      {
+        "item": 27883,
+        "cost": 1212
+      },
+      {
+        "item": 29031,
+        "cost": 1212
+      },
+      {
+        "item": 29037,
+        "cost": 1212
+      },
+      {
+        "item": 29043,
+        "cost": 1212
+      },
+      {
+        "item": 29047,
+        "cost": 1212
+      },
+      {
+        "item": 29064,
+        "cost": 1212
+      },
+      {
+        "item": 29070,
+        "cost": 1212
+      },
+      {
+        "item": 29075,
+        "cost": 1212
+      },
+      {
+        "item": 31407,
+        "cost": 1212
+      },
+      {
+        "item": 31619,
+        "cost": 1212
+      }
+    ],
+    "29764": [
+      {
+        "item": 24546,
+        "cost": 1243
+      },
+      {
+        "item": 27710,
+        "cost": 1243
+      },
+      {
+        "item": 28129,
+        "cost": 1243
+      },
+      {
+        "item": 28139,
+        "cost": 1243
+      },
+      {
+        "item": 29016,
+        "cost": 1243
+      },
+      {
+        "item": 29023,
+        "cost": 1243
+      },
+      {
+        "item": 29054,
+        "cost": 1243
+      },
+      {
+        "item": 29060,
+        "cost": 1243
+      },
+      {
+        "item": 29089,
+        "cost": 1243
+      },
+      {
+        "item": 29095,
+        "cost": 1243
+      },
+      {
+        "item": 29100,
+        "cost": 1243
+      },
+      {
+        "item": 31378,
+        "cost": 1243
+      },
+      {
+        "item": 31412,
+        "cost": 1243
+      }
+    ],
+    "29765": [
+      {
+        "item": 24555,
+        "cost": 1218
+      },
+      {
+        "item": 25858,
+        "cost": 1218
+      },
+      {
+        "item": 28332,
+        "cost": 1218
+      },
+      {
+        "item": 28966,
+        "cost": 1218
+      },
+      {
+        "item": 29078,
+        "cost": 1218
+      },
+      {
+        "item": 29083,
+        "cost": 1218
+      },
+      {
+        "item": 30201,
+        "cost": 1218
+      }
+    ],
+    "29766": [
+      {
+        "item": 25833,
+        "cost": 1209
+      },
+      {
+        "item": 26001,
+        "cost": 1209
+      },
+      {
+        "item": 27472,
+        "cost": 1209
+      },
+      {
+        "item": 27705,
+        "cost": 1209
+      },
+      {
+        "item": 27882,
+        "cost": 1209
+      },
+      {
+        "item": 29030,
+        "cost": 1209
+      },
+      {
+        "item": 29036,
+        "cost": 1209
+      },
+      {
+        "item": 29042,
+        "cost": 1209
+      },
+      {
+        "item": 29046,
+        "cost": 1209
+      },
+      {
+        "item": 29063,
+        "cost": 1209
+      },
+      {
+        "item": 29069,
+        "cost": 1209
+      },
+      {
+        "item": 29074,
+        "cost": 1209
+      },
+      {
+        "item": 31406,
+        "cost": 1209
+      },
+      {
+        "item": 31618,
+        "cost": 1209
+      }
+    ],
+    "29767": [
+      {
+        "item": 24547,
+        "cost": 1241
+      },
+      {
+        "item": 27709,
+        "cost": 1241
+      },
+      {
+        "item": 28128,
+        "cost": 1241
+      },
+      {
+        "item": 28138,
+        "cost": 1241
+      },
+      {
+        "item": 29015,
+        "cost": 1241
+      },
+      {
+        "item": 29022,
+        "cost": 1241
+      },
+      {
+        "item": 29053,
+        "cost": 1241
+      },
+      {
+        "item": 29059,
+        "cost": 1241
+      },
+      {
+        "item": 29088,
+        "cost": 1241
+      },
+      {
+        "item": 29094,
+        "cost": 1241
+      },
+      {
+        "item": 29099,
+        "cost": 1241
+      },
+      {
+        "item": 31377,
+        "cost": 1241
+      },
+      {
+        "item": 31411,
+        "cost": 1241
+      }
+    ]
+  },
+  "spells": {
+    "7680": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 6,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 6,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "9316": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 14,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 14,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "9330": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 17,
+        "ApplyAuraName": 99,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 17,
+        "ApplyAuraName": 124,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "9334": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 25,
+        "ApplyAuraName": 99,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 25,
+        "ApplyAuraName": 124,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "9336": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 29,
+        "ApplyAuraName": 99,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 29,
+        "ApplyAuraName": 124,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "9408": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 11,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 11,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "13881": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 28,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 28,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "14054": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 26,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 26,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "14055": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 34,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 34,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "14089": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 35,
+        "ApplyAuraName": 99,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 35,
+        "ApplyAuraName": 124,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "14127": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 27,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 27,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "14254": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 18,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 18,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "14798": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 29,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 29,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "14799": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 19,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 19,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "15696": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 27,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 27,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "15714": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 21,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 21,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "15808": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 37,
+        "ApplyAuraName": 99,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 37,
+        "ApplyAuraName": 124,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "15809": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 41,
+        "ApplyAuraName": 99,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 41,
+        "ApplyAuraName": 124,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "15810": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 43,
+        "ApplyAuraName": 99,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 43,
+        "ApplyAuraName": 124,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "15812": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 51,
+        "ApplyAuraName": 99,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 51,
+        "ApplyAuraName": 124,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "15815": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 57,
+        "ApplyAuraName": 99,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 57,
+        "ApplyAuraName": 124,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "15818": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 65,
+        "ApplyAuraName": 99,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 65,
+        "ApplyAuraName": 124,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "15820": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 69,
+        "ApplyAuraName": 99,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 69,
+        "ApplyAuraName": 124,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "15821": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 71,
+        "ApplyAuraName": 99,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 71,
+        "ApplyAuraName": 124,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "15823": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 73,
+        "ApplyAuraName": 99,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 73,
+        "ApplyAuraName": 124,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "15825": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 77,
+        "ApplyAuraName": 99,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 77,
+        "ApplyAuraName": 124,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "15827": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 81,
+        "ApplyAuraName": 99,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 81,
+        "ApplyAuraName": 124,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "15828": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 83,
+        "ApplyAuraName": 99,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 83,
+        "ApplyAuraName": 124,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "17280": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 42,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 42,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "17320": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 43,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 43,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "17367": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 31,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 31,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "17493": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 43,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 43,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "18029": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 18,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 18,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "18032": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 21,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 21,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "18033": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 24,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 24,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "18036": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 28,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 28,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "18037": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 29,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 29,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "18038": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 31,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 31,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "18039": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 32,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 32,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "18042": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 35,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 35,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "18043": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 36,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 36,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "18044": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 38,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 38,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "18045": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 39,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 39,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "18047": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 41,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 41,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "18050": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 32,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 32,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "18052": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 33,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 33,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "18053": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 35,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 35,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "18054": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 36,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 36,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "18055": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 38,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 38,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "18056": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 39,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 39,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "18057": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 40,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 40,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "18058": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 41,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 41,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "18378": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 9,
+        "ApplyAuraName": 85,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "18379": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 7,
+        "ApplyAuraName": 85,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "20959": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 12,
+        "ApplyAuraName": 85,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "21362": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 4,
+        "ApplyAuraName": 85,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "21363": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 5,
+        "ApplyAuraName": 85,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "21364": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 8,
+        "ApplyAuraName": 85,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "21366": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 13,
+        "ApplyAuraName": 85,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "21618": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 4,
+        "ApplyAuraName": 85,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "21620": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 5,
+        "ApplyAuraName": 85,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "21626": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 7,
+        "ApplyAuraName": 85,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "21627": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 7,
+        "ApplyAuraName": 85,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "21628": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 8,
+        "ApplyAuraName": 85,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "21630": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 9,
+        "ApplyAuraName": 85,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "21632": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 12,
+        "ApplyAuraName": 85,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "21633": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 12,
+        "ApplyAuraName": 85,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "21634": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 13,
+        "ApplyAuraName": 85,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "22778": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": -31,
+        "ApplyAuraName": 107,
+        "MiscValue": 14,
+        "TriggerSpell": 0
+      }
+    ],
+    "23044": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 999,
+        "ApplyAuraName": 107,
+        "MiscValue": 1,
+        "TriggerSpell": 0
+      }
+    ],
+    "23300": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 19,
+        "ApplyAuraName": 107,
+        "MiscValue": 3,
+        "TriggerSpell": 0
+      }
+    ],
+    "23516": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 53,
+        "ApplyAuraName": 158,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "26154": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 47,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 47,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "26283": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": -21,
+        "ApplyAuraName": 123,
+        "MiscValue": 124,
+        "TriggerSpell": 0
+      }
+    ],
+    "28264": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 45,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 45,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "28360": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 48,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 48,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "28539": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 4,
+        "ApplyAuraName": 108,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "32584": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 49,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 49,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "32973": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 4,
+        "ApplyAuraName": 107,
+        "MiscValue": 5,
+        "TriggerSpell": 0
+      }
+    ],
+    "33020": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 7,
+        "ApplyAuraName": 108,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "33063": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 49,
+        "ApplyAuraName": 108,
+        "MiscValue": 9,
+        "TriggerSpell": 0
+      }
+    ],
+    "33066": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 4,
+        "ApplyAuraName": 107,
+        "MiscValue": 5,
+        "TriggerSpell": 0
+      }
+    ],
+    "33484": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 49,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 49,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "33820": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 46,
+        "ApplyAuraName": 135,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 46,
+        "ApplyAuraName": 13,
+        "MiscValue": 126,
+        "TriggerSpell": 0
+      }
+    ],
+    "33830": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": -101,
+        "ApplyAuraName": 107,
+        "MiscValue": 10,
+        "TriggerSpell": 0
+      },
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": -101,
+        "ApplyAuraName": 107,
+        "MiscValue": 21,
+        "TriggerSpell": 0
+      }
+    ],
+    "34061": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 77,
+        "ApplyAuraName": 158,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "34592": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 89,
+        "ApplyAuraName": 158,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "35074": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 68,
+        "ApplyAuraName": 158,
+        "MiscValue": 0,
+        "TriggerSpell": 0
+      }
+    ],
+    "38501": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 1,
+        "ApplyAuraName": 107,
+        "MiscValue": 7,
+        "TriggerSpell": 0
+      }
+    ],
+    "38522": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": 1,
+        "ApplyAuraName": 107,
+        "MiscValue": 7,
+        "TriggerSpell": 0
+      }
+    ],
+    "61249": [
+      {
+        "Effect": 6,
+        "DieSides": 1,
+        "BasePoints": -11,
+        "ApplyAuraName": 107,
+        "MiscValue": 14,
+        "TriggerSpell": 0
+      }
+    ]
+  },
+  "enchants": {
+    "2856": [
+      {
+        "type": 5,
+        "amount": 4,
+        "spellid": 35
+      }
+    ],
+    "2859": [
+      {
+        "type": 5,
+        "amount": 3,
+        "spellid": 35
+      }
+    ],
+    "2860": [
+      {
+        "type": 5,
+        "amount": 3,
+        "spellid": 31
+      }
+    ],
+    "2861": [
+      {
+        "type": 5,
+        "amount": 3,
+        "spellid": 12
+      }
+    ],
+    "2863": [
+      {
+        "type": 5,
+        "amount": 3,
+        "spellid": 5
+      }
+    ],
+    "2864": [
+      {
+        "type": 5,
+        "amount": 4,
+        "spellid": 32
+      }
+    ],
+    "2865": [
+      {
+        "type": 5,
+        "amount": 2,
+        "spellid": 43
+      }
+    ],
+    "2866": [
+      {
+        "type": 5,
+        "amount": 3,
+        "spellid": 6
+      }
+    ],
+    "2868": [
+      {
+        "type": 5,
+        "amount": 6,
+        "spellid": 7
+      }
+    ],
+    "2869": [
+      {
+        "type": 5,
+        "amount": 4,
+        "spellid": 5
+      }
+    ],
+    "2871": [
+      {
+        "type": 5,
+        "amount": 4,
+        "spellid": 13
+      }
+    ],
+    "2872": [
+      {
+        "type": 5,
+        "amount": 5,
+        "spellid": 45
+      }
+    ],
+    "2873": [
+      {
+        "type": 5,
+        "amount": 4,
+        "spellid": 31
+      }
+    ],
+    "2874": [
+      {
+        "type": 5,
+        "amount": 4,
+        "spellid": 32
+      }
+    ],
+    "2877": [
+      {
+        "type": 5,
+        "amount": 4,
+        "spellid": 3
+      }
+    ],
+    "2878": [
+      {
+        "type": 5,
+        "amount": 4,
+        "spellid": 35
+      }
+    ],
+    "2879": [
+      {
+        "type": 5,
+        "amount": 3,
+        "spellid": 4
+      }
+    ],
+    "2880": [
+      {
+        "type": 5,
+        "amount": 3,
+        "spellid": 31
+      }
+    ],
+    "2881": [
+      {
+        "type": 5,
+        "amount": 1,
+        "spellid": 43
+      }
+    ],
+    "2887": [
+      {
+        "type": 5,
+        "amount": 3,
+        "spellid": 32
+      }
+    ],
+    "2889": [
+      {
+        "type": 5,
+        "amount": 5,
+        "spellid": 45
+      }
+    ],
+    "2895": [
+      {
+        "type": 5,
+        "amount": 4,
+        "spellid": 7
+      }
+    ],
+    "2900": [
+      {
+        "type": 5,
+        "amount": 4,
+        "spellid": 45
+      }
+    ],
+    "2908": [
+      {
+        "type": 5,
+        "amount": 4,
+        "spellid": 31
+      }
+    ],
+    "2927": [
+      {
+        "type": 5,
+        "amount": 4,
+        "spellid": 4
+      }
+    ],
+    "2932": [
+      {
+        "type": 5,
+        "amount": 4,
+        "spellid": 12
+      }
+    ],
+    "2936": [
+      {
+        "type": 5,
+        "amount": 8,
+        "spellid": 38
+      }
+    ],
+    "2951": [
+      {
+        "type": 5,
+        "amount": 4,
+        "spellid": 32
+      }
+    ],
+    "2952": [
+      {
+        "type": 5,
+        "amount": 4,
+        "spellid": 32
+      }
+    ],
+    "2972": [
+      {
+        "type": 5,
+        "amount": 4,
+        "spellid": 15
+      }
+    ]
+  }
+}
