@@ -2,11 +2,11 @@
 
 ## Status
 
-Implemented and offline-tested October 1, 2026. Core commit:
-`ab00bd5c78071f80a69c06d06ac2bb33b6bbd880`. Build/deployment subsequently authorized
-by the user, but **not yet deployed** at this source-publication checkpoint.
-The running server still needs the new binary; keep existing lockouts extended until
-that deployment is verified.
+**Deployed October 1, 2026** with explicit build/restart authorization. Core commit:
+`ab00bd5c78071f80a69c06d06ac2bb33b6bbd880`.
+See [running build and preservation review](expansion-reset-deployment-20261001.md).
+SSC 213 retained all three kills and the player's extension; its new base deadline
+is October 4 at 20:09:21 UTC.
 
 This extends [the existing Classic policy](raid-progression-resets.md), rather than
 adding a second reset mechanism or changing `Rate.InstanceResetTime`.
@@ -109,10 +109,11 @@ The unchanged save-manager lifecycle adopts newly supported saves at startup:
 - Adoption metadata is persisted before logins. Global daily resets skip managed
   copies. Expiry defers during combat and uses the existing per-instance cleanup.
 
-Implementation does not touch live saves, character items or configs. Deployment must
-back up and verify the **then-current** save/bind/respawn records, especially SSC, before
-and after replacing only worldserver. A source commit does not protect a live save from
-the old daily reset before deployment; use the client extension meanwhile.
+Source implementation did not touch live saves, character items or configs. The
+subsequently authorized deployment backed up and verified the **then-current**
+save/bind/respawn records, including SSC, before and after replacing only worldserver.
+The player's interim client extension was verified and preserved; source publication
+alone was not treated as protection from the old daily reset.
 
 ## Verification
 

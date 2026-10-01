@@ -5,10 +5,11 @@
 **Original Classic scope deployed 2026-09-08 with explicit approval.** The targeted
 characters-table migration is applied. No boss progress was restored or fabricated.
 
-**BC/Wrath expansion implemented October 1, 2026; deployment authorized but pending**
-at this source-publication checkpoint. See [expansion scope, save formats and tests](expansion-raid-progression-resets.md).
-The original September deployment record below remains historical evidence, not proof
-that the expansion is already running. Full in-game expiry regression remains separate.
+**BC/Wrath expansion deployed October 1, 2026 with explicit authorization.**
+See [expansion scope, save formats and tests](expansion-raid-progression-resets.md) and
+[deployment/preservation evidence](expansion-reset-deployment-20261001.md).
+The September record below remains historical. Full in-game expiry regression remains
+separate from build, startup adoption and preservation verification.
 
 User-selected policy:
 
