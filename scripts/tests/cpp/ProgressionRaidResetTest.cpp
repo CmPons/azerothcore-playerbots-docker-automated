@@ -63,7 +63,8 @@ int main()
     assert(Advance(unknown, std::nullopt, now + Day, 3, 4) == unknown);
     assert(Advance({}, ReadProgress(469, clearBwl), now, 3, 4) == clear);
 
-    for (uint32_t map : {249, 309, 409, 469, 509, 531})
+    for (uint32_t map : {249, 309, 409, 469, 509, 531, 532, 534, 544, 548, 550,
+                         564, 565, 568, 580, 533, 603, 615, 616, 624, 631, 724})
     {
         auto layout = GetLayout(map);
         std::vector<uint32_t> states(layout->slots, 0);
@@ -74,6 +75,9 @@ int main()
             states[0] = 5; // AQ40's unused slot must not prevent a clear.
         auto progress = ReadProgress(map, Save(map, states) + "14309 14310 ");
         assert(progress && progress->started && progress->cleared);
+        State adopted = Advance({}, progress, now, 3, 4);
+        assert(adopted.stage == Stage::Cleared && adopted.deadline == tomorrow);
+        assert(Advance(adopted, progress, now + Day, 3, 4) == adopted);
         // Leaving ANY required encounter up must prevent fast resets.
         for (uint32_t i = 0; i < layout->slots; ++i)
             if (layout->requiredMask & (uint32_t(1) << i))
@@ -82,7 +86,57 @@ int main()
                 assert(!ReadProgress(map, Save(map, states))->cleared);
                 states[i] = 3;
             }
+        // Each slot independently: optional bosses start progression, internal flags do not.
+        // Difficulty is intentionally not an input: copies/10/25/heroic keep independent State.
+        for (uint32_t i = 0; i < layout->slots; ++i)
+        {
+            std::vector<uint32_t> single(layout->slots, 0);
+            single[i] = 3;
+            auto one = ReadProgress(map, Save(map, single));
+            bool const encounter = (layout->encounterMask & (uint32_t(1) << i)) != 0;
+            bool const onlyRequired = layout->requiredMask == (uint32_t(1) << i);
+            assert(one && one->started == encounter && one->cleared == onlyRequired);
+            State state = Advance({}, one, now, 3, 4);
+            assert(state.stage == (onlyRequired ? Stage::Cleared : encounter ? Stage::Progression : Stage::Fresh));
+            assert(state.deadline == (encounter && !onlyRequired ? now + 3 * Day : tomorrow));
+            assert(Advance(state, one, now + Day, 3, 4) == state);
+        }
+        // Neither optional nor internal slots need DONE; interrupted/unused slots are accepted.
+        for (uint32_t state : {0, 1, 2, 4, 5})
+        {
+            std::vector<uint32_t> values(layout->slots, state);
+            assert(!ReadProgress(map, Save(map, values))->started);
+            for (uint32_t i = 0; i < layout->slots; ++i)
+                if (layout->requiredMask & (uint32_t(1) << i))
+                    values[i] = 3;
+            assert(ReadProgress(map, Save(map, values))->cleared);
+        }
+        // Bad/truncated states must fail closed, not classify as empty or fully cleared.
+        std::vector<uint32_t> invalid(layout->slots, 3);
+        invalid.back() = 99;
+        assert(!ReadProgress(map, Save(map, invalid)));
+        invalid.pop_back();
+        assert(!ReadProgress(map, Save(map, invalid)));
+        assert(!ReadProgress(map, "WRONG 3 3 3"));
     }
+    // Trial's scalar is NOT a boss-state array. 3 is an intro checkpoint, 9 is pre-Anub.
+    for (uint32_t checkpoint : {0, 1, 2, 3, 4, 6, 8, 9, 10})
+        for (std::string const suffix : {"", " 50 1 1", " 0 0 0"})
+        {
+            auto progress = ReadProgress(649, "T C R " + std::to_string(checkpoint) + suffix);
+            assert(progress && progress->started == (checkpoint >= 2) && progress->cleared == (checkpoint == 10));
+            auto state = Advance({}, progress, now, 3, 4);
+            assert(state.deadline == (checkpoint >= 2 && checkpoint != 10 ? now + 3 * Day : tomorrow));
+            assert(Advance(state, progress, now + Day, 3, 4) == state);
+        }
+    for (auto const* invalid : {"T C R", "T C R -1", "T C R 5", "T C R 7", "T C R 11", "T C R nope"})
+        assert(!ReadProgress(649, invalid));
+    // Representative SSC save: first three dead, last three alive. Never a daily clear.
+    auto ssc = ReadProgress(548, "S S 3 3 3 0 0 0");
+    assert(ssc && ssc->started && !ssc->cleared);
+    auto sscState = Advance({}, ssc, now, 3, 4);
+    assert(sscState.stage == Stage::Progression && sscState.deadline == now + 3 * Day);
+    assert(ExtendedDeadline(sscState, 3, 4) == now + 6 * Day);
     // Final-boss-only clears are insufficient, including Hakkar and C'Thun.
     assert(!ReadProgress(309, Save(309, {0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0}))->cleared);
     assert(!ReadProgress(531, Save(531, {5, 0, 0, 0, 0, 0, 0, 0, 0, 3}))->cleared);
@@ -97,7 +151,8 @@ int main()
     for (auto const& data : {"", "B W L 3", "M C 3 3 3 3 3 3 3 3", "B W L 3 3 3 3 3 3 3 99"})
         assert(!ReadProgress(469, data));
     assert(!GetLayout(229));
-    assert(!GetLayout(533));
+    for (uint32_t map : {0, 530, 571, 585, 595, 608, 632, 650, 658, 668, 9999})
+        assert(!GetLayout(map));
     assert(!ReadProgress(229, clearBwl));
     assert(WarningStage(3601) == 0 && WarningStage(3600) == 1);
     assert(WarningStage(900) == 2 && WarningStage(300) == 3);

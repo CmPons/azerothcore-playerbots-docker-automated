@@ -1,12 +1,14 @@
-# Conditional old-raid resets
+# Conditional raid resets
 
 ## Status
 
-**Deployed 2026-09-08 with explicit build/deployment approval.** Worldserver is
-ready with the conditional policy enabled and the persistent ten-player scaling
-default. The targeted characters-table migration is applied. No boss progress was
-restored or fabricated. Full in-game encounter/reset regression remains pending;
-see the deployment record below.
+**Original Classic scope deployed 2026-09-08 with explicit approval.** The targeted
+characters-table migration is applied. No boss progress was restored or fabricated.
+
+**BC/Wrath expansion implemented October 1, 2026; deployment authorized but pending**
+at this source-publication checkpoint. See [expansion scope, save formats and tests](expansion-raid-progression-resets.md).
+The original September deployment record below remains historical evidence, not proof
+that the expansion is already running. Full in-game expiry regression remains separate.
 
 User-selected policy:
 
@@ -29,12 +31,13 @@ timezone values were noticed but deliberately left untouched.
 
 ## Scope and completion rules
 
-Supported maps: Onyxia 249, ZG 309, MC 409, BWL 469, AQ20 509, AQ40 531.
-Other raids, normal dungeons and heroics keep their existing policy and rate.
+Original supported maps: Onyxia 249, ZG 309, MC 409, BWL 469, AQ20 509, AQ40 531.
+The October source expansion adds all 17 remaining BC/Wrath raid maps; see the linked
+completion catalogue. Normal dungeons and heroics keep their existing policy and rate.
 There is no speculative fallback for unrecognized instance serialization layouts.
 
-Completion uses the instance script's persisted **DONE states**, not the
-`completedEncounters` kill-credit mask. In particular, a premature phase-one
+Completion uses persisted **DONE states** (or Trial's explicit completion checkpoint),
+not the `completedEncounters` kill-credit mask. In particular, a premature phase-one
 Razorgore death must not start progression or count as a completed encounter.
 
 - Onyxia: one encounter.
@@ -128,7 +131,8 @@ Private pre-edit copies: `backups/raid-progression-preparation-20260908-165937/`
 
 ## Delivery and deployment requirements
 
-Canonical patch: `patches/0019-core-progression-raid-resets.patch`.
+Historical original patch: `patches/0019-core-progression-raid-resets.patch`.
+The maintained/pinned core fork is authoritative; do not replay that patch onto it.
 Core policy: `src/server/game/Instances/ProgressionRaidReset.h`.
 Migration: `data/sql/updates/pending_db_characters/rev_1788894000000000000.sql`.
 

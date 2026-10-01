@@ -156,22 +156,26 @@ class ProgressionRaidResetTests(unittest.TestCase):
         self.assertEqual(rows[4].split("\t")[-3:], ["3", "2500", "3500"])
         self.assertEqual(rows[5].split("\t")[-3:], ["NULL", "NULL", "NULL"])
 
-    def test_patch_delivers_exact_core_changes(self):
+    def test_historical_patch_round_trip_at_its_publication(self):
         if not PATCH.exists():
-            self.fail("Canonical core patch missing")
-        # Reverse on a throwaway copy to recover baseline, then apply and compare.
+            self.fail("Historical core patch missing")
+        # Forks are authoritative now. Replay history against its published revision,
+        # not over later policy/encounter edits in the maintained working tree.
+        revision = "112d363423f6a933f8e708eb45951129ffe2a109"
         paths = re.findall(r"^diff --git a/(.+) b/", PATCH.read_text(), re.M)
         with tempfile.TemporaryDirectory(prefix="raid-reset-patch-") as tmp:
             work = Path(tmp)
+            expected = {}
             for path in paths:
+                expected[path] = subprocess.check_output(["git", "show", f"{revision}:{path}"], cwd=CORE)
                 dest = work / path
                 dest.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(CORE / path, dest)
+                dest.write_bytes(expected[path])
             subprocess.run(["git", "apply", "--reverse", str(PATCH)], cwd=work, check=True)
             subprocess.run(["git", "apply", "--check", str(PATCH)], cwd=work, check=True)
             subprocess.run(["git", "apply", str(PATCH)], cwd=work, check=True)
             for path in paths:
-                self.assertEqual((work / path).read_bytes(), (CORE / path).read_bytes(), path)
+                self.assertEqual((work / path).read_bytes(), expected[path], path)
 
 
 if __name__ == "__main__":
