@@ -1,9 +1,10 @@
 # Spec-aware direct token loot
 
-Status: implemented and offline-tested; **not built into or deployed to the running
-worldserver**. Playerbots source commit: `cef0162a7202f7a10688e989c0dba5d76828dbb1`.
-A separately authorized build/deployment is required. No live config,
-loot tables, character items, specs, saves or equipment were changed.
+Status: **deployed October 1, 2026**, with explicit build/restart authorization.
+Playerbots source commit: `cef0162a7202f7a10688e989c0dba5d76828dbb1`.
+See [deployment and preservation review](spec-token-loot-deployment-20261001.md).
+No live config, loot-table, spec or equipment edits were made. The deployment review
+separately records startup mail cleanup and normal autonomous companion activity.
 
 This supersedes the fully random policy in `generic-direct-token-loot-plan.md`.
 The existing enabled mode (`AiPlayerbot.DirectTokenLoot.Mode = 1`) gains this policy;
@@ -100,11 +101,12 @@ matrix**, **seven native-header syntax checks** (loot/scorer plus resolver, item
 equip, query-usage and token redemption callers), and the official C++ style checker
 on changed native files and the new C++ fixture. All seven C++ fixture scenarios,
 including the full matrix, also passed AddressSanitizer and UndefinedBehaviorSanitizer.
-No full build was run.
+A full native image build and binary/runtime verification subsequently passed during
+the authorized deployment; see the deployment record.
 
 Native-header `-fsyntax-only` checks are not a full worldserver build. The fixture mocks
-world/player/DBC access and flat spell lookup, not live encounter behavior. Live gameplay
-acceptance remains pending a separately authorized deployment.
+world/player/DBC access and flat spell lookup, not live encounter behavior. The new binary is running; acceptance of an actual new boss-token drop remains pending
+live gameplay.
 
 When debug logging is enabled, replacements report chosen class and distinct winner
 count. Safe non-conversions with a valid pool report the absent/unusable rolled class.
