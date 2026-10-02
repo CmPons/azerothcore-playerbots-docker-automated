@@ -231,6 +231,21 @@ AiPlayerbot.CommandPrefix = ""
 AiPlayerbot.CommandSeparator = "\\\\"
 ```
 
+## Ten-player raid flexibility
+
+Prefer the established core ten and reversible role swaps before suggesting a
+25-player roster or encounter nerfs. The user controls only Redshift: explain
+what the bots actually do, rather than assuming human coordination of every bot.
+
+Ailina's bear off-spec successfully covered Al'ar's third-tank Ember job alongside
+Redshift and Arinerica; ranged DPS killed the Embers. Keep her Restoration setup
+recoverable and check current talents/gear before another swap. A few reserves
+or modest approved damage tuning are options, not permission to change anything.
+Do not use destructive `.raidroster sync` as a respec shortcut.
+
+See `Documents/ten-player-raid-flexibility.md` for the user-reported kill,
+verified native assignments, evidence limits and future decision order.
+
 ## Encounter tank-authority policy
 
 The user wants ordinary MT/OT behavior and deliberate player commands to remain
