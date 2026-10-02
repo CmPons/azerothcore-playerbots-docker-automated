@@ -53,6 +53,7 @@ public:
     void OnMapCreate(Map* map);
     void OnMapDestroy(Map* map);
     void OnCreatureAddWorld(Creature* creature);
+    void OnCreatureRespawn(Creature* creature);
     void ApplyToMap(Map* map, ChatHandler* handler = nullptr);
     void RestoreMap(Map* map, ChatHandler* handler = nullptr);
     void ApplyToCreature(Creature* creature);

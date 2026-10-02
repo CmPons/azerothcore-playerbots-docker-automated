@@ -403,6 +403,26 @@ void RaidScalingMgr::OnCreatureAddWorld(Creature* creature)
         ApplyToCreature(creature);
 }
 
+void RaidScalingMgr::OnCreatureRespawn(Creature* creature)
+{
+    if (!creature || !creature->GetMap() || !creature->GetMap()->IsRaid() ||
+        !creature->GetMap()->GetInstanceId())
+        return;
+
+    // Respawn rebuilt native stats, possibly at a different level/entry. The same runtime
+    // GUID must not retain the previous life's baseline, even when scaling is now disabled.
+    {
+        std::lock_guard<std::mutex> lock(_statsMutex);
+        auto mapItr = _originalCreatureStats.find(MakeKey(creature->GetMap()));
+        if (mapItr != _originalCreatureStats.end())
+            mapItr->second.erase(creature->GetGUID());
+    }
+
+    // Reuse eligibility/provenance and the current instance settings, including manual/off.
+    // Never initialize defaults or touch encounter state/respawn timers here.
+    OnCreatureAddWorld(creature);
+}
+
 void RaidScalingMgr::ApplyToMap(Map* map, ChatHandler* handler)
 {
     if (!map || !HasScaling(map))
@@ -483,9 +503,10 @@ void RaidScalingMgr::ApplyToCreature(Creature* creature)
     }
 
     uint32 newMax = ScaleHealth(original.maxHealth, scale);
-    float pct = original.maxHealth ? std::min(1.0f, float(creature->GetHealth()) / float(creature->GetMaxHealth())) : 1.0f;
-    if (creature->GetMaxHealth() == original.maxHealth)
-        pct = original.maxHealth ? std::min(1.0f, float(original.health) / float(original.maxHealth)) : 1.0f;
+    // Always preserve current HP%, even at a 1.0 multiplier or after a native rebuild.
+    // An equal native/scaled maximum does not mean the cached starting health is current.
+    float const pct = creature->GetMaxHealth() ?
+        std::min(1.0f, float(creature->GetHealth()) / float(creature->GetMaxHealth())) : 1.0f;
 
     creature->SetCreateHealth(newCreate);
     creature->SetMaxHealth(newMax);

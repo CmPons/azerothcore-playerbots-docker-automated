@@ -70,6 +70,11 @@ public:
     {
         sRaidScalingMgr.OnCreatureAddWorld(creature);
     }
+
+    void OnCreatureRespawn(Creature* creature) override
+    {
+        sRaidScalingMgr.OnCreatureRespawn(creature);
+    }
 };
 
 class RaidScalingUnitScript : public UnitScript

@@ -46,6 +46,7 @@ class TwinsBugScalingTests(unittest.TestCase):
                       "RaidScaleCreatureKind RaidScalingMgr::ClassifyCreature(",
                       "float RaidScalingMgr::HealthScaleFor(", "float RaidScalingMgr::DamageScaleFor(",
                       "uint32 RaidScalingMgr::ScaleHealth(", "void RaidScalingMgr::OnCreatureAddWorld(",
+                      "void RaidScalingMgr::OnCreatureRespawn(",
                       "void RaidScalingMgr::ApplyToCreature(", "void RaidScalingMgr::RestoreCreature(",
                       "void RaidScalingMgr::ApplyToMap(", "void RaidScalingMgr::RestoreMap(",
                       "bool RaidScalingMgr::DisableForMap(", "float RaidScalingMgr::GetDamageScale("]
