@@ -6,7 +6,7 @@
 # Historical patches/ are NOT replayed. See Documents/source-workflow.md.
 
 azerothcore-wotlk 8b8b7bcf8615c62b4aedaa00c33713a0c1f6df0e
-mod-playerbots cef0162a7202f7a10688e989c0dba5d76828dbb1
+mod-playerbots e94b0f7df302f0001c6313768bfe3d7582d53a67
 mod-player-bot-level-brackets a2614288ebe41093b8915b3ee3002bcfc8a63c1a
 mod-junk-to-gold 2134690bb03899e5c9e44d0682e8e6abf0bbbaf2
 mod-multibot-bridge 5e5ff7594ec8afedf40926605a60848dbc14991e

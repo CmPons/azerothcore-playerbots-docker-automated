@@ -31,6 +31,14 @@ Ailina to bear tank:
 - No Al'ar-specific tuning or source deployment was performed for this trial.
   Existing ten-player scaling remained the baseline.
 
+The user subsequently reported Void Reaver and Solarian kills with the ten,
+bringing TK to **three of four bosses cleared**. Kael'thas was attempted but not
+reported killed; another attempt was deferred until the following day. Ailina
+was reported back in Restoration before Void Reaver. Do not infer that a saved bear
+second spec exists: the user clarified using `talents spec bear pve`, which
+replaces the active build; running the earlier suggested `talents switch 2`
+first was never confirmed.
+
 This is **user-reported live acceptance of this role arrangement**, not proof
 that every native action executes correctly or that Ailina is fully geared for
 all raid tanking. A pre-attempt read-only check found one Restoration spec and
