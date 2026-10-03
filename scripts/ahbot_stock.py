@@ -8,6 +8,7 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG = ROOT / "config/ahbot/tbc-cut-gems.tsv"
 ARMOR_CATALOG = ROOT / "config/ahbot/level70-plate-shields.tsv"
+HEALING_POTION_IDS = (13446, 22829)  # Major and Super Healing Potion; no mana potions.
 KEY = "AuctionHouseBot.ListProportion.ListMultipliedItemIDs"
 
 
@@ -84,8 +85,11 @@ def main():
     parser.add_argument("--config", required=True, type=Path)
     parser.add_argument("--tbc-cut-gem-multiplier", type=int)
     parser.add_argument("--level70-armor-multiplier", type=int)
+    parser.add_argument("--healing-potion-multiplier", type=int)
     args = parser.parse_args()
-    if args.tbc_cut_gem_multiplier is None and args.level70_armor_multiplier is None:
+    if all(value is None for value in (args.tbc_cut_gem_multiplier,
+                                      args.level70_armor_multiplier,
+                                      args.healing_potion_multiplier)):
         parser.error("At least one stock profile is required")
     try:
         config = args.config.read_text()
@@ -94,6 +98,10 @@ def main():
             config = f"{KEY} = {value}\n"
         if args.level70_armor_multiplier is not None:
             value = merge_item_multipliers(config, level70_armor_multipliers(args.level70_armor_multiplier))
+            config = f"{KEY} = {value}\n"
+        if args.healing_potion_multiplier is not None:
+            value = merge_item_multipliers(config, dict.fromkeys(
+                HEALING_POTION_IDS, args.healing_potion_multiplier))
         print(value)
     except (ValueError, OSError) as error:
         parser.error(str(error))

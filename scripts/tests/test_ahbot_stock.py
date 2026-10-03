@@ -7,7 +7,7 @@ from pathlib import Path
 import unittest
 
 from scripts.ahbot_stock import (
-    ARMOR_CATALOG, CATALOG, KEY, level70_armor_multipliers,
+    ARMOR_CATALOG, CATALOG, HEALING_POTION_IDS, KEY, level70_armor_multipliers,
     merge_item_multipliers, merge_tbc_gem_multipliers, tbc_cut_gem_ids,
 )
 
@@ -105,6 +105,49 @@ class AuctionHouseStockTest(unittest.TestCase):
             removed = subprocess.check_output(args + ["--level70-armor-multiplier", "0"], text=True).strip()
             self.assertEqual(removed, merge_tbc_gem_multipliers(original, 5))
             self.assertNotEqual(subprocess.run(args, capture_output=True).returncode, 0)
+
+    def test_healing_potions_scope_idempotence_and_restore(self):
+        self.assertEqual(HEALING_POTION_IDS, (13446, 22829))
+        original = "2589:10,118:5,13446:5,22829:5,22832:5,24027:5"
+        boosted = merge_item_multipliers(f"{KEY} = {original}\n",
+                                        dict.fromkeys(HEALING_POTION_IDS, 20))
+        self.assertEqual(boosted, original.replace("13446:5", "13446:20")
+                         .replace("22829:5", "22829:20"))
+        self.assertEqual(boosted, merge_item_multipliers(f"{KEY} = {boosted}\n",
+                         dict.fromkeys(HEALING_POTION_IDS, 20)))
+        self.assertEqual(original, merge_item_multipliers(f"{KEY} = {boosted}\n",
+                         dict.fromkeys(HEALING_POTION_IDS, 5)))
+        self.assertEqual("2589:10,118:5,22832:5,24027:5",
+                         merge_item_multipliers(f"{KEY} = {boosted}\n",
+                         dict.fromkeys(HEALING_POTION_IDS, 0)))
+
+    def test_healing_potion_cli_alone_combined_and_invalid(self):
+        with tempfile.TemporaryDirectory() as temp:
+            config = Path(temp) / "ah.conf"
+            original = f"{KEY} = 2589:10,13446:5,22832:5\nOther = unchanged\n"
+            config.write_text(original)
+            helper = Path(__file__).resolve().parents[1] / "ahbot_stock.py"
+            args = [sys.executable, str(helper), "--config", str(config)]
+            for profiles in ([], ["--tbc-cut-gem-multiplier", "5",
+                                  "--level70-armor-multiplier", "10"]):
+                output = subprocess.check_output(args + profiles +
+                    ["--healing-potion-multiplier", "20"], text=True).strip()
+                entries = dict(token.split(":") for token in output.split(","))
+                self.assertEqual(entries["13446"], "20")
+                self.assertEqual(entries["22829"], "20")
+                self.assertEqual(entries["22832"], "5")
+                self.assertEqual(entries["2589"], "10")
+                if profiles:
+                    self.assertEqual(entries["24027"], "5")
+                    self.assertEqual(entries["23517"], "20")
+                else:
+                    self.assertEqual(len(entries), 4)
+                self.assertEqual(config.read_text(), original)
+            for value in ("-1", "21", "bad"):
+                self.assertNotEqual(subprocess.run(args +
+                    ["--healing-potion-multiplier", value],
+                    capture_output=True).returncode, 0)
+            self.assertEqual(config.read_text(), original)
 
     def test_cli_does_not_modify_config(self):
         with tempfile.TemporaryDirectory() as temp:

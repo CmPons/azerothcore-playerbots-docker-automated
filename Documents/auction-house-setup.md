@@ -239,6 +239,59 @@ scaling deployment is tracked in `raid-healing-shield-scaling.md`.
 Private evidence: `backups/raid-support-deploy-20260924-222628/ah-rollback.json`,
 config copies/hashes and `ah-reload.log`.
 
+## Healing-potion stock boost — October 3, 2026
+
+At the user's request, increased the listing batches for **Major Healing Potion
+(13446)** and **Super Healing Potion (22829)** from **5 to 20** in each house's
+shared item-multiplier policy. Other healing potions, all mana potions, prices,
+stack-size policy, buyer settings, category weights, level filters and the
+10,000-listing targets remain unchanged. All 301 unrelated multipliers were
+preserved, including the BC cut-gem boost.
+
+Both private env files now contain:
+
+```ini
+AHBOT_HEALING_POTION_MULTIPLIER=20
+```
+
+The opt-in setup knob uses `scripts/ahbot_stock.py` and can be combined with the
+existing gem/armor profiles. Blank preserves existing potion values; `0` removes
+these two overrides; **`5` restores the pre-boost policy**. Zero is not a rollback
+to the previous five-listing batches. Fresh setups remain unchanged unless the
+knob is explicitly set.
+
+Read-only preview:
+
+```sh
+python3 scripts/ahbot_stock.py \
+  --config azerothcore-wotlk/env/dist/etc/modules/mod_ahbot.conf \
+  --healing-potion-multiplier 20
+```
+
+Only the multiplier-list runtime key and one addition to each private env were
+applied. One bounded `ahbot reload` and one `ahbot update` were acknowledged.
+**No restart, build, full setup, auction deletion, direct item grant or operator
+SQL write** was used. Container identities/start times/restart counts and Pi
+bridge identity were unchanged; all other runtime `.conf` files were hash-checked.
+
+This is **four times the batch size after random selection**, not four times the
+selection probability or guaranteed immediate inventory. Houses were near full
+before reload and reached 10,000 listings in the first follow-up. That snapshot
+still had 49 Major potions and no Super potions in Alliance; Horde had 42 Major
+and 2 Super, Neutral 18 Super. The policy is active, but **additional potion stock
+was not yet observed**. Replenishment depends on turnover and random item selection.
+Do not clear existing auctions just to force this profile to show results.
+
+Twenty offline helper/setup tests passed, including combined profiles, exact
+item scope, mana/material preservation, idempotence, restoring five, removal,
+invalid values and read-only CLI behavior. `bash -n setup.sh` and whitespace
+checks passed. Private config/stock/console evidence:
+`backups/ah-healing-potions-20261003-200951/`.
+
+Rollback is to set the env knob to `5`, merge those two runtime entries back to
+`5`, and issue `ahbot reload`; existing auctions continue to sell/expire normally.
+Do not restore a database or a whole old config to reverse this setting.
+
 ## Operations
 
 GM commands: `.ahbot reload`, `.ahbot update`.

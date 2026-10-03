@@ -109,6 +109,28 @@ class AuctionHouseSetupTest(unittest.TestCase):
         values = self.apply({"AHBOT_GUIDS": "2502", "AHBOT_TBC_CUT_GEM_MULTIPLIER": ""})
         self.assertNotIn("AuctionHouseBot.ListProportion.ListMultipliedItemIDs", values)
 
+    def test_healing_potions_profile_and_combination(self):
+        key = "AuctionHouseBot.ListProportion.ListMultipliedItemIDs"
+        base = {"AHBOT_GUIDS": "2502", "AHBOT_HEALING_POTION_MULTIPLIER": "20"}
+        values = self.apply(base)
+        self.assertEqual(values[key], "13446:20,22829:20")
+        combined = self.apply({**base, "AHBOT_TBC_CUT_GEM_MULTIPLIER": "5",
+                               "AHBOT_LEVEL70_ARMOR_MULTIPLIER": "10"})
+        entries = dict(token.split(":") for token in combined[key].split(","))
+        self.assertEqual(len(entries), 299)
+        for item, count in (("13446", "20"), ("22829", "20"),
+                            ("23517", "20"), ("24027", "5")):
+            self.assertEqual(entries[item], count)
+        # Only the stock list differs from default settings; prices/weights stay put.
+        expected = self.apply({"AHBOT_GUIDS": "2502"})
+        values.pop(key)
+        self.assertEqual(values, expected)
+        self.assertNotIn(key, self.apply({**base, "AHBOT_HEALING_POTION_MULTIPLIER": ""}))
+        self.assertEqual(self.apply({**base, "AHBOT_HEALING_POTION_MULTIPLIER": "0"})[key], "")
+        for value in ("-1", "21"):
+            with self.assertRaises(subprocess.CalledProcessError):
+                self.apply({**base, "AHBOT_HEALING_POTION_MULTIPLIER": value})
+
     def test_invalid_profile_fails(self):
         with self.assertRaises(subprocess.CalledProcessError):
             self.apply({"AHBOT_GUIDS": "2502", "AHBOT_TBC_CUT_GEM_MULTIPLIER": "-1"})

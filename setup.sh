@@ -601,6 +601,9 @@ if [[ -f "$AH_CONF" ]]; then
     if [[ -n "${AHBOT_LEVEL70_ARMOR_MULTIPLIER:-}" ]]; then
       AH_STOCK_ARGS+=(--level70-armor-multiplier "$AHBOT_LEVEL70_ARMOR_MULTIPLIER")
     fi
+    if [[ -n "${AHBOT_HEALING_POTION_MULTIPLIER:-}" ]]; then
+      AH_STOCK_ARGS+=(--healing-potion-multiplier "$AHBOT_HEALING_POTION_MULTIPLIER")
+    fi
     if (( ${#AH_STOCK_ARGS[@]} )); then
       AH_MULTIPLIERS="$(python3 "$ROOT/scripts/ahbot_stock.py" --config "$AH_CONF" "${AH_STOCK_ARGS[@]}")"
       set_conf "AuctionHouseBot.ListProportion.ListMultipliedItemIDs" "$AH_MULTIPLIERS" "$AH_CONF"
