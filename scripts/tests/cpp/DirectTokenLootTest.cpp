@@ -566,6 +566,114 @@ void HookTests()
     script.OnAfterLootTemplateProcess(nullptr, nullptr, LootTemplates_Creature, &owner, false, false, 1);
 }
 
+void ClassUniqueTests()
+{
+    Player warrior, priest, secondPriest, druid, paladin, hunter, fury;
+    priest.cls = secondPriest.cls = 5;
+    priest.tab = secondPriest.tab = 0;
+    druid.cls = 11;
+    paladin.cls = 2;
+    paladin.tab = 1;
+    hunter.cls = 3;
+    fury.tab = 1;
+    Group group;
+    group.Set({&warrior, &priest, &secondPriest, &druid, &paladin, &hunter, &fury});
+    PlayerbotsDirectTokenLootScript script;
+    auto run = [&](Loot& loot, LootStore const& store = LootTemplates_Creature)
+    {
+        script.OnAfterLootTemplateProcess(&loot, nullptr, store, &warrior, false, false, 1);
+    };
+    auto belongsTo = [&](LootItem const& item, uint8 cls)
+    {
+        return (objects.items.at(item.itemid).AllowableClass & CLASSMASK_ALL_PLAYABLE) == (1u << (cls - 1));
+    };
+
+    // Every ordered class permutation is equally reachable (3 * 2 choices), despite extra priests/specs.
+    std::set<std::vector<uint32>> permutations;
+    for (uint32 first = 0; first < 3; ++first)
+        for (uint32 second = 0; second < 2; ++second)
+        {
+            Loot loot{{{29767}, {29767}, {29767}, {29767}}};
+            rolls = {first, 0, second, 0, 0, 0};
+            rollBounds.clear();
+            run(loot);
+            std::vector<uint32> masks;
+            for (size_t i = 0; i < 3; ++i)
+            {
+                assert(loot.items[i].itemid != 29767);
+                masks.push_back(objects.items.at(loot.items[i].itemid).AllowableClass & CLASSMASK_ALL_PLAYABLE);
+            }
+            assert(std::unordered_set<uint32>(masks.begin(), masks.end()).size() == 3);
+            permutations.insert(masks);
+            assert(loot.items.size() == 4 && loot.items[3].itemid == 29767 && loot.items[3].count == 1);
+            assert(loot.items[3].randomSuffix == 0 && loot.items[3].randomPropertyId == 0);
+            assert(rollBounds.size() == 6 && rolls.empty()); // No RNG when classes are exhausted.
+            assert(rollBounds[0].second == 2 && rollBounds[2].second == 1 && rollBounds[4].second == 0);
+        }
+    assert(permutations.size() == 6);
+
+    // Paladin / rogue / shaman token: the motivating repeated-paladin case, without a gear-ownership test.
+    Player rogue, shaman;
+    rogue.cls = 4;
+    shaman.cls = 7;
+    group.Set({&warrior, &paladin, &rogue, &shaman});
+    Loot paladinLoot{{{29754}, {29754}, {29754}, {29754}}};
+    rolls.clear();
+    run(paladinLoot);
+    assert(belongsTo(paladinLoot.items[0], 2));
+    assert(belongsTo(paladinLoot.items[1], 4));
+    assert(belongsTo(paladinLoot.items[2], 7));
+    assert(paladinLoot.items[3].itemid == 29754);
+    group.Set({&warrior, &priest, &secondPriest, &druid, &paladin, &hunter, &fury});
+
+    // Different token IDs/slots with overlapping masks share the same exclusion set.
+    Loot mixed{{{29767}, {29753}, {29754}, {29765}}};
+    rolls.clear();
+    run(mixed);
+    assert(belongsTo(mixed.items[0], 1));
+    assert(belongsTo(mixed.items[1], 5));
+    assert(belongsTo(mixed.items[2], 2));
+    assert(belongsTo(mixed.items[3], 3));
+
+    // A fresh fill, including reuse of the same Loot object or a chest, may roll warrior again.
+    for (LootStore const* store : {&LootTemplates_Creature, &LootTemplates_Gameobject})
+    {
+        mixed.items = {{29767}, {29767}};
+        rolls.clear();
+        run(mixed, *store);
+        assert(belongsTo(mixed.items[0], 1) && belongsTo(mixed.items[1], 5));
+    }
+
+    // Preserve the no-reroll rule even when the first class is absent or unusable.
+    for (bool absent : {true, false})
+    {
+        group.Set(absent ? std::vector<Player*>{&priest, &druid} :
+                          std::vector<Player*>{&warrior, &priest, &druid});
+        warrior.group = &group;
+        warrior.level = absent ? 70 : 69;
+        Loot retained{{{29767}, {29767}, {29767}, {29767}}};
+        rolls.clear();
+        rollBounds.clear();
+        run(retained);
+        assert(retained.items[0].itemid == 29767 && retained.items[3].itemid == 29767);
+        assert(belongsTo(retained.items[1], 5) && belongsTo(retained.items[2], 11));
+        assert(rollBounds.size() == 5);
+    }
+    warrior.level = 70;
+    group.Set({&warrior, &priest, &druid});
+
+    // Ordinary gear and skipped token slots do not consume class rolls or get modified.
+    Loot skipped{{{29015}, {29767, 2}, {29767, 1, true}, {29767, 1, false, true}, {29767}, {29767}}};
+    rolls.clear();
+    run(skipped);
+    assert(skipped.items[0].itemid == 29015);
+    assert(skipped.items[1].itemid == 29767 && skipped.items[1].count == 2);
+    assert(skipped.items[2].itemid == 29767 && skipped.items[2].is_looted);
+    assert(skipped.items[3].itemid == 29767 && skipped.items[3].needs_quest);
+    assert(belongsTo(skipped.items[4], 1) && belongsTo(skipped.items[5], 5));
+    std::cout << "Per-loot unique classes: six permutations, paladin regression, exhaustion and fresh fills passed\n";
+}
+
 void QuestAndSafetyTests()
 {
     ItemTemplate token;
@@ -697,6 +805,8 @@ int main(int argc, char** argv)
         ContextTests();
     else if (which == "hook")
         HookTests();
+    else if (which == "unique")
+        ClassUniqueTests();
     else if (which == "safety")
         QuestAndSafetyTests();
     else if (which == "scoring")

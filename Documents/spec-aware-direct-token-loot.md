@@ -1,6 +1,9 @@
 # Spec-aware direct token loot
 
-Status: **deployed October 1, 2026**, with explicit build/restart authorization.
+Base policy: **deployed October 1, 2026**, with explicit build/restart authorization.
+**Pending source-only addition:** no repeated class within one generated boss/chest loot
+list; see [per-boss class uniqueness](#pending-per-boss-class-uniqueness) below. This addition
+has not been built or deployed.
 Playerbots source commit: `cef0162a7202f7a10688e989c0dba5d76828dbb1`.
 See [deployment and preservation review](spec-token-loot-deployment-20261001.md).
 No live config, loot-table, spec or equipment edits were made. The deployment review
@@ -11,6 +14,8 @@ The existing enabled mode (`AiPlayerbot.DirectTokenLoot.Mode = 1`) gains this po
 there is no new setting to enable. Mode 0/unsupported modes remain non-converting.
 
 ## Selection
+
+This describes the deployed base policy; the pending addition below narrows step 3.
 
 For each existing single, unlooted, non-quest token slot in creature or gameobject loot:
 
@@ -110,3 +115,53 @@ live gameplay.
 
 When debug logging is enabled, replacements report chosen class and distinct winner
 count. Safe non-conversions with a valid pool report the absent/unusable rolled class.
+
+## Pending per-boss class uniqueness
+
+The user requested **no duplicate class rolls for one boss**, not bad-luck protection
+across kills. Published playerbots commit: `8275e8f8f9998136047ee034458bb1e2bc49dd2f`,
+pinned in `repo-pins.txt`.
+It is **not active in the running worldserver**. No full build, restart, live configuration,
+SQL, existing item conversion or equipment change was performed for this addition.
+
+`DirectTokenLootScript.cpp` now keeps a local rolled-class mask for one generated loot
+list. Before each class roll, it excludes classes already selected in that list from the
+token's own eligible PvE reward-class mask, then rolls uniformly among those remaining.
+Different token IDs and equipment slots share that mask; unrelated token families retain
+their own restrictions. Two priests or multiple specs do not grant a class a second roll.
+Spec scoring, winner deduplication, PvP filtering and equipment-mode behavior are unchanged.
+
+- If no unused eligible class remains, keep the original token without consuming RNG.
+- An absent/unusable selected class still consumes its class roll, while retaining the
+  original token. Do not reroll that failed selection now or on a later token in the batch.
+- Class choices start fresh for the next generated loot list, even for the same looter
+  or a reused `Loot` object. There is no persistent/global/player/lockout history.
+- This applies to the existing creature and gameobject loot sources, including boss
+  chests. Ordinary non-token gear does not consume a class roll and is not changed.
+  Quest, stacked and already-looted token slots retain their existing skip behavior.
+- This is one generated corpse/chest loot list, not bookkeeping across independent
+  chests from a single encounter. It does not inspect existing ownership or guarantee
+  every reward is an upgrade; there is no retroactive replacement of unwanted paladin gear.
+
+The native `Loot::FillLoot` hook runs once after `tab->Process` has expanded reference
+loot templates, before group access/distribution. The local mask therefore covers all
+convertible slots in that generated list; opening its loot window is not a fresh class roll.
+No hook/core change or new setting is needed. Debug logging identifies exhaustion separately
+from an absent/unusable selected class.
+
+Validation for this addition:
+
+- **12 token-loot tests passed**, including the unchanged 135-case T4 scoring matrix.
+  Another **23 tank-mode, pull/skull-focus and publication-workflow regressions passed**.
+- New production-hook fixture exercises all six class orderings for a three-class token,
+  shrinking RNG bounds, repeated paladin prevention, two priests/mixed specs, exhaustion,
+  different token IDs/families, absent/unusable classes, skipped slots and fresh corpse/chest fills.
+- All eight C++ scenarios passed ASan/UBSan. The full previous script from playerbots
+  `e94b0f7df302f0001c6313768bfe3d7582d53a67` compiles against the same fixture and fails
+  the new distinct-class assertion, reproducing the original problem.
+- Production-header syntax checking of `DirectTokenLootScript.cpp` and the official C++
+  style checker on the changed source/test files passed. Offline fixtures are not live
+  boss-drop acceptance or a full server build.
+
+Reproduce with the test command above; syntax-only checking needs only
+`modules/mod-playerbots/src/Mgr/Item/DirectTokenLootScript.cpp` for this addition.

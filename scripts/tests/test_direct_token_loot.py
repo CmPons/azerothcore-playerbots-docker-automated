@@ -15,6 +15,7 @@ CORE = ROOT / "azerothcore-wotlk"
 BOT = CORE / "modules/mod-playerbots"
 ITEM = BOT / "src/Mgr/Item"
 BASELINE = "39923c6843a75185f8d613a39edc576b8863a6ce"
+PRE_CLASS_UNIQUENESS = "e94b0f7df302f0001c6313768bfe3d7582d53a67"
 
 
 def no_includes(text):
@@ -119,11 +120,23 @@ class DirectTokenLootTests(unittest.TestCase):
         }
         for marker, value in replacements.items():
             fixture = fixture.replace(marker, value)
+        cls.compiler = compiler
+        cls.fixture = fixture
         cpp = tmp / "test.cpp"
         cpp.write_text(fixture)
         cls.binary = tmp / "test"
         subprocess.run([compiler, "-std=c++20", "-Wall", "-Wextra", "-Werror", "-Wno-implicit-fallthrough",
                         "-Wno-unused-function", str(cpp), "-o", str(cls.binary)], check=True)
+
+    def compile_variant(self, name, source, flags=()):
+        tmp = Path(self.temp.name)
+        cpp, binary = tmp / (name + ".cpp"), tmp / name
+        cpp.write_text(source)
+        result = subprocess.run([self.compiler, "-std=c++20", "-Wall", "-Wextra", "-Werror",
+            "-Wno-implicit-fallthrough", "-Wno-unused-function", *flags, str(cpp), "-o", str(binary)],
+            text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        return binary
 
     def run_case(self, case):
         result = subprocess.run([str(self.binary), case], text=True, capture_output=True, timeout=15,
@@ -138,6 +151,33 @@ class DirectTokenLootTests(unittest.TestCase):
     def test_quest_masks_quality_and_safe_fallbacks(self): self.run_case("safety")
     def test_loot_scoring_independent_of_current_gear_and_ai_role(self): self.run_case("scoring")
     def test_installed_t4_all_classes_specs_slots(self): self.run_case("tier")
+
+    def test_unique_classes_per_boss_loot(self): self.run_case("unique")
+
+    def test_previous_full_script_reproduces_duplicate_class(self):
+        old = subprocess.check_output(["git", "-C", str(BOT), "show",
+            PRE_CLASS_UNIQUENESS + ":src/Mgr/Item/DirectTokenLootScript.cpp"], text=True)
+        current = no_includes((ITEM / "DirectTokenLootScript.cpp").read_text())
+        self.assertEqual(self.fixture.count(current), 1)
+        binary = self.compile_variant("old-class-roll", self.fixture.replace(current, no_includes(old), 1))
+        result = subprocess.run([str(binary), "unique"], text=True, capture_output=True,
+            preexec_fn=lambda: resource.setrlimit(resource.RLIMIT_CORE, (0, 0)))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("masks.end()).size() == 3", result.stderr)
+
+    def test_sanitized_policy_and_existing_cases(self):
+        binary = self.compile_variant("sanitized", self.fixture,
+            ["-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-no-pie"])
+        for case in ("unique", "selection", "pvp", "context", "hook", "safety", "scoring", "tier"):
+            with self.subTest(case=case):
+                result = subprocess.run([str(binary), case], text=True, capture_output=True, timeout=30)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_hook_runs_after_reference_expansion_before_distribution(self):
+        fill = method((CORE / "src/server/game/Loot/LootMgr.cpp").read_text(), "bool Loot::FillLoot(")
+        self.assertEqual(fill.count("OnAfterLootTemplateProcess("), 1)
+        self.assertLess(fill.index("tab->Process("), fill.index("OnAfterLootTemplateProcess("))
+        self.assertLess(fill.index("OnAfterLootTemplateProcess("), fill.index("FillNotNormalLootFor("))
 
     def test_existing_equipment_scoring_bodies_preserved(self):
         path = "src/Mgr/Item/StatsWeightCalculator.cpp"
