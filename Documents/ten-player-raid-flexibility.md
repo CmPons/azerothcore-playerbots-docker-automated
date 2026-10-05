@@ -46,6 +46,12 @@ mostly caster gear. A secondary `bear pve` spec was suggested; the exact final
 saved talents, equipment and any later return to Restoration were not audited.
 Do not assume her current role from this historical record.
 
+The [October 5 read-only gear audit](core-ten-gear-audit-20261005.md) subsequently
+confirmed Ailina at Restoration 4/0/57 with one saved talent group, but still wearing
+Dragonspine Trophy. It identified an owned healing-trinket alternative and an empty
+idol slot; no equipment or spec change was performed. At that point the user reported
+Gruul, Magtheridon and Karazhan on farm, SSC 5/6 without Vashj and TK 3/4.
+
 ### Native strategy verified before the attempt
 
 With `+tempestkeep`, the registered Al'ar routines explicitly allocate:

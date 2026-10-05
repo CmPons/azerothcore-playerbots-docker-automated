@@ -1,0 +1,166 @@
+character,active_spec,slot,item_id,item_name,item_level,quality,item_set,sockets_filled,sockets_total,permanent_enchant_id
+Arinerica,Protection,Head,39084,Cobalt Helm,142,Uncommon,0,0,0,0
+Arinerica,Protection,Neck,28321,Enchanted Thorium Torque,115,Rare,0,0,0,0
+Arinerica,Protection,Shoulders,30127,Crystalforge Shoulderguards,133,Epic,628,2,2,0
+Arinerica,Protection,Chest,34945,Shattrath Protectorate's Breastplate,141,Epic,0,1,1,0
+Arinerica,Protection,Waist,28779,Girdle of the Endless Pit,125,Epic,0,2,2,0
+Arinerica,Protection,Legs,30126,Crystalforge Legguards,133,Epic,628,1,1,0
+Arinerica,Protection,Feet,28747,Battlescar Boots,115,Epic,0,2,2,0
+Arinerica,Protection,Wrists,30091,True-Aim Stalker Bands,128,Epic,0,1,1,0
+Arinerica,Protection,Hands,28518,Iron Gauntlets of the Maiden,115,Epic,0,2,2,0
+Arinerica,Protection,Ring 1,34837,The 2 Ring,143,Epic,0,0,0,0
+Arinerica,Protection,Ring 2,21695,Angelista's Touch,75,Epic,0,0,0,0
+Arinerica,Protection,Trinket 1,30620,Spyglass of the Hidden Fleet,128,Epic,0,0,0,0
+Arinerica,Protection,Trinket 2,17759,Mark of Resolution,60,Rare,0,0,0,0
+Arinerica,Protection,Back,29925,Phoenix-Wing Cloak,128,Epic,0,0,0,0
+Arinerica,Protection,Main hand,31234,Crystalblade of the Draenei,103,Rare,0,0,0,0
+Arinerica,Protection,Off hand,28825,Aldori Legacy Defender,125,Epic,0,1,1,0
+Arinerica,Protection,Ranged/relic,22400,Libram of Truth,57,Rare,0,0,0,0
+Meliah,Discipline,Head,30152,Cowl of the Avatar,133,Epic,665,2,2,0
+Meliah,Discipline,Neck,28822,Teeth of Gruul,125,Epic,0,0,0,0
+Meliah,Discipline,Shoulders,30079,Illidari Shoulderpads,128,Epic,0,2,2,0
+Meliah,Discipline,Chest,29056,Shroud of the Incarnate,120,Epic,664,3,3,0
+Meliah,Discipline,Waist,28565,Nethershard Girdle,115,Epic,0,0,0,0
+Meliah,Discipline,Legs,29977,Star-Soul Breeches,128,Epic,0,0,0,0
+Meliah,Discipline,Feet,21349,Footwraps of the Oracle,78,Epic,507,0,0,2658
+Meliah,Discipline,Wrists,16926,Bindings of Transcendence,76,Epic,211,0,0,2650
+Meliah,Discipline,Hands,30151,Gloves of the Avatar,133,Epic,665,0,0,0
+Meliah,Discipline,Ring 1,29920,Phoenix-Ring of Rebirth,128,Epic,0,0,0,0
+Meliah,Discipline,Ring 2,28510,Spectral Band of Innervation,115,Epic,0,0,0,2930
+Meliah,Discipline,Trinket 1,28727,Pendant of the Violet Eye,115,Epic,0,0,0,0
+Meliah,Discipline,Trinket 2,28590,Ribbon of Sacrifice,115,Epic,0,0,0,0
+Meliah,Discipline,Back,28269,Baba's Cloak of Arcanistry,115,Rare,0,0,0,0
+Meliah,Discipline,Main hand,28782,Crystalheart Pulse-Staff,125,Epic,0,0,0,0
+Meliah,Discipline,Ranged/relic,27885,Soul-Wand of the Aldor,112,Rare,0,0,0,0
+Raney,Frost,Head,28804,Collar of Cho'gall,125,Epic,0,0,0,0
+Raney,Frost,Neck,28822,Teeth of Gruul,125,Epic,0,0,0,0
+Raney,Frost,Shoulders,29079,Pauldrons of the Aldor,120,Epic,648,2,2,0
+Raney,Frost,Chest,21343,Enigma Robes,88,Epic,503,0,0,1144
+Raney,Frost,Waist,27795,Sash of Serpentra,115,Rare,0,0,0,0
+Raney,Frost,Legs,29078,Legwraps of the Aldor,120,Epic,648,0,0,0
+Raney,Frost,Feet,28670,Boots of the Infernal Coven,115,Epic,0,0,0,0
+Raney,Frost,Wrists,19374,Bracers of Arcane Accuracy,75,Epic,0,0,0,2650
+Raney,Frost,Hands,24680,Archmage Gloves,117,Uncommon,0,0,0,0
+Raney,Frost,Ring 1,29922,Band of Al'ar,128,Epic,0,0,0,0
+Raney,Frost,Ring 2,28793,Band of Crimson Fury,125,Epic,0,0,0,0
+Raney,Frost,Trinket 1,28823,Eye of Gruul,125,Epic,0,0,0,0
+Raney,Frost,Trinket 2,19395,Rejuvenating Gem,75,Epic,0,0,0,0
+Raney,Frost,Back,28797,Brute Cloak of the Ogre-Magi,125,Epic,0,0,0,0
+Raney,Frost,Main hand,28633,Staff of Infinite Mysteries,115,Epic,0,0,0,0
+Raney,Frost,Ranged/relic,29982,Wand of the Forgotten Star,134,Epic,0,0,0,0
+Beliona,Affliction,Head,28744,Uni-Mind Headdress,115,Epic,0,0,0,3002
+Beliona,Affliction,Neck,17109,Choker of Enlightenment,65,Epic,0,0,0,0
+Beliona,Affliction,Shoulders,28967,Voidheart Mantle,120,Epic,645,0,2,0
+Beliona,Affliction,Chest,28964,Voidheart Robe,120,Epic,645,3,3,0
+Beliona,Affliction,Waist,30020,Fire-Cord of the Magus,128,Epic,0,0,0,0
+Beliona,Affliction,Legs,28966,Voidheart Leggings,120,Epic,645,0,0,0
+Beliona,Affliction,Feet,21338,Doomcaller's Footwraps,78,Epic,499,0,0,2658
+Beliona,Affliction,Wrists,16934,Nemesis Bracers,76,Epic,212,0,0,2650
+Beliona,Affliction,Hands,16928,Nemesis Gloves,76,Epic,212,0,0,2937
+Beliona,Affliction,Ring 1,28790,Naaru Lightwarden's Band,125,Epic,0,0,0,0
+Beliona,Affliction,Ring 2,30667,Ring of Unrelenting Storms,115,Epic,0,0,0,2930
+Beliona,Affliction,Trinket 1,22678,Talisman of Ascendance,60,Epic,0,0,0,0
+Beliona,Affliction,Trinket 2,28823,Eye of Gruul,125,Epic,0,0,0,0
+Beliona,Affliction,Back,28766,Ruby Drape of the Mysticant,125,Epic,0,0,0,2664
+Beliona,Affliction,Main hand,21273,Blessed Qiraji Acolyte Staff,79,Epic,0,0,0,2669
+Beliona,Affliction,Ranged/relic,25292,Mechano-Wand,111,Uncommon,0,0,0,0
+Ailina,Restoration,Head,28803,Cowl of Nature's Breath,125,Epic,0,0,0,0
+Ailina,Restoration,Neck,18814,Choker of the Fire Lord,78,Epic,0,0,0,0
+Ailina,Restoration,Shoulders,29095,Pauldrons of Malorne,120,Epic,639,2,2,0
+Ailina,Restoration,Chest,29091,Chestpiece of Malorne,120,Epic,639,3,3,0
+Ailina,Restoration,Waist,16828,Cenarion Belt,66,Epic,205,0,0,0
+Ailina,Restoration,Legs,34905,Crystalwind Leggings,141,Epic,0,2,2,2748
+Ailina,Restoration,Feet,28752,Forestlord Striders,115,Epic,0,2,2,0
+Ailina,Restoration,Wrists,28453,Bracers of the White Stag,115,Epic,0,0,0,2650
+Ailina,Restoration,Hands,30029,Bark-Gloves of Ancient Wisdom,128,Epic,0,0,0,0
+Ailina,Restoration,Ring 1,28793,Band of Crimson Fury,125,Epic,0,0,0,0
+Ailina,Restoration,Ring 2,28790,Naaru Lightwarden's Band,125,Epic,0,0,0,0
+Ailina,Restoration,Trinket 1,28830,Dragonspine Trophy,125,Epic,0,0,0,0
+Ailina,Restoration,Trinket 2,28789,Eye of Magtheridon,125,Epic,0,0,0,0
+Ailina,Restoration,Back,21697,Cape of the Trinity,75,Epic,0,0,0,2664
+Ailina,Restoration,Main hand,25323,Ascendant's Scepter,120,Uncommon,0,0,0,0
+Ailina,Restoration,Off hand,25099,Draenei Crystal Rod,120,Uncommon,0,0,0,0
+Pilbok,Combat,Head,30146,Deathmantle Helm,133,Epic,622,2,2,0
+Pilbok,Combat,Neck,24385,Pendant of Battle-Lust,88,Rare,0,0,0,0
+Pilbok,Combat,Shoulders,29047,Netherblade Shoulderpads,120,Epic,621,0,2,0
+Pilbok,Combat,Chest,29045,Netherblade Chestpiece,120,Epic,621,3,3,0
+Pilbok,Combat,Waist,30106,Belt of One-Hundred Deaths,138,Epic,0,2,2,0
+Pilbok,Combat,Legs,29046,Netherblade Breeches,120,Epic,621,0,0,0
+Pilbok,Combat,Feet,30674,Zierhut's Lost Treads,115,Epic,0,0,0,2658
+Pilbok,Combat,Wrists,31191,Crocolisk Hide Bracers,94,Rare,0,0,0,1593
+Pilbok,Combat,Hands,34911,Handwraps of the Aggressor,141,Epic,0,1,1,0
+Pilbok,Combat,Ring 1,30052,Ring of Lethality,128,Epic,0,0,0,0
+Pilbok,Combat,Ring 2,28791,Ring of the Recalcitrant,125,Epic,0,0,0,0
+Pilbok,Combat,Trinket 1,28041,Bladefist's Breadth,88,Rare,0,0,0,0
+Pilbok,Combat,Trinket 2,27921,Mark of Conquest,91,Rare,0,0,0,0
+Pilbok,Combat,Back,31254,Striderhide Cloak,97,Rare,0,0,0,368
+Pilbok,Combat,Main hand,28572,Blade of the Unrequited,115,Epic,0,3,3,0
+Pilbok,Combat,Off hand,28524,Emerald Ripper,115,Epic,0,0,0,2673
+Pilbok,Combat,Ranged/relic,28826,Shuriken of Negation,125,Epic,0,0,0,0
+Kaaren,Enhancement,Head,28801,Maulgar's Warhelm,125,Epic,0,0,0,0
+Kaaren,Enhancement,Neck,31695,Natasha's Choker,103,Rare,0,0,0,0
+Kaaren,Enhancement,Shoulders,30194,Cataclysm Shoulderplates,133,Epic,636,2,2,0
+Kaaren,Enhancement,Chest,29038,Cyclone Breastplate,120,Epic,633,3,3,0
+Kaaren,Enhancement,Waist,34929,Belt of the Silent Path,141,Epic,0,1,1,0
+Kaaren,Enhancement,Legs,27936,Greaves of Desolation,115,Rare,660,0,0,3012
+Kaaren,Enhancement,Feet,28669,Rapscallion Boots,115,Epic,0,0,0,0
+Kaaren,Enhancement,Wrists,31223,Illidari Wristguards,103,Rare,0,0,0,1593
+Kaaren,Enhancement,Hands,28827,Gauntlets of the Dragonslayer,125,Epic,0,0,2,0
+Kaaren,Enhancement,Ring 1,27925,Ravenclaw Band,115,Rare,0,0,0,0
+Kaaren,Enhancement,Ring 2,30061,Ancestral Ring of Conquest,128,Epic,0,0,0,0
+Kaaren,Enhancement,Trinket 1,28789,Eye of Magtheridon,125,Epic,0,0,0,0
+Kaaren,Enhancement,Trinket 2,30627,Tsunami Talisman,128,Epic,0,0,0,0
+Kaaren,Enhancement,Back,31255,Cloak of the Craft,103,Rare,0,0,0,368
+Kaaren,Enhancement,Main hand,30103,Fang of Vashj,141,Epic,0,0,0,0
+Kaaren,Enhancement,Off hand,28768,Malchazeen,125,Epic,0,0,0,0
+Kaaren,Enhancement,Ranged/relic,24413,Totem of the Thunderhead,94,Rare,0,0,0,0
+Keilmere,Discipline,Head,30152,Cowl of the Avatar,133,Epic,665,2,2,0
+Keilmere,Discipline,Neck,24462,Luminous Pearls of Insight,94,Rare,0,0,0,0
+Keilmere,Discipline,Shoulders,29054,Light-Mantle of the Incarnate,120,Epic,663,2,2,0
+Keilmere,Discipline,Chest,29056,Shroud of the Incarnate,120,Epic,664,3,3,0
+Keilmere,Discipline,Waist,31231,Feathered Sash,91,Rare,0,0,0,0
+Keilmere,Discipline,Legs,21352,Trousers of the Oracle,81,Epic,507,0,0,2748
+Keilmere,Discipline,Feet,21600,Boots of Epiphany,81,Epic,0,0,0,2658
+Keilmere,Discipline,Wrists,28477,Harbinger Bands,115,Epic,0,0,0,0
+Keilmere,Discipline,Hands,16920,Handguards of Transcendence,76,Epic,211,0,0,2937
+Keilmere,Discipline,Ring 1,28763,Jade Ring of the Everliving,125,Epic,0,0,0,0
+Keilmere,Discipline,Ring 2,31238,Dragonbone Ring,94,Rare,0,0,0,0
+Keilmere,Discipline,Trinket 1,24390,Auslese's Light Channeler,88,Rare,0,0,0,0
+Keilmere,Discipline,Trinket 2,27922,Mark of Defiance,91,Rare,0,0,0,0
+Keilmere,Discipline,Back,19378,Cloak of the Brood Lord,83,Epic,0,0,0,2664
+Keilmere,Discipline,Main hand,28770,Nathrezim Mindblade,125,Epic,0,0,0,0
+Keilmere,Discipline,Off hand,28781,Karaborian Talisman,125,Epic,0,0,0,0
+Keilmere,Discipline,Ranged/relic,25293,Draenethyst Wand,114,Uncommon,0,0,0,0
+Feelesia,Beast Mastery,Head,28796,Malefic Mask of the Shadows,125,Epic,0,0,0,0
+Feelesia,Beast Mastery,Neck,31147,Pendant of Cunning,91,Rare,0,0,0,0
+Feelesia,Beast Mastery,Shoulders,29084,Demon Stalker Shoulderguards,120,Epic,651,2,2,0
+Feelesia,Beast Mastery,Chest,34912,Scaled Drakeskin Chestguard,141,Epic,0,1,1,0
+Feelesia,Beast Mastery,Waist,28828,Gronn-Stitched Girdle,125,Epic,0,2,2,0
+Feelesia,Beast Mastery,Legs,30142,Rift Stalker Leggings,133,Epic,652,1,1,0
+Feelesia,Beast Mastery,Feet,25946,Nethershade Boots,97,Rare,0,0,0,2657
+Feelesia,Beast Mastery,Wrists,33529,Steadying Bracers,128,Epic,0,0,0,0
+Feelesia,Beast Mastery,Hands,30140,Rift Stalker Gauntlets,133,Epic,652,0,0,0
+Feelesia,Beast Mastery,Ring 1,25962,Longstrider's Loop,97,Rare,0,0,0,0
+Feelesia,Beast Mastery,Ring 2,25962,Longstrider's Loop,97,Rare,0,0,0,0
+Feelesia,Beast Mastery,Trinket 1,27921,Mark of Conquest,91,Rare,0,0,0,0
+Feelesia,Beast Mastery,Trinket 2,27416,Fetish of the Fallen,100,Rare,0,0,0,0
+Feelesia,Beast Mastery,Back,31254,Striderhide Cloak,97,Rare,0,0,0,368
+Feelesia,Beast Mastery,Main hand,28587,Legacy,115,Epic,0,0,0,0
+Feelesia,Beast Mastery,Ranged/relic,28504,Steelhawk Crossbow,115,Epic,0,0,0,0
+Redshift,Protection,Head,30731,Faceguard of the Endless Watch,120,Epic,0,3,3,0
+Redshift,Protection,Neck,17065,Medallion of Steadfast Might,68,Epic,0,0,0,0
+Redshift,Protection,Shoulders,28743,Mantle of Abrahmis,115,Epic,0,2,2,0
+Redshift,Protection,Chest,29012,Warbringer Chestguard,120,Epic,654,3,3,0
+Redshift,Protection,Waist,33331,Chain of Unleashed Rage,128,Epic,0,2,2,0
+Redshift,Protection,Legs,29015,Warbringer Legguards,120,Epic,654,0,0,0
+Redshift,Protection,Feet,28747,Battlescar Boots,115,Epic,0,2,2,0
+Redshift,Protection,Wrists,33513,Eternium Rage-shackles,128,Epic,0,0,0,0
+Redshift,Protection,Hands,23532,Gauntlets of the Iron Tower,105,Epic,0,2,2,0
+Redshift,Protection,Ring 1,28792,A'dal's Signet of Defense,125,Epic,0,0,0,0
+Redshift,Protection,Ring 2,30083,Ring of Sundered Souls,128,Epic,0,0,0,0
+Redshift,Protection,Trinket 1,29387,Gnomeregan Auto-Blocker 600,110,Epic,0,0,0,0
+Redshift,Protection,Trinket 2,31858,Darkmoon Card: Vengeance,100,Epic,0,0,0,0
+Redshift,Protection,Back,28301,Syrannis' Mystic Sheen,115,Rare,0,0,0,0
+Redshift,Protection,Main hand,21392,Sickle of Unyielding Strength,70,Epic,495,0,0,0
+Redshift,Protection,Off hand,40668,Cobalt Triangle Shield,142,Uncommon,0,0,0,0
+Redshift,Protection,Ranged/relic,21272,Blessed Qiraji Musket,79,Epic,0,0,0,0
