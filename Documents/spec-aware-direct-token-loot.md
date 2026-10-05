@@ -1,9 +1,9 @@
 # Spec-aware direct token loot
 
 Base policy: **deployed October 1, 2026**, with explicit build/restart authorization.
-**Pending source-only addition:** no repeated class within one generated boss/chest loot
-list; see [per-boss class uniqueness](#pending-per-boss-class-uniqueness) below. This addition
-has not been built or deployed.
+**Addition deployed October 5:** no repeated class within one generated boss/chest loot
+list; see [per-boss class uniqueness](#per-boss-class-uniqueness) below and the
+[deployment and qualified preservation review](raid-qol-deployment-20261005.md).
 Playerbots source commit: `cef0162a7202f7a10688e989c0dba5d76828dbb1`.
 See [deployment and preservation review](spec-token-loot-deployment-20261001.md).
 No live config, loot-table, spec or equipment edits were made. The deployment review
@@ -15,7 +15,7 @@ there is no new setting to enable. Mode 0/unsupported modes remain non-convertin
 
 ## Selection
 
-This describes the deployed base policy; the pending addition below narrows step 3.
+This describes the original base policy; the deployed October 5 addition below narrows step 3.
 
 For each existing single, unlooted, non-quest token slot in creature or gameobject loot:
 
@@ -116,13 +116,14 @@ live gameplay.
 When debug logging is enabled, replacements report chosen class and distinct winner
 count. Safe non-conversions with a valid pool report the absent/unusable rolled class.
 
-## Pending per-boss class uniqueness
+## Per-boss class uniqueness
 
 The user requested **no duplicate class rolls for one boss**, not bad-luck protection
 across kills. Published playerbots commit: `8275e8f8f9998136047ee034458bb1e2bc49dd2f`,
 pinned in `repo-pins.txt`.
-It is **not active in the running worldserver**. No full build, restart, live configuration,
-SQL, existing item conversion or equipment change was performed for this addition.
+It is **active in the running worldserver** following the explicitly authorized October 5
+build/deployment. No configuration change or retroactive token conversion was required.
+The deployment review records startup and subsequent live-play preservation exceptions.
 
 `DirectTokenLootScript.cpp` now keeps a local rolled-class mask for one generated loot
 list. Before each class roll, it excludes classes already selected in that list from the

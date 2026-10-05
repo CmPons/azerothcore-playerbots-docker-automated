@@ -1,9 +1,10 @@
 # TK trash whirlwind avoidance
 
-Status: **implemented and tested offline; not built or deployed**. This does not
-change the currently running worldserver. Published playerbots commit:
-`e94b0f7df302f0001c6313768bfe3d7582d53a67`. The previously published respawn-scaling
-fix also remains pending its own authorized deployment.
+Status: **built and deployed October 5 with explicit authorization**; live TK trash
+acceptance remains pending. See the [deployment and qualified preservation review](raid-qol-deployment-20261005.md).
+Original playerbots commit: `e94b0f7df302f0001c6313768bfe3d7582d53a67`, included in
+the deployed `8275e8f8f9998136047ee034458bb1e2bc49dd2f` alongside token class uniqueness.
+The respawn-scaling fix was deployed in the same image.
 
 ## Report and confirmed detection gap
 
@@ -100,9 +101,9 @@ multiple overlapping hazards, immobilization, reaction latency and explicit
 stay/commands may still prevent an escape. Direct scripted movement or gap
 closers outside these shared entry points are not universally intercepted.
 
-No full configure/build, server restart, runtime configuration change, SQL write
-or deployment occurred for this fix. After an authorized build/deployment,
-observe normal TK trash pulls: non-owning melee should step away during the
+The initial source-only work performed no build, restart or live-state change.
+An explicitly authorized full build/deployment followed on October 5. On normal TK trash
+pulls, non-owning melee should step away during the
 spin and resume afterward, ranged/healers should retain safe casts, and the
 owning tank should continue defending. Do not force a wipe or alter loot solely
 for validation.

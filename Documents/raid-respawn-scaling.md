@@ -1,15 +1,16 @@
 # Raid health scaling after in-place respawn
 
-## Status — October 2, 2026
+## Status — October 5, 2026
 
-**Implemented and offline-tested; not built or deployed.** The user authorized the
-proper fix after confirming that `.raidscale trash hp 0.4` corrected the current
-SSC guards. That authorization is not a new build/restart authorization.
+**Built and deployed with explicit authorization**, together with token class uniqueness
+and TK trash avoidance. See the [deployment and qualified preservation review](raid-qol-deployment-20261005.md).
+Live acceptance of an actual compatibility-mode guard respawn remains pending.
 
 Core hook commit: `8b8b7bcf8615c62b4aedaa00c33713a0c1f6df0e`.
 Root-authored module changes are mirrored into the native build tree. Native core
-and module must be built together: the module consumes a new core script hook.
-No live configuration, database, equipment, lockout or running process was changed.
+and module were built together: the module consumes a new core script hook.
+The original October 2 source-only work changed no live state; the October 5 deployment
+record separately documents the worldserver replacement and preservation exceptions.
 
 ## Observed problem and scope
 
@@ -116,10 +117,10 @@ python -m unittest scripts.tests.test_raid_respawn_scaling \
   scripts.tests.test_bug_trio_reset scripts.tests.test_source_repos -v
 ```
 
-## Until deployment
+## Historical pre-deployment workaround
 
 Outside combat, inside SSC, `.raidscale trash hp 0.4` reapplies the intended guard HP.
 It is a map-wide HP refresh, not a single-target command; check health and let creatures
 refill before pulling. It does not change damage multipliers or reset the lockout.
-The user confirmed this workaround. Another in-place respawn can undo it until the new
-binary is deployed with separate authorization and fresh preservation checks.
+The user confirmed this workaround before deployment. The old binary could lose the
+scaling again on an in-place respawn; the October 5 binary includes the lifecycle fix.

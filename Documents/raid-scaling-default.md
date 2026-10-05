@@ -16,7 +16,7 @@ mutation. Corridor bugs and other creatures retain their existing behavior.
 now follows the recipient's HP multiplier. Existing HP/damage settings are unchanged;
 player support, percentage healing and percentage damage-reduction shields are excluded.
 
-**Source fix published October 2, not yet deployed:** [In-place respawn scaling](raid-respawn-scaling.md)
+**Deployed October 5:** [In-place respawn scaling](raid-respawn-scaling.md)
 repairs native health rebuilds that bypass world entry, as observed on Karathress's guards.
 Dynamic respawns and the existing encounter recovery paths remain unchanged.
 
