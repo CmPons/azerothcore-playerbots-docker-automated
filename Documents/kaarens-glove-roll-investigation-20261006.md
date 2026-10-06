@@ -10,6 +10,14 @@ historical cause remains **unconfirmed**, pending the user's recollection or a
 future decision trace. No production fix, live item manipulation, config change,
 forced save, build or restart was performed in this investigation.
 
+### Follow-up
+
+The user subsequently said Kaaren may have been dead but they cannot remember;
+that does not confirm the historical cause. They approved fixing the defect anyway.
+The [dead-bot loot valuation fix](dead-bot-loot-valuation.md) is now tested and
+published in source, **not built/deployed**. The findings below record the original
+read-only investigation.
+
 ## Read-only evidence
 
 Snapshot: **2026-10-06**, private evidence under
