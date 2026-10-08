@@ -1,8 +1,10 @@
 # TK weapon recovery must not monopolize bot actions
 
-Status: **implemented, tested and published; not built or deployed**. The running
-October 8 image still has the old behavior. Deployment requires explicit approval.
+Status: **deployed October 8 at 21:18:39 CEST** after explicit build/deploy approval.
 Playerbots source commit: `8d73b1a5721848071cd5e3048c7ad84a8f1c8194`.
+See [deployment and qualified preservation review](tk-weapon-recovery-deployment-20261008.md).
+Live Kael/command acceptance remains pending; deployment verification passed, but
+startup exposed separate reset-metadata/profile/pet-autocast preservation issues.
 
 ## Observed failure
 
