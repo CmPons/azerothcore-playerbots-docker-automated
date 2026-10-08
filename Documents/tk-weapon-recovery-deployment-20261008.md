@@ -130,7 +130,7 @@ verification is separately successful (`observation.exit=0`). No inherited
 exception allowlist or new blanket waiver was used. Earlier missing-item or
 preference investigations are not resolved by this fresh-baseline audit.
 
-## Reset-metadata follow-up (not repaired)
+## Reset-metadata deletion bug (source fix deferred)
 
 Source inspection found a concrete pre-existing cleanup hazard:
 
@@ -147,9 +147,35 @@ acceptable; deleting an intact raid's deadline as a side effect is a distinct
 problem. The loaded in-memory deadline was not directly measured, so its current
 value must not be asserted from the missing DB row alone. Do not restart again or
 restore/replace raid state automatically. The exact pre-stop row and full backups
-are retained for a separately authorized narrow repair, with fresh state checks.
+are retained for a separately authorized narrow repair, with fresh state checks
+(the later authorization and one-row restoration are recorded below).
 A durable source repair should separate actual instance deletion/reset from mere
 GO/group cleanup and preserve other players' progression metadata.
+
+## Authorized deadline-only restoration — 21:40 CEST
+
+After the user explicitly approved restoring the one row, the exact pre-stop
+`6510 / 2 / 1791648306 / 1791907506` record was restored at **21:40:19 CEST**.
+The full pre-stop SQL dump was checked for the same tuple, in addition to its
+verified checksum/gzip integrity and the separate snapshot.
+
+Fresh checks found the deadline row still absent, the same 3/4 boss data and all
+ten original permanent/unextended binds, with no human online. A transaction
+locked the relevant rows and used a conditional plain INSERT requiring that
+unchanged state, an absent target row and an unexpired deadline. It inserted
+**exactly one row**: no UPDATE, REPLACE, bulk restore or overwrite. Immediate and
+five-second post-commit reads matched the exact backup row; instance data and
+binds remained byte-for-byte unchanged. Worldserver identity/start time/restart
+count were unchanged. No other gameplay data was modified by the restoration.
+
+The original failed deployment audits above remain as historical evidence, not
+rewritten as passes. Raney's preferences and pet autocast states were not restored.
+**The underlying deletion bug is deliberately deferred at the user's request**;
+this was a deadline-only data repair, not a code change.
+
+Private restoration evidence:
+`backups/tk-reset-deadline-restore-20261008-214013/` (pre/post/recheck snapshots,
+backup tuple, guarded SQL, transaction row count, service identity and checksums).
 
 ## Evidence
 
