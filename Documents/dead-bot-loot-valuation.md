@@ -1,12 +1,12 @@
 # Dead bots passing on equipment upgrades
 
-## Status — October 6, 2026
+## Status — October 8, 2026
 
-**Source fix, offline tests and publication complete; not built into a server image
-or deployed.** Playerbots commit: `b63dd8d9cb4f7493c8cd397412ed0f10e06abf2b`.
-The change needs an authorized build/deployment before it affects play.
-No server/bridge interruption, live configuration change, equipment swap, resurrection,
-forced save or database write was performed.
+**Built and deployed with explicit authorization on October 8.** Playerbots commit:
+`b63dd8d9cb4f7493c8cd397412ed0f10e06abf2b`. See the
+[deployment report](raid-fixes-deployment-20261008.md).
+Only the worldserver was recreated; no bridge interruption, live configuration edit,
+equipment swap, resurrection, forced save or gameplay SQL write was performed.
 
 The user explicitly approved fixing the death-state defect found during
 [Kaaren's glove investigation](kaarens-glove-roll-investigation-20261006.md), even
@@ -87,5 +87,5 @@ syntax checks passed for `PlayerbotAI.cpp`, `ItemUsageValue.cpp`, and the unchan
 factory caller. Native style checks passed on the changed methods/declaration and
 fixture; `git diff --check` passed.
 
-Live acceptance is pending an authorized deployment and an ordinary loot event;
+Live acceptance is pending an ordinary loot event following deployment;
 do not kill/resurrect bots or generate loot just to force this test.

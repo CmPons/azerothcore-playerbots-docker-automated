@@ -14,9 +14,10 @@ forced save, build or restart was performed in this investigation.
 
 The user subsequently said Kaaren may have been dead but they cannot remember;
 that does not confirm the historical cause. They approved fixing the defect anyway.
-The [dead-bot loot valuation fix](dead-bot-loot-valuation.md) is now tested and
-published in source, **not built/deployed**. The findings below record the original
-read-only investigation.
+The [dead-bot loot valuation fix](dead-bot-loot-valuation.md) was tested, published
+and **deployed with authorization on October 8**; see the
+[deployment report](raid-fixes-deployment-20261008.md). The findings below record
+the original read-only investigation.
 
 ## Read-only evidence
 

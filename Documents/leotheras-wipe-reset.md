@@ -1,11 +1,12 @@
 # Leotheras: inert boss after a wipe
 
-## Status — October 6, 2026
+## Status — October 8, 2026
 
-**Source fix and offline validation complete; not built into a server image or deployed.**
+**Built and deployed with explicit authorization on October 8.** See the
+[deployment report](raid-fixes-deployment-20261008.md) for binary and preservation checks.
 Core fix: `7ecb74c2a3c95bf1aa83e38a0e3ca197beb6cb72` (published to our fork).
-A new authorized deployment is required. No encounter was force-reset or respawned,
-no gameplay SQL or config changes were made, and no service was interrupted.
+Only the worldserver was recreated. No encounter was force-reset or respawned,
+and no gameplay SQL or configuration edits were made.
 The user reports a wipe followed by a re-pull where Leotheras stood still for the
 entire fight. The source reproduces the broken lifecycle; no live decision/event
 trace of that specific failed encounter was captured.
@@ -83,7 +84,7 @@ Existing respawn-scaling and expansion-reset suites: **15 additional tests passe
 Those retain their intentional old-code/mutant rejection checks; expected assertion
 failures in those negative-control subprocesses are not ignored test failures.
 
-**Live acceptance remains pending:** after an authorized build/deployment, observe an
+**Live encounter acceptance remains pending:** following deployment, observe an
 ordinary wipe/re-pull with guards already dead. The boss should resume attacks and
 normal abilities, with one Berserk/phase schedule and no premature start at home.
 Do not force a wipe/reset or alter the current completed encounter to test this.
