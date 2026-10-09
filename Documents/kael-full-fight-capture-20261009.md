@@ -113,6 +113,30 @@ Ailina demonstrably moved between snapshots.
 Pilbok's phoenix action was also threat-vetoed at 20:31:48, but his DPS branch can attack
 eggs, so that veto must not automatically be called a healer-escape veto.
 
+## Follow-up: live-phoenix DPS versus egg DPS
+
+The user subsequently reports that Kael was properly tanked and phoenixes still caused
+the collapse. The earlier boss-victim guard is only an unproven possibility, not a
+finding that Redshift failed to hold Kael.
+
+The installed encounter action **does not explicitly assign DPS to living phoenixes**.
+It assigns assist tanks to phoenixes, DPS to eggs when Shock Barrier is absent, and
+otherwise avoidance. Generic targeting, marks, pets, cleave and damage-over-time effects
+can still cause phoenix damage; this is not proof of zero damage.
+
+In the recorded pull's basic samples from 20:30:40 onward, among Raney, Beliona, Pilbok,
+Kaaren and Feelesia, only Raney once selected a living Phoenix. Kaaren and Feelesia each
+selected an egg once, at the later timestamps noted below. This supports the user's
+impression of no coordinated live-phoenix burn, not a damage-meter claim.
+
+Phoenixes lose health through Burn themselves, so declining HP is not proof the raid
+was focusing them. The native SmartAI data casts Burn 36720, creates egg 21364 at the
+burnout threshold, and gives the egg a 15000ms update event to initiate rebirth. A tank
+holding phoenixes away while the raid kills eggs is a valid approach, but relies on
+reliable containment and timely egg kills. Those prerequisites were not demonstrated
+here. Deliberate live-phoenix DPS could shorten exposure, but does not replace pickup,
+separation or killing the resulting egg; Shock Barrier remains a competing priority.
+
 ## Other notable signals
 
 Mind-control handling was active: Kaaren recorded break-mind-control OK at 20:30:37 and
