@@ -1,0 +1,12 @@
+{
+  "provenance": "Read-only installed world DB and native GenerateHealth formula, October 8 2026. Spell.dbc SHA256 d5cce1a83550dcfa9eb2f0251dbb11fd24c272534b2b1a9b230924a44d817ab3 matched the running server. No DBC or DB overrides are modified.",
+  "map": 550,
+  "healthScale": 0.4,
+  "resurrection": {"spell": 36450, "effectIndex": 1, "aura": 133, "basePoints": 99, "amount": 100},
+  "advisors": [
+    {"entry": 20060, "name": "Lord Sanguinar", "baseHp1": 7588, "healthModifier": 25.2, "nativeHp": 191218, "scaledHp": 76487, "revivedScaledHp": 152974},
+    {"entry": 20062, "name": "Grand Astromancer Capernian", "baseHp1": 5311, "healthModifier": 25.2, "nativeHp": 133838, "scaledHp": 53535, "revivedScaledHp": 107070},
+    {"entry": 20063, "name": "Master Engineer Telonicus", "baseHp1": 7588, "healthModifier": 25.2, "nativeHp": 191218, "scaledHp": 76487, "revivedScaledHp": 152974},
+    {"entry": 20064, "name": "Thaladred the Darkener", "baseHp1": 7588, "healthModifier": 25.2, "nativeHp": 191218, "scaledHp": 76487, "revivedScaledHp": 152974}
+  ]
+}

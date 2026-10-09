@@ -9,6 +9,11 @@ The user reported that tank separation was mostly working, but mutated bugs were
 for ten players. They authorized fixing add scaling, **not** changing the encounter or mutation's
 native mechanics, then separately authorized deployment.
 
+**October 9 follow-up:** the source-prepared [Kael advisor health fix](tk-advisor-health-scaling.md)
+reuses this health path for four TK advisors so their resurrection buff remains
+scaled. It does not change Twins eligibility or mutation behavior. The description
+below records the original September 12 scope; the TK extension is not yet deployed.
+
 Source preparation did not interrupt services. Deployment used a fresh backup and clean worldserver
 restart; auth, database and Pi stayed running. No live bot commands, manual inventory/SQL edits,
 resets, configuration changes or Pi generations were performed.

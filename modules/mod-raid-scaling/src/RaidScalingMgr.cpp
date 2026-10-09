@@ -70,6 +70,28 @@ namespace
         return sObjectMgr->GetLinkedRespawnGuid(guid).GetEntry() == 15276;
     }
 
+    bool UsesAuraAwareHealthScaling(Creature const* creature)
+    {
+        if (IsTwinsEncounterBug(creature))
+            return true;
+
+        if (!creature || !creature->GetMap() || creature->GetMapId() != 550)
+            return false;
+
+        // Kael's advisors need a scaled unit-mod base BEFORE resurrection's native
+        // +100% health aura is applied. Do not gate this on phase or aura presence.
+        switch (creature->GetEntry())
+        {
+            case 20060: // Lord Sanguinar
+            case 20062: // Grand Astromancer Capernian
+            case 20063: // Master Engineer Telonicus
+            case 20064: // Thaladred the Darkener
+                return true;
+            default:
+                return false;
+        }
+    }
+
     std::vector<RaidBossResetRecipe> const EmptyBosses;
 
     std::vector<RaidBossResetRecipe> const& BossesForMap(uint32 mapId)
@@ -488,10 +510,10 @@ void RaidScalingMgr::ApplyToCreature(Creature* creature)
 
     float scale = HealthScaleFor(creature, *settings);
     uint32 newCreate = ScaleHealth(original.createHealth ? original.createHealth : original.maxHealth, scale);
-    if (IsTwinsEncounterBug(creature))
+    if (UsesAuraAwareHealthScaling(creature))
     {
-        // Mutation rebuilds max health from UNIT_MOD_HEALTH, not CreateHealth. Keep its native
-        // +300% aura intact and scale the cached base once, retaining current HP% and aura state.
+        // Health auras rebuild max health from UNIT_MOD_HEALTH, not CreateHealth.
+        // Scale the cached base once; retain native resurrection/mutation modifiers and HP%.
         float const pct = creature->GetMaxHealth() ?
             std::min(1.0f, float(creature->GetHealth()) / float(creature->GetMaxHealth())) : 1.0f;
         creature->SetCreateHealth(newCreate);
@@ -534,9 +556,9 @@ void RaidScalingMgr::RestoreCreature(Creature* creature)
     float pct = creature->GetMaxHealth() ? std::min(1.0f, float(creature->GetHealth()) / float(creature->GetMaxHealth())) : 1.0f;
 
     creature->SetCreateHealth(original.createHealth);
-    if (IsTwinsEncounterBug(creature))
+    if (UsesAuraAwareHealthScaling(creature))
     {
-        // Scaling off must restore the base, not remove an active mutation or restore a stale aura.
+        // Scaling off restores the base while retaining the current health auras.
         creature->SetStatFlatModifier(UNIT_MOD_HEALTH, BASE_VALUE, original.baseHealth);
         creature->UpdateMaxHealth();
         creature->SetHealth(creature->isDead() ? 0 :

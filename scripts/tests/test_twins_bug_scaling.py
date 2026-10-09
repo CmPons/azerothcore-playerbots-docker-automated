@@ -50,6 +50,8 @@ class TwinsBugScalingTests(unittest.TestCase):
                       "void RaidScalingMgr::ApplyToCreature(", "void RaidScalingMgr::RestoreCreature(",
                       "void RaidScalingMgr::ApplyToMap(", "void RaidScalingMgr::RestoreMap(",
                       "bool RaidScalingMgr::DisableForMap(", "float RaidScalingMgr::GetDamageScale("]
+        if "bool UsesAuraAwareHealthScaling(" in source:
+            signatures.insert(2, "bool UsesAuraAwareHealthScaling(")
         parts = [block(source, "struct LoadedCreatureGuidSnapshot") + ";",
                  block(source, "std::vector<ObjectGuid> GetLoadedCreatureGuids(")]
         parts += [block(source, sig) for sig in signatures]
@@ -67,6 +69,8 @@ class TwinsBugScalingTests(unittest.TestCase):
         parts.append(block(loader, "uint32 DealDamage(").replace(
             "uint32 DealDamage(", "uint32 RaidScalingUnitScript::DealDamage(").replace(" override", ""))
         harness = (ROOT / "scripts/tests/cpp/TwinsBugScalingTest.cpp").read_text()
+        if hasattr(cls, "transform_harness"):
+            harness = cls.transform_harness(harness)
         if hasattr(cls, "extra_harness"):
             harness = harness.replace("int main(", "int TwinsBugScalingMain(") + cls.extra_harness
         (temp / "test.cpp").write_text(harness.replace("/* PRODUCTION */", "\n\n".join(parts)))
