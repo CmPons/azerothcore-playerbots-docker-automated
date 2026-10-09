@@ -5,18 +5,32 @@
 #include <iostream>
 #include <string>
 #include <type_traits>
+#include "RaidThreatControl.h"
+struct Map {};
+Map raid;
 using uint8 = uint8_t;
 using uint32 = uint32_t;
-struct Unit { bool hostile = false; };
+struct Unit
+{
+    bool hostile = false, alive = true, inWorld = true;
+    float health = 100;
+    Map* map = &raid;
+    bool IsAlive() const { return alive; }
+    bool IsInWorld() const { return inWorld; }
+    Map* GetMap() const { return map; }
+    float GetHealthPct() const { return health; }
+};
 struct Player : Unit
 {
     bool IsValidAttackTarget(Unit* target) { return target && target->hostile; }
+    bool IsFriendlyTo(Unit* target) { return target && !target->hostile; }
 };
 struct PlayerbotAI {};
 struct Action
 {
     enum class ActionThreatType { None, Single, Aoe };
     virtual ~Action() = default;
+    std::string getName() const { return "test action"; }
     virtual ActionThreatType getThreatType() { return ActionThreatType::None; }
 };
 struct CastSpellAction : Action
@@ -38,7 +52,7 @@ struct AoeDamage : CastSpellAction
 struct State
 {
     bool neglect = false, group = true, twinsActive = false, twinsBoss = false, bossHold = false;
-    uint8 aoe = 0, current = 0;
+    uint8 aoe = 0, current = 0, bossLimitSeen = 0;
     Unit enemy{true};
     unsigned stopped = 0;
     template<class T> T Value(std::string const& name)
@@ -72,10 +86,28 @@ namespace ai::threat
 {
     bool ShouldHoldDamageOnTauntImmuneBoss(PlayerbotAI*, Unit*, uint8 limit)
     {
-        assert(limit == 70); // Existing configured default is unchanged.
+        assert(limit >= 1 && limit <= 100);
+        state.bossLimitSeen = limit;
         return state.bossHold;
     }
     void StopDirectDamage(PlayerbotAI*, Unit*) { ++state.stopped; }
+}
+namespace ai::threat::control
+{
+    Settings settings;
+    std::optional<Decision> last;
+    Settings GetSettings(Map const*) { return settings; }
+    void Record(Player*, Unit* target, std::string const& action, Reason reason,
+        Settings const& policy, int aoe, int current)
+    {
+        last = Decision{};
+        last->action = action;
+        last->health = target ? target->health : 0;
+        last->reason = reason;
+        last->settings = policy;
+        last->aoe = aoe;
+        last->target = current;
+    }
 }
 struct ThreatMultiplier
 {
@@ -89,6 +121,8 @@ struct ThreatMultiplier
 int main(int argc, char** argv)
 {
     assert(argc == 2);
+    using namespace ai::threat::control;
+    settings.healing = HealingMode::Normal;
     std::string scenario = argv[1];
     ThreatMultiplier multiplier;
     CastHealingSpellAction heal;
@@ -155,6 +189,49 @@ int main(int argc, char** argv)
         state.bossHold = false;
         state.aoe = state.current = 255;
         assert(multiplier.GetValue(&single) == 1.0f); // Twins owner check bypasses generic gates as before.
+    }
+    else if (scenario == "control")
+    {
+        settings.healing = HealingMode::Emergency;
+        settings.boss = 85;
+        damage.target = single.target = &friendly; // A friendly target alone does not make an action a heal.
+        friendly.health = 29.9f;
+        state.aoe = state.current = 255;
+        state.bossHold = true;
+        assert(multiplier.GetValue(&heal) == 1.0f);
+        assert(last->reason == Reason::Emergency && state.stopped == 0);
+        assert(multiplier.GetValue(&damage) == 0.0f && state.stopped == 1);
+        assert(state.bossLimitSeen == 85);
+        assert(multiplier.GetValue(&single) == 0.0f);
+        friendly.health = 30;
+        assert(multiplier.GetValue(&heal) == 0.0f && last->reason == Reason::Boss);
+        assert(last->aoe == -1 && last->target == -1);
+        state.bossHold = false;
+        state.current = 10;
+        assert(multiplier.GetValue(&heal) == 0.0f && last->reason == Reason::Aoe);
+        assert(last->aoe == 255 && last->target == -1);
+        state.aoe = 10;
+        state.current = 80;
+        assert(multiplier.GetValue(&heal) == 0.0f && last->reason == Reason::Target);
+        settings.target = 90;
+        assert(multiplier.GetValue(&heal) == 1.0f && last->reason == Reason::Allowed);
+        settings.aoe = 60;
+        state.aoe = 60;
+        assert(multiplier.GetValue(&heal) == 0.0f);
+        settings.healing = HealingMode::Exempt;
+        friendly.health = 100;
+        assert(multiplier.GetValue(&heal) == 1.0f && last->reason == Reason::Exempt);
+        assert(multiplier.GetValue(&damage) == 0.0f);
+        for (int invalid = 0; invalid < 4; ++invalid)
+        {
+            friendly.hostile = invalid == 0;
+            friendly.alive = invalid != 1;
+            friendly.inWorld = invalid != 2;
+            friendly.map = invalid == 3 ? nullptr : &raid;
+            assert(multiplier.GetValue(&heal) == 0.0f);
+        }
+        heal.target = nullptr;
+        assert(multiplier.GetValue(&heal) == 0.0f);
     }
     else if (scenario == "old")
     {

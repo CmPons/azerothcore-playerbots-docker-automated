@@ -4,6 +4,12 @@ Status: **investigation confirmed one live blocker; threshold adjustment source-
 not built or deployed**. No live strategies, configuration, character data or services
 were changed. The advisor HP fix remains deployed independently.
 
+**Later October 9 follow-up:** the user authorized [per-instance threat controls and
+emergency healing](raid-threat-controls.md). That implementation supersedes the one-line
+source-only proposal below, retaining its 90% default and adding tunable limits plus an
+emergency healing path. It is also **not yet built/deployed**; the investigation and
+narrow-change validation below remain a historical record, not the complete current diff.
+
 ## What was captured
 
 The user reported healers alive, in range and with mana, sometimes wanding instead

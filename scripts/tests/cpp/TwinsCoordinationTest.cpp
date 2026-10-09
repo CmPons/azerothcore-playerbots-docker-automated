@@ -4,7 +4,16 @@
 #include "Aq40Multipliers.h"
 #include "RaidThreatUtils.h"
 #include "ThreatStrategy.h"
+#include "RaidThreatControl.h"
 #include <iostream>
+
+// Per-instance command/state behavior has its own production fixtures. Existing Twins
+// exceptions must still pass with the default policy and a no-op observation sink.
+namespace ai::threat::control
+{
+    Settings GetSettings(Map const*) { return {}; }
+    void Record(Player*, Unit*, std::string const&, Reason, Settings const&, int, int) { }
+}
 
 class ThreatValue : public Action
 {

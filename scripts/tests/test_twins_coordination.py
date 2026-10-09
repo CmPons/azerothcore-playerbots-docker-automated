@@ -15,6 +15,16 @@ CTHUN_PATCH = ROOT / "patches/0031-playerbot-cthun-positioning.patch"
 AQ = MODULE / "src/Ai/Raid/Aq40"
 
 
+def patch_input(name):
+    # Historical patches predate runtime threat controls. Use their compatible snapshot only
+    # for reverse/replay fixture construction; semantic tests compile CURRENT ThreatStrategy.cpp.
+    if name.endswith('/Ai/Base/Strategy/ThreatStrategy.cpp'):
+        return subprocess.check_output(['git', '-C', str(MODULE), 'show',
+                                       '8d73b1a5721848071cd5e3048c7ad84a8f1c8194:' +
+                                       name.removeprefix('modules/mod-playerbots/')])
+    return (ROOT / 'azerothcore-wotlk' / name).read_bytes()
+
+
 def run(args, cwd=None):
     result = subprocess.run(args, cwd=cwd, text=True, capture_output=True)
     if result.returncode:
@@ -51,7 +61,7 @@ class TwinsCoordinationTests(unittest.TestCase):
             for name in names:
                 p = baseline / name
                 p.parent.mkdir(parents=True, exist_ok=True)
-                p.write_bytes((ROOT / "azerothcore-wotlk" / name).read_bytes())
+                p.write_bytes(patch_input(name))
             lua_layer(baseline, names, reverse=True)
             run(["git", "apply", "--reverse", str(CTHUN_PATCH)], cwd=baseline)
             run(["git", "apply", "--reverse", str(VICTIM_PATCH)], cwd=baseline)
@@ -106,7 +116,7 @@ class TwinsCoordinationTests(unittest.TestCase):
             for name in names:
                 p = temp / name
                 p.parent.mkdir(parents=True, exist_ok=True)
-                p.write_bytes((ROOT / "azerothcore-wotlk" / name).read_bytes())
+                p.write_bytes(patch_input(name))
             lua_layer(temp, names, reverse=True)
             run(["git", "apply", "--reverse", str(CTHUN_PATCH)], cwd=temp)
             run(["git", "apply", "--reverse", "--check", str(VICTIM_PATCH)], cwd=temp)
@@ -129,7 +139,7 @@ class TwinsCoordinationTests(unittest.TestCase):
             run(["git", "apply", str(CTHUN_PATCH)], cwd=temp)
             lua_layer(temp, names)
             for name in names:
-                self.assertEqual((temp / name).read_bytes(), (ROOT / "azerothcore-wotlk" / name).read_bytes())
+                self.assertEqual((temp / name).read_bytes(), patch_input(name))
 
     def test_pinned_replay_of_twins_sources(self):
         # Focused reproducibility, NOT a claim that the whole server can be regenerated. Existing

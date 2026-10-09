@@ -135,6 +135,11 @@ public:
     bool IsInWorld() const{return inWorld;}
     bool InSamePhase(Unit const* other) const{return phase==other->phase;}
     Unit* GetVictim(){return victim;}
+    bool IsEngagedBy(Unit const* other) const
+    {
+        auto it = tm.threat.find(const_cast<Unit*>(other));
+        return other && (victim == other || tm.current == other || (it != tm.threat.end() && it->second > 0));
+    }
     virtual bool IsInCombat() const{return otherCombat || (map && map->script.state==IN_PROGRESS);}
     bool IsWithinLOSInMap(Unit const* other) const{return los && other->los;}
     bool IsWithinLOS(float,float,float) const{return los;}
@@ -228,6 +233,7 @@ public:
     int getClass() const{return cls;}
     InstanceScript* GetInstanceScript(){return map?&map->script:nullptr;}
     bool IsValidAttackTarget(Unit* u){return u && u->ToCreature() && u->alive && u->inWorld && u->map==map;}
+    bool IsFriendlyTo(Unit* u){return u && !u->ToCreature() && u->map==map;}
     void GetCreatureListWithEntryInGrid(std::list<Creature*>& out,std::vector<uint32> const&,float radius)
     {++map->searches;for(auto* bug:map->bugs)if(GetExactDist2d(bug)<=radius)out.push_back(bug);}
     Pet* GetPet(){return pet;}

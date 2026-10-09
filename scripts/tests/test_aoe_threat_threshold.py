@@ -1,4 +1,4 @@
-"""Offline production-body tests for the narrow generic AoE threat threshold adjustment."""
+"""Production threat multiplier: generic thresholds, runtime healing policy and retained guards."""
 from pathlib import Path
 import os
 import resource
@@ -12,7 +12,6 @@ ROOT = Path(__file__).resolve().parents[2]
 BOT = ROOT / 'azerothcore-wotlk/modules/mod-playerbots'
 SOURCE = 'src/Ai/Base/Strategy/ThreatStrategy.cpp'
 BASELINE = '8d73b1a5721848071cd5e3048c7ad84a8f1c8194'
-COMMENT = '        // Allow more headroom on secondary enemies; the current-target and boss gates still apply.\n'
 
 
 class AoeThreatThresholdTests(unittest.TestCase):
@@ -37,6 +36,7 @@ class AoeThreatThresholdTests(unittest.TestCase):
         cpp.write_text(fixture)
         result = subprocess.run([os.environ.get('CXX', 'g++'), '-std=c++20', '-Wall', '-Wextra', '-Werror',
                                  '-fsanitize=address,undefined', '-fno-sanitize-recover=all', '-fno-pie', '-no-pie',
+                                 '-I' + str(BOT / 'src/Ai/Base/Util'),
                                  str(cpp), '-o', str(binary)], capture_output=True, text=True)
         if result.returncode:
             raise AssertionError(result.stdout + result.stderr)
@@ -67,14 +67,21 @@ class AoeThreatThresholdTests(unittest.TestCase):
         self.execute(old, 'boundaries', fails=True)
 
     def test_off_by_one_and_unrequested_current_target_change_rejected(self):
-        for name, before, after in [('boundary', 'threat >= 90', 'threat >= 91'),
-                                    ('current', 'threat >= 80', 'threat >= 90')]:
+        for name, before, after in [('boundary', 'aoeThreat >= settings.aoe', 'aoeThreat > settings.aoe'),
+                                    ('current', 'targetThreat >= settings.target', 'targetThreat > settings.target')]:
+            self.assertIn(before, self.source)
             mutant = self.compile(self.source.replace(before, after), 'mutant-' + name)
             self.execute(mutant, 'boundaries', fails=True)
 
-    def test_production_diff_is_only_requested_threshold_and_comment(self):
-        restored = self.source.replace(COMMENT, '').replace('threat >= 90', 'threat >= 50')
-        self.assertEqual(restored, self.old)
+    def test_runtime_controls_emergency_scope_and_diagnostics(self):
+        self.execute(self.binary, 'control')
+
+    def test_focus_policy_and_boss_math_unchanged(self):
+        self.assertEqual(method(self.source, 'float FocusMultiplier::GetValue('),
+                         method(self.old, 'float FocusMultiplier::GetValue('))
+        helper = 'src/Ai/Base/Util/RaidThreatUtils.cpp'
+        old = subprocess.check_output(['git', '-C', str(BOT), 'show', BASELINE + ':' + helper], text=True)
+        self.assertEqual(old, (BOT / helper).read_text())
 
 
 if __name__ == '__main__':
