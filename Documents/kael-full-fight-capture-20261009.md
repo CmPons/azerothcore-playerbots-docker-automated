@@ -115,9 +115,20 @@ eggs, so that veto must not automatically be called a healer-escape veto.
 
 ## Follow-up: live-phoenix DPS versus egg DPS
 
-The user subsequently reports that Kael was properly tanked and phoenixes still caused
-the collapse. The earlier boss-victim guard is only an unproven possibility, not a
-finding that Redshift failed to hold Kael.
+The user clarified that these were **two separate attempts**:
+
+- In the recorded attempt, Ari did have some Kael aggro initially; Redshift then corrected
+  it. This supports the relevance of the boss-victim guard, but its exact invocation and
+  duration were not recorded. Do not describe boss ownership as wrong for the whole phase.
+- A second, **uncaptured** attempt again reached Kael cleanly, then collapsed after phoenix
+  spawning, with more than one phoenix alive. Do not attribute the first capture's exact
+  timestamps, targets or vetoes to that second attempt.
+
+Multiple living phoenixes can reflect new-spawn overlap, missed eggs allowing rebirth,
+or both. Their number alone does not distinguish insufficient live-phoenix DPS from
+failed egg cleanup. The repeat failure strengthens the case for investigating the entire
+pickup/separation/burnout/egg cycle, rather than treating initial Kael ownership as the
+complete explanation.
 
 The installed encounter action **does not explicitly assign DPS to living phoenixes**.
 It assigns assist tanks to phoenixes, DPS to eggs when Shock Barrier is absent, and
