@@ -1,14 +1,16 @@
 # TK healing suppression and narrow AoE threshold adjustment — October 9
 
-Status: **investigation confirmed one live blocker; threshold adjustment source-prepared,
-not built or deployed**. No live strategies, configuration, character data or services
-were changed. The advisor HP fix remains deployed independently.
+Investigation status: **one live blocker confirmed**. The original narrow threshold
+adjustment was source-only at this checkpoint; no live strategies, configuration,
+character data or services were changed during the investigation. The advisor HP fix
+was deployed independently. See the later deployment follow-up immediately below.
 
 **Later October 9 follow-up:** the user authorized [per-instance threat controls and
 emergency healing](raid-threat-controls.md). That implementation supersedes the one-line
 source-only proposal below, retaining its 90% default and adding tunable limits plus an
-emergency healing path. It is also **not yet built/deployed**; the investigation and
-narrow-change validation below remain a historical record, not the complete current diff.
+emergency healing path. It was [deployed at19:18:43 CEST](raid-threat-deployment-20261009.md)
+after separate authorization. The investigation and narrow-change validation below remain
+a historical record, not the complete current diff.
 
 ## What was captured
 

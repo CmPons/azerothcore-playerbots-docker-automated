@@ -1,8 +1,8 @@
 # Per-instance playerbot threat controls
 
-Implemented October 9, 2026; **source-only, not built/deployed**. The running advisor-fix
-image still has the old 50% AoE cutoff. These commands require an explicitly authorized
-worldserver build/deployment before they become available.
+Implemented and **deployed October 9, 2026, ready at19:18:43 CEST** after explicit
+authorization. The 90% AoE default and emergency-healing policy are now in the running
+image. See [deployment and preservation qualifications](raid-threat-deployment-20261009.md).
 
 Playerbots publication: `68556d789ee3420ff0eadaca11d5e9b03828f473`; root pin updated.
 
@@ -140,9 +140,10 @@ assumptions, corrected as described above. The first combined suite included a n
 `test_tank_target_protection` module; that import error is retained, and the corrected
 31-test command passed. Tank-target protection is covered within `test_tank_modes`.
 
-Runtime inspection retained the advisor-fix container/image/start time, zero restarts
-and no OOM. No server build, restart, configuration change or live gameplay command was
-performed for this implementation.
+At the source-only implementation checkpoint, runtime inspection retained the advisor-fix
+container/image/start time, zero restarts and no OOM. No build/restart or live gameplay
+command occurred during that implementation. The subsequent separately authorized build,
+deployment and 105-test preflight are recorded in the linked deployment report.
 
 See [the live healing investigation](tk-healing-threat-investigation-20261009.md) for
 what was actually observed before Ari's earlier weapon-phase death. Those samples are
