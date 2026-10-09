@@ -2,6 +2,8 @@
 #include "RaidScalingSupport.h"
 
 #include "AllMapScript.h"
+#include "AllSpellScript.h"
+#include "Config.h"
 #include "Chat.h"
 #include "Creature.h"
 #include "Log.h"
@@ -9,6 +11,8 @@
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "SpellAuraEffects.h"
+#include "Spell.h"
+#include "SpellInfo.h"
 #include "Unit.h"
 #include "WorldSession.h"
 
@@ -118,6 +122,38 @@ public:
     }
 };
 
+// Target counts are mechanics, not damage. Limit only the explicitly supported
+// small-TK case; retain native timing, duration, random selection and victim exclusion.
+class RaidScalingMindControlScript : public AllSpellScript
+{
+public:
+    RaidScalingMindControlScript() : AllSpellScript("RaidScalingMindControlScript",
+        {ALLSPELLHOOK_ON_SPELL_CHECK_CAST}) { }
+
+    void OnSpellCheckCast(Spell* spell, bool /*strict*/, SpellCastResult& /*result*/) override
+    {
+        if (!spell || !sRaidScalingMgr.Enabled() || spell->GetSpellInfo()->Id != 36797)
+            return;
+
+        Unit* caster = spell->GetCaster();
+        if (!caster || !caster->IsCreature() || caster->GetEntry() != 19622 || caster->GetMapId() != 550)
+            return;
+
+        auto settings = sRaidScalingMgr.GetSettings(caster->GetMap());
+        if (!settings || settings->originalPlayers != 25 || !settings->targetPlayers || settings->targetPlayers > 10)
+            return;
+
+        int32 limit = sConfigMgr->GetOption<int32>("RaidScaling.KaelthasMindControlTargets", 1, false);
+        if (limit < 0 || limit > 3)
+            limit = 1;
+        if (!limit)
+            return;
+
+        uint32 const current = spell->GetSpellValue()->MaxAffectedTargets;
+        spell->SetSpellValue(SPELLVALUE_MAX_TARGETS, current ? std::min(current, uint32(limit)) : uint32(limit));
+    }
+};
+
 void Addmod_raid_scalingScripts()
 {
     LOG_INFO("server.loading", "[RaidScaling] Registering scripts.");
@@ -125,5 +161,6 @@ void Addmod_raid_scalingScripts()
     new RaidScalingMapScript();
     new RaidScalingCreatureScript();
     new RaidScalingUnitScript();
+    new RaidScalingMindControlScript();
     AddRaidScalingCommandScripts();
 }

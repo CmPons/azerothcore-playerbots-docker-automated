@@ -22,6 +22,13 @@ RaidScaling.Enable = 1
 # or restarting restores this configured default on its next load.
 RaidScaling.DefaultTargetPlayers = 10
 
+# Kael'thas Mind Control target cap ONLY in scaled TK instances with original
+# size 25 and configured target size 1..10. Not based on current attendance.
+# 1..3 caps targets; 0 retains the native count. Invalid values fall back to 1.
+# Does not change duration, cadence, healer eligibility or Infinity Blade counters.
+# Unscaled instances and target sizes above 10 retain native behavior.
+RaidScaling.KaelthasMindControlTargets = 1
+
 # Security level required for commands. 0=player, 1=moderator, 2=gamemaster, 3=admin.
 RaidScaling.CommandSecurity = 2
 

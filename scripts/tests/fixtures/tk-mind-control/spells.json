@@ -1,0 +1,13 @@
+{
+  "provenance": {
+    "spell_dbc_sha256": "d5cce1a83550dcfa9eb2f0251dbb11fd24c272534b2b1a9b230924a44d817ab3",
+    "duration_dbc_sha256": "caa2cbec7fa711bba180af10c253ab0d111609ec2bda1c354fef09e54bc279e4",
+    "verified_against_live_files": "2026-10-09",
+    "item_template": "30312 Infinity Blade: spellid_2=36478, spelltrigger_2=2, spellppmRate_2=60"
+  },
+  "blade": {"entry": 30312, "spell_id": 36478, "trigger": 2, "ppm": 60},
+  "mind_control": {"id": 36797, "dispel_type": 8, "duration_ms": 30000},
+  "disruption": {"id": 36478, "effect_0": 38, "misc_0": 8, "basepoints_0": 0, "proc_chance": 101},
+  "wing_clip": {"id": 2974, "damage_class": 2, "attributes": 327680, "attributes_ex4": 0},
+  "shiv_triggered": {"id": 5940, "damage_class": 2, "attributes": 2359312, "attributes_ex4": 1}
+}

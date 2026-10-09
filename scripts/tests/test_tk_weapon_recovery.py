@@ -172,7 +172,7 @@ class TKWeaponRecoveryTests(unittest.TestCase):
             self.assertEqual(source(TK+path), source(TK+path, True))
         for signature in ['bool KaelthasSunstriderManageAdvisorDpsTimerAction::Execute(',
                           'bool KaelthasSunstriderAssignAdvisorDpsPriorityAction::Execute(',
-                          'bool KaelthasSunstriderLootLegendaryWeaponsAction::Execute(']:
+                          'bool KaelthasSunstriderLootLegendaryWeaponsAction::ShouldBotLootWeapon(']:
             self.assertEqual(block(source(TK+'TKActions.cpp'), signature),
                              block(source(TK+'TKActions.cpp', True), signature))
 
