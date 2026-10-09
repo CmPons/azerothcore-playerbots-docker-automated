@@ -1,9 +1,9 @@
 # Kael advisor resurrection: preserve the buff on a scaled health base
 
-Status: **implemented and tested; not built or deployed**. Prepared October 9, 2026.
-A separate authorized worldserver build/deployment is required. The running image
-still has the old advisor-health behavior; the previously deployed Feelesia fix is
-unaffected.
+Status: **deployed October 9, 2026 at 16:56:03 CEST**, following explicit build/deploy
+authorization. See the [deployment report](tk-advisor-health-deployment-20261009.md)
+for 82-test/build verification, backups and preservation qualifications. The
+previously deployed Feelesia fix remains intact; live encounter acceptance is pending.
 
 ## Goal and diagnosis
 
@@ -49,8 +49,9 @@ For those advisors, the scaler now:
 
 Twins identification/mutation behavior, other creatures' health paths, damage and
 healing scaling, bot assignments, encounter phases/timers, spell data, loot, raid
-reset persistence and configuration remain unchanged. No gameplay SQL or services
-were changed. The separately discussed reset-row deletion bug remains deferred.
+reset persistence and configuration remain unchanged. Source preparation changed
+no gameplay SQL or services; the separately authorized deployment recreated only
+worldserver. The reset-row deletion bug remains deferred.
 
 ## Expected values at the unchanged 0.4 health multiplier
 
@@ -123,6 +124,7 @@ python3 -m unittest \
   scripts.tests.test_tk_weapon_recovery -v
 ```
 
-No build, deployment, restart, forced save, gear change, encounter pull or live
-scaling command is part of this source-preparation task. Live acceptance remains
-an ordinary advisor resurrection after an explicitly authorized deployment.
+Source preparation did not build/restart the server or change gameplay state.
+The subsequent authorized deployment is linked above. No encounter pull or live
+scaling command was issued by the assistant; live acceptance remains an ordinary
+advisor resurrection during the user's next attempt.
