@@ -109,4 +109,5 @@ intentionally repaired loot execution body to remain byte-identical. Its actual
 recovery/backoff coverage remains, and new loot behavior has dedicated tests.
 
 Private investigation evidence: `backups/kael-mc-work-20261009-212842/`.
-Deployment and preservation results are recorded separately after verification.
+Authorized deployment and qualified preservation results:
+[October 9 deployment](kael-mc-deployment-20261009.md).
