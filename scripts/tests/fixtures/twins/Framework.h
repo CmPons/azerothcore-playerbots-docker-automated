@@ -230,6 +230,8 @@ public:
     Player* ToPlayer() override{return this;}
     Group* GetGroup(){return group;}
     bool IsGameMaster() const{return gm;}
+    ObjectGuid GetCharmerGUID() const{return {};}
+
     int getClass() const{return cls;}
     InstanceScript* GetInstanceScript(){return map?&map->script:nullptr;}
     bool IsValidAttackTarget(Unit* u){return u && u->ToCreature() && u->alive && u->inWorld && u->map==map;}

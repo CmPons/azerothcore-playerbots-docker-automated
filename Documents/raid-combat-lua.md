@@ -100,6 +100,17 @@ at most once per actor/frame; admission is not proof of effect success. The one-
 deadline applies to new request admission, immediately before native spell preparation.
 An admitted cast continues under native rules; a later plan or elapsed deadline does not cancel it.
 
+## October 10 extension: declarative tank ownership
+
+The native runtime adds optional `tank_targets={entityIndex,...}` intents (maximum
+four targets per living tank, unique ownership per entity), plus member
+`main_tank` and unit `selectable` observations. Declarations can name a human tank
+but do not grant movement, targeting, spell or raid-role control over that human.
+Existing API2 output remains valid; the new TK payload requires the new parser.
+See [threat owners and the authored TK policy](raid-threat-owners-and-tk-policy.md)
+for schema guards, fallback, shared kill order and Capernian safety. The historical
+`raid-policies/aq40/combat.lua` file now contains the shared default's TK branch too.
+
 ## Movement and native coexistence
 
 Lua supplies a room goal (within 240 yards); native code checks short ground steps,

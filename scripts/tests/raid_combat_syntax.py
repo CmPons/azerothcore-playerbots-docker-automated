@@ -19,7 +19,8 @@ def main():
                    "modules/mod-playerbots/src"):
         paths.update(p.parent for p in (CORE / source).rglob("*.h"))
     for source in ("deps/fmt/include", "deps/g3dlite/include", "deps/recastnavigation/Detour/Include",
-                   "deps/recastnavigation/Recast/Include", "deps/SFMT", "deps/utf8cpp", "deps/fkYAML/include"):
+                   "deps/recastnavigation/Recast/Include", "deps/SFMT", "deps/utf8cpp", "deps/fkYAML/include",
+                   "modules/mod-playerbots/third_party/lua/src"):
         paths.add(CORE / source)
     for name in ("boost", "openssl"):
         found = sorted(Path("/nix/store").glob(f"*-{name}-*-dev"))

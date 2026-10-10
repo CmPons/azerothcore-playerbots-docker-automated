@@ -101,6 +101,15 @@ class RaidCombatTests(unittest.TestCase):
         self.assertIn("real Lua budget passed", result.stdout)
         print(result.stdout.strip())
 
+    def test_tk_advisor_policy_and_ownership_schema(self):
+        binary = self.build / "tk-advisor-policy-check"
+        run(["g++", "-std=c++20", "-Wall", "-Wextra", "-Werror", "-fsanitize=undefined",
+             "-fno-sanitize-recover=all", "-I" + str(POLICY),
+             "-I" + str(CORE / "src/common/Utilities"),
+             ROOT / "scripts/tests/cpp/TKAdvisorPolicyTest.cpp", self.build / "libpolicy-core.a",
+             self.build / "lua/libplayerbot_lua.a", self.crypto, "-o", binary])
+        print(run([binary, ROOT / "raid-policies/aq40/combat.lua"]).stdout.strip())
+
     def test_exact_action_adapter_and_red_regressions(self):
         with tempfile.TemporaryDirectory() as directory:
             out = Path(directory)

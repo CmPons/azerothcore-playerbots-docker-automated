@@ -252,7 +252,74 @@ local function eyeBeamPlan(s)
     separating=nextSeparating
     return out
 end
+-- TK revived advisors: encounter decisions remain authored Lua, not native assignments.
+-- Human movement/pulls are untouched. Existing Ari/Telonicus tanking, gaze escape,
+-- Capernian avoidance, legendary weapons, MC and phoenix actions remain native.
+local tkRevived, tkKaelActive = false, false
+local function tempestKeep(s)
+    if s.map ~= 550 then return nil end
+    local out, active, count, revived, kaelDormant = {}, {}, 0, false, false
+    for i=1,#s.members do out[i]=release() end
+    if not s.combat then tkRevived=false; tkKaelActive=false; return out end
+    for i,e in ipairs(s.entities) do
+        if e.entry==19622 and e.alive then
+            kaelDormant=not e.attackable
+            tkKaelActive=tkKaelActive or (e.attackable and e.engaged)
+        end
+        if e.entry==20064 or e.entry==20063 or e.entry==20060 or e.entry==20062 then
+            revived=revived or aura(e,36450)
+            if e.alive and e.health>0 and e.selectable and e.attackable and e.engaged then
+                -- Do not pick arbitrary duplicate observations of an advisor template.
+                if active[e.entry] then return out end
+                active[e.entry]=i
+                count=count+1
+            end
+        end
+    end
+    tkRevived=tkRevived or revived or count>1
+    if not tkRevived or s.gaps & (1|2|4|32|64) ~= 0 then return out end
+    local owner
+    for i,m in ipairs(s.members) do
+        if m.human and m.tank and m.main_tank and m.alive then
+            if owner then return out end
+            owner=i
+        end
+    end
+    -- This is the human-MT variant. No silent assignment to a bot or unrelated role.
+    if not owner then return out end
+    local owned={}
+    for _,entry in ipairs({20060,20062}) do
+        if active[entry] then owned[#owned+1]=active[entry] end
+    end
+    if #owned>0 then out[owner].tank_targets=owned end
+    local target
+    for _,entry in ipairs({20064,20063,20060,20062}) do
+        if active[entry] then target=active[entry]; break end
+    end
+    if target then
+        for i,m in ipairs(s.members) do
+            if m.eligible and not m.healer and not m.tank then
+                out[i].target=target
+                -- Native Capernian melee avoidance only covers the single-advisor phase.
+                -- Keep melee back for this final advisor, but never retain a ground claim
+                -- into active Kael (MC rescues/flames/phoenix actions need their movement).
+                local enemy=s.entities[target]
+                if enemy.entry==20062 and m.melee and kaelDormant and not tkKaelActive and s.gaps==0 then
+                    local dx,dy=m.x-enemy.x,m.y-enemy.y
+                    local d=math.sqrt(dx*dx+dy*dy)
+                    if d<24 then
+                        if d<0.01 then dx,dy,d=1,0,1 end
+                        goal(out[i],enemy.x+dx*25/d,enemy.y+dy*25/d,m.z)
+                    else out[i].movement=1 end
+                end
+            end
+        end
+    end
+    return out
+end
 return {api=2, plan=function(s)
+    local tk=tempestKeep(s)
+    if tk then return tk end
     local melee=viscidus(s)
     if melee then resetGlare(); return melee end
     observeState(s)

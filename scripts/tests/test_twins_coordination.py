@@ -16,9 +16,10 @@ AQ = MODULE / "src/Ai/Raid/Aq40"
 
 
 def patch_input(name):
-    # Historical patches predate runtime threat controls. Use their compatible snapshot only
-    # for reverse/replay fixture construction; semantic tests compile CURRENT ThreatStrategy.cpp.
-    if name.endswith('/Ai/Base/Strategy/ThreatStrategy.cpp'):
+    # Historical patches predate runtime controls and per-target tank ownership. Use a
+    # compatible snapshot ONLY for reverse/replay; semantic tests compile CURRENT
+    # ThreatStrategy.cpp AND RaidThreatUtils.cpp below.
+    if name.endswith(('/Ai/Base/Strategy/ThreatStrategy.cpp', '/Ai/Base/Util/RaidThreatUtils.cpp')):
         return subprocess.check_output(['git', '-C', str(MODULE), 'show',
                                        '8d73b1a5721848071cd5e3048c7ad84a8f1c8194:' +
                                        name.removeprefix('modules/mod-playerbots/')])
