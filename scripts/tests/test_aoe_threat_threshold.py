@@ -81,7 +81,18 @@ class AoeThreatThresholdTests(unittest.TestCase):
                          method(self.old, 'float FocusMultiplier::GetValue('))
         helper = 'src/Ai/Base/Util/RaidThreatUtils.cpp'
         old = subprocess.check_output(['git', '-C', str(BOT), 'show', BASELINE + ':' + helper], text=True)
-        self.assertEqual(old, (BOT / helper).read_text())
+        current = (BOT / helper).read_text()
+        # The October 10 owner correction intentionally changes only the reference
+        # selection. Its new selector is exercised against production in
+        # test_raid_threat_owner; keep the original math and all other helpers frozen.
+        addition = ('// A boss may be deliberately off-tanked. Resolve against THIS target\'s threat table,\n'
+                    '// not the raid\'s MT label. Keep a zero-threat eligible tank for opening-pull admission.\n' +
+                    method(current, 'Unit* GetHighestThreatTank(') + '\n\n')
+        self.assertEqual(current.count(addition), 1)
+        current = current.replace(addition, '')
+        current = current.replace(': GetHighestThreatTank(botAI, target);', ': GetMainTank(botAI);')
+        current = current.replace('before any eligible tank has real threat.', 'before the MT has any real threat.')
+        self.assertEqual(old, current)
 
 
 if __name__ == '__main__':

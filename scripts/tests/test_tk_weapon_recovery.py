@@ -171,10 +171,17 @@ class TKWeaponRecoveryTests(unittest.TestCase):
         for path in ['TKStrategy.cpp', 'TKMultipliers.cpp']:
             self.assertEqual(source(TK+path), source(TK+path, True))
         for signature in ['bool KaelthasSunstriderManageAdvisorDpsTimerAction::Execute(',
-                          'bool KaelthasSunstriderAssignAdvisorDpsPriorityAction::Execute(',
                           'bool KaelthasSunstriderLootLegendaryWeaponsAction::ShouldBotLootWeapon(']:
             self.assertEqual(block(source(TK+'TKActions.cpp'), signature),
                              block(source(TK+'TKActions.cpp', True), signature))
+        # October 10 adds a checked Lua preference before the old advisor policy.
+        # Preserve that entire fallback; the new adapter has separate runtime tests.
+        signature = 'bool KaelthasSunstriderAssignAdvisorDpsPriorityAction::Execute('
+        marker = '    // Target priority 1:'
+        current = block(source(TK+'TKActions.cpp'), signature)
+        original = block(source(TK+'TKActions.cpp', True), signature)
+        self.assertEqual(current.count(marker), 1)
+        self.assertEqual(current[current.index(marker):], original[original.index(marker):])
 
 
 if __name__ == '__main__':

@@ -134,6 +134,11 @@ a server restart; adoption still waits for a safe boundary.
   snapshot, just as it already did for `ThreatStrategy`; semantic tests still
   compile **both current production files**. The shared double adds the previously
   absent charmer query. Original failed fixture logs are retained.
+- The first 128-test deployment run also hit two obsolete whole-source equality
+  checks: MT-only selection and the pre-Lua advisor-priority body. They now exclude
+  exactly the intentional extension while still comparing the old threat math and
+  complete legacy priority fallback. Both corrected checks pass independently;
+  the original failed run is retained, not waived.
 
 These are source-bound fixtures and API doubles, not live encounter acceptance.
 A fresh pull is still needed to observe the corrected throughput and new order.
