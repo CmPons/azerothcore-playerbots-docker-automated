@@ -160,3 +160,11 @@ Private completed captures:
   Both collectors exited by21:26:06. Telonicus remained alive when a Kael MC was
   sampled at21:06:57. Do not merge the two attempts or infer damage totals from
   action histories.
+
+## Deployment
+
+[October 10 deployment and qualified preservation audit](tk-threat-policy-deployment-20261010.md):
+ready22:08:29 CEST, 128 regression tests and six native syntax checks passed.
+Gear identities and raid progress were retained; the later Raney preferences,
+skill caps, pet activity and new-socket findings remain explicitly recorded.
+Live encounter validation is still pending.
