@@ -292,6 +292,55 @@ Rollback is to set the env knob to `5`, merge those two runtime entries back to
 `5`, and issue `ahbot reload`; existing auctions continue to sell/expire normally.
 Do not restore a database or a whole old config to reverse this setting.
 
+## One-time shield restock — October 10, 2026
+
+At the user's request, added **40 shields per house (120 total)** through the
+normal AH seller. All seven selected templates appeared in each house:
+
+| Shield | Entry | Quality | Required level | Alliance | Horde | Neutral |
+| --- | ---: | --- | ---: | ---: | ---: | ---: |
+| Shield of the Wayward Footman | 31200 | Rare | 65 | 2 | 7 | 3 |
+| Draenei Honor Guard Shield | 31287 | Rare | 68 | 3 | 2 | 4 |
+| Crystal Pulse Shield | 31292 | Rare | 69 | 7 | 5 | 3 |
+| Kaskala Buckler | 36447 | Uncommon | 69 | 8 | 9 | 9 |
+| Spiked Targe | 36448 | Uncommon | 70 | 12 | 5 | 9 |
+| Beneficent Bulwark | 37747 | Rare | 69 | 4 | 3 | 3 |
+| Cobalt Triangle Shield | 40668 | Uncommon | 70 | 4 | 9 | 9 |
+
+These are verified BoE shields, required level65–70, ilvl<=164, with no
+profession/reputation requirement. Existing item stats, random-property
+selection, pricing and expiration policy were unchanged. **This is additional
+variety, not a promise of an upgrade over Cobalt:** the rare options are mostly
+caster shields; Wayward Footman is an older, lower-level tank option. No raid,
+reputation or other BoP reward was made tradeable or listed.
+
+For this bounded operation only, the existing item-ID filter was restricted to
+these seven IDs using min/max0 and explicit exceptions. Per-cycle work was capped
+at40, house targets temporarily allowed10040 listings, and AH-bot buying was
+paused during the restock. One acknowledged `ahbot reload`, one `ahbot update`,
+and a final restoring `ahbot reload` completed successfully. The exact original
+AH config was restored in a `finally` block; both env files and every runtime
+`.conf` hash match the originals. No permanent weights, multipliers, caps,
+buyer settings or stock-policy change remains.
+
+The source audit identified that an already pending multiplied-item batch can
+survive reload; the before/after inventory check therefore inspected every new
+listing rather than assuming a restricted pool guaranteed exclusivity. In this
+run **all120 new listings were selected shields**, with zero other additions,
+zero removed existing auctions and zero changes to existing auction rows at the
+verification snapshot. Stock counts are point-in-time, not future guarantees.
+
+World/auth/database/helper container identities, images, start times, statuses
+and restart counts, plus Pi bridge identity/state, were unchanged. No build,
+restart, auction clearing, direct player-item grant, operator SQL write or
+full setup occurred. Native AH code performed its ordinary auction transactions.
+The stock sells/expires normally (existing15-minute to24-hour lifetime range);
+this was a one-time refill, not scheduled guaranteed shield replenishment.
+
+Private config backups, candidate audit, auction snapshots, console acknowledgments,
+restoration assertions and service checks:
+`backups/ah-shield-stock-20261010-163800/`.
+
 ## Operations
 
 GM commands: `.ahbot reload`, `.ahbot update`.
