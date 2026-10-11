@@ -37,8 +37,8 @@ def native_enums():
     return '\n'.join(method(path.read_text(), "enum " + name) + ';' for path, names in sources.items() for name in names)
 
 
-def fixture_data():
-    data = json.loads((ROOT / "scripts/tests/fixtures/direct-token-loot/t4-items.json").read_text())
+def fixture_data(path=None):
+    data = json.loads((path or ROOT / "scripts/tests/fixtures/direct-token-loot/t4-items.json").read_text())
     lines = []
     for item in data["items"]:
         lines += ['{ ItemTemplate p;']
