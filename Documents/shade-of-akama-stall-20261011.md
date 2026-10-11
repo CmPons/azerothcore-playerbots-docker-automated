@@ -14,8 +14,10 @@ casting-state guard and newer core handling of action-allowed channels.
 The initial investigation changed no gameplay code, configuration, database state
 or services. After logging out, the user authorized a fix. A narrow source repair
 is now published as core **`e18441e6917b8898d15532b9c4597b5e84727b34`** with offline
-regression tests. It is **not deployed**; rebuild/restart authorization was requested
-separately. No server interruption, live configuration change or SQL mutation occurred.
+regression tests. The user subsequently explicitly authorized a worldserver-only
+rebuild/restart. The fix became **live at 22:00:02 CEST**; see the
+[deployment and qualified preservation audit](shade-channel-deployment-20261011.md).
+No live configuration change, manual SQL mutation or unrelated-service restart was performed.
 
 ## Direct evidence
 
@@ -137,7 +139,8 @@ live auras or waive genuine active channel contributions.
 - Official C++ style checker passed for the before/after boss file and new C++
   fixture. Existing over-120-column lines in the original registration code are
   unchanged; the patch and new fixture introduce none.
-- No full worldserver image build or live encounter test has been performed yet.
+- These source checks preceded the subsequently authorized image build/deployment
+  and its 147-test validation. No post-fix live Shade pull has been performed.
 
 The fixture injects the complete production channeler and sorcerer classes,
 `SpellInfo::IsChanneled/IsActionAllowedChannel`, `Unit::SetCurrentCastedSpell`,
@@ -179,11 +182,12 @@ Relevant native files:
 - `src/server/scripts/Commands/cs_misc.cpp`
 
 Investigated runtime core revision: `7ecb74c2a3c95bf1aa83e38a0e3ca197beb6cb72`.
-Published fix revision (not yet deployed): `e18441e6917b8898d15532b9c4597b5e84727b34`.
+Deployed fix revision: `e18441e6917b8898d15532b9c4597b5e84727b34`.
 Playerbots: `1e7ee6b890767da1f3ff517b2eb97eab9bf06054`.
-Worldserver image remains
+At investigation time, the worldserver image was
 `sha256:6828e979ae51dddc2a55903d22d77f4ea5695e02e9a9ab7393d4d26cdefe1e46`,
-started `2026-10-11T10:00:42.741911913Z`, running with restart count zero.
+started `2026-10-11T10:00:42.741911913Z`, running with restart count zero. The linked
+deployment report identifies its replacement.
 
 Private evidence: `backups/shade-investigation-20261011-204633/`, pointer
 `/tmp/shade-investigation`. Includes screenshot, raw capture, installed data,
