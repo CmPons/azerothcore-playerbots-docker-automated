@@ -11,9 +11,11 @@ This is not a required wave count or evidence of insufficient raid DPS. Source
 inspection identifies an incompatibility between the existing channeler script's
 casting-state guard and newer core handling of action-allowed channels.
 
-No gameplay code, configuration, database state or services were changed by the
-assistant. This task investigated the running encounter and documented the cause;
-a permanent fix has **not** been implemented or deployed.
+The initial investigation changed no gameplay code, configuration, database state
+or services. After logging out, the user authorized a fix. A narrow source repair
+is now published as core **`e18441e6917b8898d15532b9c4597b5e84727b34`** with offline
+regression tests. It is **not deployed**; rebuild/restart authorization was requested
+separately. No server interruption, live configuration change or SQL mutation occurred.
 
 ## Direct evidence
 
@@ -112,14 +114,55 @@ the proposed direct boss kill. Do **not** use `.unaura all`, remove Akama's 4044
 treat a GM recovery as a clean progression test. The assistant issued no GM mutation
 commands. Removing this aura does not repair the channeler script for future attempts.
 
-The narrow permanent repair should make the channeler test the **actual active
-spell/channel**, not only `UNIT_STATE_CASTING`. For example, the existing
-`IsNonMeleeSpellCast(false)` checks an unfinished current channel even when actions
-are allowed. Validate the final choice against initial casts, repeated callbacks,
-legitimate interruption/rechannel, deaths, sorcerers, wipe/reset and repull behavior.
-Do not globally change action-allowed spell semantics or simply disable the slow
-mechanic. Any reconciliation of already-stale stacks needs separate, fail-closed
-handling that preserves genuine active channel contributions.
+### Implemented source repair
+
+The channeler's guard now uses **`!me->IsNonMeleeSpellCast(false)`**. That predicate
+checks an unfinished current channel even when actions are allowed. Initial casts
+and retries after a real interruption remain permitted; an already-active channel
+is no longer refreshed by the 3.6-second callback.
+
+This is the sole behavioral source change. The rest of the boss file is compared
+byte-for-byte to the pre-fix revision in the tests. Wave schedules, boss/add health,
+slow amount/stack limit, movement/phase transitions, sorcerer behavior, global spell
+semantics, raid scaling, bot strategy and threat/casting policies are unchanged.
+The fix prevents new orphan stacks; it does not automatically cleanse already-stale
+live auras or waive genuine active channel contributions.
+
+### Offline validation
+
+- **12 new tests passed** under ASan/UBSan, with no sanitizer recovery.
+- **45 selected regression tests passed**, no skips, in **99.071 seconds**: Shade,
+  Leotheras, raid respawn/scaling dependencies, TK advisor health and raid support.
+- Native-header syntax check passed for the changed boss file.
+- Official C++ style checker passed for the before/after boss file and new C++
+  fixture. Existing over-120-column lines in the original registration code are
+  unchanged; the patch and new fixture introduce none.
+- No full worldserver image build or live encounter test has been performed yet.
+
+The fixture injects the complete production channeler and sorcerer classes,
+`SpellInfo::IsChanneled/IsActionAllowedChannel`, `Unit::SetCurrentCastedSpell`,
+`Unit::IsNonMeleeSpellCast`, native enums and the production channel-removal handler.
+World objects, scheduler timing, spell effects/refresh and cancellation are controlled
+doubles, with source-contract assertions on native self-replacement cancellation
+and shared aura stacking. It is not a full core/map simulation.
+
+Cases cover six simultaneous channels, 100 repeated callback rounds without extra
+applications, individual deaths, 25 interruption/rechannel cycles, failed-cast retry,
+ordinary non-action-allowed channels, another active cast, 20 controlled repulls,
+and a sorcerer's independent contribution. Repulls model death/cleanup/revival and
+AI reset, not the entire Akama death/instance-reset sequence. The old production
+guard reproduces **99 capped stacks then 96 after three channel removals** in a
+controlled example and fails the correct lifecycle assertions. That example matches
+the observed symptom, not a claim about the precise historical caster count.
+Mutants that skip channel checking or disable casting altogether also fail.
+
+Tests: `scripts/tests/test_shade_of_akama.py`,
+`scripts/tests/cpp/ShadeChannelTest.cpp`, and the public spell-field fixture
+`scripts/tests/fixtures/shade-of-akama/spells.json`.
+Private validation: `backups/shade-fix-work-20261011-210830/`, pointer
+`/tmp/shade-fix-work`. The initial fixture compilation
+failure from an omitted `CURRENT_MAX_SPELL` macro is retained; the fixture now sizes
+its array from the extracted final spell-slot enumerator.
 
 The earlier Aqueous Lord/BT-strategy DPS complaint remains a **separate uninvestigated
 issue**; this finding does not identify its cause. The flight-casting and TK policy
@@ -135,7 +178,8 @@ Relevant native files:
 - `src/server/shared/SharedDefines.h`, `DataStores/DBCStructure.h`
 - `src/server/scripts/Commands/cs_misc.cpp`
 
-Core revision: `7ecb74c2a3c95bf1aa83e38a0e3ca197beb6cb72`.
+Investigated runtime core revision: `7ecb74c2a3c95bf1aa83e38a0e3ca197beb6cb72`.
+Published fix revision (not yet deployed): `e18441e6917b8898d15532b9c4597b5e84727b34`.
 Playerbots: `1e7ee6b890767da1f3ff517b2eb97eab9bf06054`.
 Worldserver image remains
 `sha256:6828e979ae51dddc2a55903d22d77f4ea5695e02e9a9ab7393d4d26cdefe1e46`,

@@ -1,0 +1,14 @@
+{
+  "description": "Read-only installed Spell.dbc snapshot, 2026-10-11. Public spell fields only. No spell_dbc or spell_linked_spell overrides found for 40401, 40447 or 40520. SpellMgr adds SINGLE_AURA_STACK to 40520.",
+  "40401": {
+    "AttributesEx": 4,
+    "AttributesEx5": 1,
+    "EffectTriggerSpell_2": 40520
+  },
+  "40520": {
+    "StackAmount": 99,
+    "EffectApplyAuraName_1": 33,
+    "EffectBasePoints_1": -31,
+    "EffectDieSides_1": 1
+  }
+}
