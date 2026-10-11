@@ -139,3 +139,52 @@ Priorities supported by this capture:
 No new implementation or deployment is implied by this investigation. The win is
 recorded with its assistance qualification, and the remaining bot problems remain
 open rather than being dismissed because the boss died.
+
+## Follow-up: flight/casting conflict found in source
+
+After the user asked why heals failed, read-only source/data inspection found a
+concrete incompatibility, now the leading explanation for gravity-window cast
+failures (not a proven attribution of every recorded failure):
+
+1. `Bot/PlayerbotAI.cpp::CastSpell(uint32, Unit*, Item*)` unconditionally returns
+   false when `bot->IsFlying()` or `UNIT_STATE_IN_FLIGHT` is true, before constructing
+   or preparing the normal spell. It applies to heals, instant spells and offensive
+   spells alike. Its debug message is commented out.
+2. `CanCastSpell` does not apply that same blanket flying check. An action can thus
+   pass feasibility, select a critically injured recipient and still return
+   `FAILED` during execution without spending mana.
+3. Live `Spell.dbc` confirms39432 is Gravity Lapse, apply-aura effect6 with aura201
+   (`SPELL_AURA_FLY`), duration index9. The boss script applies it after the lapse
+   teleport/knockback. `AuraEffect::HandleAuraAllowFlight` grants flight capability;
+   playerbot `MovementAction::UpdateMovementState` can then set `FLYING` and
+   `DISABLE_GRAVITY` when the flight aura/master conditions hold.
+4. Core `Unit::IsFlying()` tests **either** `FLYING` or `DISABLE_GRAVITY`; visual
+   proximity to the floor does not exclude the rejection. Bot movement-state cleanup
+   also matters after the aura ends, but stale flags were not captured/proven here.
+5. The ordinary core cast checks are not equivalent to this blanket AI veto. For
+   example, the shown mount/taxi restriction in `Spell::CheckCast` checks mounted
+   state and spell attributes; encounter-granted unmounted flight must not simply
+   be treated as flying on a mount or taking a taxi.
+
+The 10:48 failure window includes an explicit gravity-lapse multiplier verdict for
+Meliah at10:48:08, widespread failed instant and cast-time heals, and full mana on
+Ailina/Keilmere. Ailina has Healing Touch `OK` by10:48:44. Those observations support
+the hypothesis, but the capture contains neither `IsFlying()`/raw movement flags
+nor the exact early-return/native `SpellCastResult` for each failed heal. They do
+not conclusively tie every healer's failure to this branch, or exclude LOS/range,
+movement/control and other contributors. Kaaren's spells could be affected too;
+her separate target-loss/re-engagement behavior still needs its own accounting.
+
+DBC evidence is retained privately in `gravity-lapse-dbc.json` and `Spell.dbc`;
+SHA256 `d5cce1a83550dcfa9eb2f0251dbb11fd24c272534b2b1a9b230924a44d817ab3`.
+The world `spell_dbc` override query returned no39432 row, and the inspected native
+correction file had no39432/35941 override. `git blame` attributes the current
+flying-condition line to inherited commit `53611c904` (August4,2024), not the
+October10 threat/ownership changes.
+
+Recommended next work: test and correct flight-aware bot cast admission while
+preserving legitimate mount/taxi, movement, resource and core spell restrictions;
+add bounded diagnostics that distinguish an early AI refusal from a core cast
+rejection. No source fix, runtime logging change, rebuild or restart was performed
+for this follow-up. No extra full raid attempt is needed to reproduce the code-level
+flying guard in a controlled test.
