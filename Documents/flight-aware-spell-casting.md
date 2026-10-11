@@ -36,11 +36,12 @@ positive-spell rejection on a friendly target strictly below 30% health. An urge
 observation is diagnostic only—not a healing/threat exemption. Instance changes
 reset the snapshots on the next recorded failure; AI destruction discards them.
 
-Server log marker: **`[PlayerbotCastFailure]`**. At most one ordinary and one urgent
-line per five seconds per eligible bot. Both lanes update snapshots even when the
-log line is suppressed. Read-only command-server query: **`castfail,<bot-guid>`**.
-Each snapshot supplies age, map/instance, spell, actual recipient GUID/health (or
-explicit destination coordinates), caster mana, center-to-center 3D distance,
+Server log marker: **`[PlayerbotCastFailure]`**. Ordinary and urgent lanes each
+allow one line per five seconds per eligible bot; a map/instance scope change
+resets these limits. Both lanes update snapshots even when logging is suppressed.
+Read-only command-server query: **`castfail,<bot-guid>`**.
+Each snapshot supplies age, map/instance, spell, submitted recipient GUID/health
+(or requested destination coordinates), caster mana, center-to-center 3D distance,
 heights, flying/taxi/mount/vehicle/aura/form/moving flags and unit-state bits.
 
 - `stage=check` versus `stage=execute` distinguishes feasibility from submission.
@@ -79,5 +80,6 @@ Production-header syntax checks and a full image build are separate validation.
 The October 11 capture did **not** record flight flags or native spell errors.
 The old veto is source-confirmed; blaming every missed heal/DPS gap on it remains
 unproven. This change does not claim to fix Kaaren's separate empty-target periods.
-See [the capture](kael-kill-capture-20261011.md) and the deployment closeout for live
-identity, preservation qualifications and remaining gameplay acceptance.
+See [the capture](kael-kill-capture-20261011.md) and
+[deployment closeout](flight-casting-deployment-20261011.md) for live identity,
+preservation qualifications and remaining gameplay acceptance.
